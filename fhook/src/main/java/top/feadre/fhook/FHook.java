@@ -3,6 +3,8 @@ package top.feadre.fhook;
 import android.content.Context;
 import android.os.Build;
 import android.os.Debug;
+import android.util.Log;
+import android.widget.Toast;
 
 import java.io.IOException;
 import java.lang.reflect.Member;
@@ -163,8 +165,13 @@ public class FHook {
         }
 
         long methodId = CLinker.dcHook(method, true, true, true);
+        if (methodId < 0) {
+            FLog.e(TAG, "[hook] dcHook failed: " + methodId);
+        }else {
+            FLog.i(TAG, "[hook] dcHook success: " + methodId);
+        }
 
-        HookHandle handle = new HookHandle(123, method);
+        HookHandle handle = new HookHandle(methodId, method);
 
         return handle;
     }

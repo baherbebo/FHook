@@ -1,5 +1,7 @@
 package top.feadre.fhook.activitys;
 
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -69,12 +71,24 @@ public class MainActivity extends AppCompatActivity {
                 }
             }).setOrigFunRun(false);
 
+            FHook.hook(fun_J_DIJ).setHookEnter(new FHook.HookEnterCallback() {
+                @Override
+                public void onEnter(HookParam param) throws Throwable {
+
+                }
+            }).setHookEnter(new FHook.HookEnterCallback() {
+                @Override
+                public void onEnter(HookParam param) throws Throwable {
+
+                }
+            }).setOrigFunRun(true);
+
         });
 
         Button bt_main_02 = findViewById(R.id.bt_main_02);
         bt_main_02.setText("hook初始化");
         bt_main_02.setOnClickListener(v -> {
-            FHook.InitReport rep  = FHook.init(this);
+            FHook.InitReport rep = FHook.init(this);
             Toast.makeText(this, rep.toString(), Toast.LENGTH_LONG).show();
         });
 
@@ -140,7 +154,217 @@ public class MainActivity extends AppCompatActivity {
         bindV(R.id.bt_main_45, "demoRun()", THook::demoRun);
 
         // 如果你还有更多按钮 (46~52)，可以按需加自己用的测试项
+        bindV(R.id.bt_main_46, "System.exit", () -> System.exit(99));
+
+        // 47) Class.forName(String, boolean, ClassLoader) —— 3参 + 返回 Class
+        Button b47 = findViewById(R.id.bt_main_47);
+        b47.setText("Class.forName(name,init,loader)");
+        b47.setOnClickListener(v -> {
+            try {
+                Class<?> c = Class.forName("java.lang.Integer", true, getClassLoader());
+                Toast.makeText(this, "got: " + c.getName(), Toast.LENGTH_SHORT).show();
+            } catch (Throwable e) {
+                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        bindV(R.id.bt_main_48, "Class.forName", () -> {
+            try {
+                ClassLoader classLoader = getClassLoader();
+                classLoader.loadClass("java.lang.String");
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        bindV(R.id.bt_main_48, "Class.forName", () -> {
+            try {
+                ClassLoader classLoader = getClassLoader();
+                classLoader.loadClass("java.lang.String");
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        // 48) ClassLoader.loadClass(String, boolean) —— 2参 + 返回 Class
+        Button b48 = findViewById(R.id.bt_main_48);
+        b48.setText("ClassLoader.loadClass(name,true)");
+        b48.setOnClickListener(v -> {
+            try {
+                Class<?> c = getClassLoader().loadClass("java.lang.String");
+                Toast.makeText(this, "got: " + c.getName(), Toast.LENGTH_SHORT).show();
+            } catch (Throwable e) {
+                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // 49) Method.invoke(Object, Object...) —— 变参 + 返回 Object（反射调用）
+        Button b49 = findViewById(R.id.bt_main_49);
+        b49.setText("Method.invoke(THook.fun_I_II)");
+        b49.setOnClickListener(v -> {
+            try {
+                java.lang.reflect.Method m =
+                        top.feadre.fhook.THook.class.getMethod("fun_I_II", int.class, int.class);
+                Object ret = m.invoke(new top.feadre.fhook.THook(), 12, 34);
+                Toast.makeText(this, "ret=" + ret, Toast.LENGTH_SHORT).show();
+            } catch (Throwable e) {
+                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // 50) Constructor.newInstance(Object...) —— 变参 + 返回实例
+        Button b50 = findViewById(R.id.bt_main_50);
+        b50.setText("Ctor.newInstance(String(bytes,charset))");
+        b50.setOnClickListener(v -> {
+            try {
+                java.lang.reflect.Constructor<String> c =
+                        String.class.getConstructor(byte[].class, java.nio.charset.Charset.class);
+                String s = c.newInstance("hi".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        java.nio.charset.StandardCharsets.UTF_8);
+                Toast.makeText(this, "new String -> " + s, Toast.LENGTH_SHORT).show();
+            } catch (Throwable e) {
+                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // 51) Settings.Secure.getString(ContentResolver, String) —— 2参 + 返回 String（常被审计）
+        Button b51 = findViewById(R.id.bt_main_51);
+        b51.setText("Settings.Secure.getString(ANDROID_ID)");
+        b51.setOnClickListener(v -> {
+            try {
+                String id = android.provider.Settings.Secure.getString(
+                        getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
+                Toast.makeText(this, "ANDROID_ID=" + id, Toast.LENGTH_SHORT).show();
+            } catch (Throwable e) {
+                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // 52) SharedPreferences 写入 + 提交 —— putString(String,String) + commit() 返回 boolean
+        Button b52 = findViewById(R.id.bt_main_52);
+        b52.setText("SharedPreferences.put/commit");
+        b52.setOnClickListener(v -> {
+            try {
+                android.content.SharedPreferences sp = getSharedPreferences("demo", MODE_PRIVATE);
+                boolean ok = sp.edit().putString("k", "v@" + System.currentTimeMillis()).commit();
+                String v2 = sp.getString("k", "");
+                Toast.makeText(this, "commit=" + ok + ", v=" + v2, Toast.LENGTH_SHORT).show();
+            } catch (Throwable e) {
+                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+//        // 53) SQLiteDatabase.query(...) —— 8参 + 返回 Cursor（高频 SQL Hook 点）
+//        Button b53 = findViewById(R.id.bt_main_53);
+//        b53.setText("SQLiteDatabase.query(8参)");
+//        b53.setOnClickListener(v -> {
+//            android.database.sqlite.SQLiteDatabase db = null;
+//            android.database.Cursor c = null;
+//            try {
+//                db = android.database.sqlite.SQLiteDatabase.create(null);
+//                db.execSQL("CREATE TABLE t(a INTEGER, b TEXT)");
+//                db.execSQL("INSERT INTO t(a,b) VALUES(?,?)", new Object[]{1, "x"});
+//                db.execSQL("INSERT INTO t(a,b) VALUES(?,?)", new Object[]{2, "y"});
+//                c = db.query("t",
+//                        new String[]{"a","b"},
+//                        "a>?",
+//                        new String[]{"0"},
+//                        null, null,
+//                        "a DESC",
+//                        "10");
+//                int rows = c.getCount();
+//                Toast.makeText(this, "rows=" + rows, Toast.LENGTH_SHORT).show();
+//            } catch (Throwable e) {
+//                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+//            } finally {
+//                if (c != null) c.close();
+//                if (db != null) db.close();
+//            }
+//        });
+//
+//        // 54) Cipher.init(int, Key, SecureRandom) + doFinal(byte[]) —— 3参 + 返回 byte[]
+//        Button b54 = findViewById(R.id.bt_main_54);
+//        b54.setText("Cipher.init/doFinal(AES)");
+//        b54.setOnClickListener(v -> {
+//            try {
+//                javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("AES/ECB/PKCS5Padding");
+//                javax.crypto.spec.SecretKeySpec key =
+//                        new javax.crypto.spec.SecretKeySpec(
+//                                "0123456789abcdef".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+//                                "AES");
+//                java.security.SecureRandom rnd = new java.security.SecureRandom();
+//                cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, key, rnd);
+//                byte[] out = cipher.doFinal("hello".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+//                Toast.makeText(this, "enc len=" + out.length, Toast.LENGTH_SHORT).show();
+//            } catch (Throwable e) {
+//                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+//            }
+//        });
+//
+//        // 55) MessageDigest.getInstance + digest(byte[]) —— 1参 + 返回 byte[]
+//        Button b55 = findViewById(R.id.bt_main_55);
+//        b55.setText("MessageDigest.digest(SHA-256)");
+//        b55.setOnClickListener(v -> {
+//            try {
+//                java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+//                byte[] out = md.digest("abc".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+//                String head = String.format("%02x%02x%02x%02x", out[0], out[1], out[2], out[3]);
+//                Toast.makeText(this, "sha256[0..3]=" + head, Toast.LENGTH_SHORT).show();
+//            } catch (Throwable e) {
+//                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+//            }
+//        });
+//
+//        // 56) Parcel.obtain()/writeInt/readInt/recycle —— 多步 + 常见 Binder 数据面 Hook
+//        Button b56 = findViewById(R.id.bt_main_56);
+//        b56.setText("Parcel.write/read");
+//        b56.setOnClickListener(v -> {
+//            android.os.Parcel p = null;
+//            try {
+//                p = android.os.Parcel.obtain();
+//                p.writeInt(42);
+//                p.setDataPosition(0);
+//                int val = p.readInt();
+//                Toast.makeText(this, "parcel val=" + val, Toast.LENGTH_SHORT).show();
+//            } catch (Throwable e) {
+//                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+//            } finally {
+//                if (p != null) p.recycle();
+//            }
+//        });
+//
+//        // 57) Intent.putExtra(String,int)（链式）+ getIntExtra —— 2参 + 返回 Intent/int
+//        Button b57 = findViewById(R.id.bt_main_57);
+//        b57.setText("Intent.putExtra/getExtra");
+//        b57.setOnClickListener(v -> {
+//            try {
+//                android.content.Intent it = new android.content.Intent()
+//                        .putExtra("k", 123)
+//                        .putExtra("m", 456);
+//                int got = it.getIntExtra("m", -1);
+//                Toast.makeText(this, "extra m=" + got, Toast.LENGTH_SHORT).show();
+//            } catch (Throwable e) {
+//                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+//            }
+//        });
+//
+//        // 58) Uri.buildUpon().appendQueryParameter(...).build() —— 多步 + 返回 Uri
+//        Button b58 = findViewById(R.id.bt_main_58);
+//        b58.setText("Uri.buildUpon/appendQP/build");
+//        b58.setOnClickListener(v -> {
+//            try {
+//                android.net.Uri u = android.net.Uri.parse("https://ex.com/p")
+//                        .buildUpon()
+//                        .appendQueryParameter("a", "1")
+//                        .appendQueryParameter("b", "2")
+//                        .build();
+//                Toast.makeText(this, u.toString(), Toast.LENGTH_SHORT).show();
+//            } catch (Throwable e) {
+//                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+//            }
+//        });
     }
+
 
     // 放在 MainActivity 类里：两个小接口 & 绑定工具
     private interface Ret<T> {

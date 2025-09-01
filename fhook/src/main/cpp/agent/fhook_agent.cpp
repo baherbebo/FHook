@@ -208,7 +208,8 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
 
     LOGD("[agent_do_transform] targetClassName: %s, targetMethodName: %s, targetMethodSignature: %s",
          targetClassName.c_str(), targetMethodName.c_str(), targetMethodSignature.c_str())
-    return 0;
+
+    return reinterpret_cast<jlong>(nativeMethodID);;
 
 }
 

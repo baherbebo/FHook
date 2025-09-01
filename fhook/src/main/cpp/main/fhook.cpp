@@ -15,14 +15,13 @@ static void *fAgentHandle = nullptr;
 static std::string fAgentPath;
 
 
-jmethodID getMethodId(JNIEnv *env, jclass clazz, jobject jTargetMethod) {
+jlong getMethodId(JNIEnv *env, jclass clazz, jobject jTargetMethod) {
     jmethodID methodID = env->FromReflectedMethod(jTargetMethod);
     if (!methodID) {
         LOGE("[getMethodInfo] method 方法ID引用失败");
         return JNI_FALSE;
     }
-    return methodID;
-//    return reinterpret_cast<jlong>(methodID);
+    return reinterpret_cast<jlong>(methodID);
 }
 
 template<typename FuncType>
@@ -61,7 +60,7 @@ extern "C" JNIEXPORT jlong JNICALL dcHook(
     auto transformFn = getAgentFn<AgentDoTransformFn>(
             AgentDoTransformFnName.c_str());
 
-    jmethodID methodID = getMethodId(env, clazz, jTargetMethod);
+    jlong methodID = getMethodId(env, clazz, jTargetMethod);
     if (!methodID) {
         LOGE("[dcHook] 获取方法ID失败")
         return -1;

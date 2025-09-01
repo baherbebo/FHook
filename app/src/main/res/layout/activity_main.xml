@@ -429,6 +429,12 @@
             </LinearLayout>
         </HorizontalScrollView>
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="----------------------------------------" />
+
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -501,8 +507,21 @@
                     android:layout_height="wrap_content"
                     android:text="按键52" />
             </LinearLayout>
+
         </HorizontalScrollView>
 
+        <TextView
+            android:id="@+id/tv_main_end"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="FHook结束" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="----------------------------------------" />
     </LinearLayout>
 
 </ScrollView>
