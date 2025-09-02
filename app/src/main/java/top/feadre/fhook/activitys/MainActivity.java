@@ -59,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
         bt_main_01.setOnClickListener(v -> {
             Method fun_I_II = FHookTool.findMethod4First(THook.class, "fun_I_II");
             Method fun_J_DIJ = FHookTool.findMethod4First(THook.class, "fun_J_DIJ");
+            Method jc_I_IntArray = FHookTool.findMethod4First(THook.class, "jc_I_IntArray");
             FHook.hook(fun_I_II).setHookEnter(new FHook.HookEnterCallback() {
                 @Override
                 public void onEnter(HookParam param) throws Throwable {
@@ -83,6 +84,17 @@ public class MainActivity extends AppCompatActivity {
                 }
             }).setOrigFunRun(true);
 
+            FHook.hook(jc_I_IntArray).setHookEnter(new FHook.HookEnterCallback() {
+                @Override
+                public void onEnter(HookParam param) throws Throwable {
+
+                }
+            }).setHookEnter(new FHook.HookEnterCallback() {
+                @Override
+                public void onEnter(HookParam param) throws Throwable {
+
+                }
+            }).setOrigFunRun(true);
         });
 
         Button bt_main_02 = findViewById(R.id.bt_main_02);

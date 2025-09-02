@@ -11,6 +11,27 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)  # 禁用编译器扩展
 
 
+add_library(
+        dexter
+        STATIC #  静态库 只生成 .a，不会打包进 APK 后续谁链接它
+
+        dexter/bytecode_encoder.cc
+        dexter/code_ir.cc
+        dexter/common.cc
+        dexter/control_flow_graph.cc
+        dexter/debuginfo_encoder.cc
+        dexter/dex_bytecode.cc
+        dexter/dex_format.cc
+        dexter/dex_ir.cc
+        dexter/dex_ir_builder.cc
+        dexter/dex_utf8.cc
+        dexter/reader.cc
+        dexter/tryblocks_encoder.cc
+        dexter/writer.cc
+
+)
+
+
 # 定义公共源文件列表
 set(COMMON_SOURCES
         FGlobal_flib.cpp
@@ -36,12 +57,16 @@ add_library(
         fhook_agent
         SHARED
         agent/fhook_agent.cpp
+        agent/transform.cpp
 
         ${COMMON_SOURCES}
 )
 
 target_link_libraries(
         fhook_agent
+
+        dexter  # 静态库
+
         android
         log
 )
