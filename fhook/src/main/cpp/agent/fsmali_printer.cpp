@@ -38,8 +38,8 @@ std::string SmaliPrinter::CodeIrToSmali(lir::CodeIr *code_ir) {
 }
 
 
-void SmaliPrinter::CodeIrToSmali4Print(lir::CodeIr *code_ir) {
-    LOGD("[CodeIrToSmali4Print] ===== CodeIr 对应的 Smali 指令 =====");
+void SmaliPrinter::CodeIrToSmali4Print(lir::CodeIr *code_ir, std::string &text) {
+    LOGD("[CodeIrToSmali4Print] ===== %s CodeIr 对应的 Smali 指令 =====", text.c_str());
     size_t index = 0;
     for (auto it = code_ir->instructions.begin();
          it != code_ir->instructions.end(); ++it, ++index) {
@@ -58,6 +58,11 @@ void SmaliPrinter::CodeIrToSmali4Print(lir::CodeIr *code_ir) {
         }
     }
     LOGD("===================================");
+}
+
+void SmaliPrinter::CodeIrToSmali4Print(lir::CodeIr *code_ir) {
+    std::string text = "";
+    CodeIrToSmali4Print(code_ir, text);
 }
 
 // 转换单条字节码指令为 Smali

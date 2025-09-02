@@ -6,9 +6,15 @@
 #define RIFT_FJAVA_API_H
 
 
-namespace fjava_api {
-    lir::Method *get_detour_method(slicer::DetourHook *thiz,
-                                   lir::CodeIr *code_ir);
+#include "../dexter/slicer/code_ir.h"
+
+namespace fir_funs_def {
+
+    lir::Method *cre_method(lir::CodeIr *code_ir,
+                            const std::string &name_class,
+                            const std::string &name_method,
+                            const std::vector<std::string> &param_types,
+                            const std::string &return_type);
 
     lir::Method *get_log_method(lir::CodeIr *code_ir);
 

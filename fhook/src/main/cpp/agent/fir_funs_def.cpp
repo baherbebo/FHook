@@ -1,61 +1,96 @@
 //
 // Created by Administrator on 2025/8/28.
 //
-#include "log.h"
 
-#include "dexter/slicer/fsmali_printer.h"
-#include "dexter/slicer/fir.h"
+#include "../FGlobal_flib.h"
 
-#define TAG FEADRE_TAG("freplace_fun")
+#define TAG FEADRE_TAG("fir_funs_def")
 
-#include "fjava_api.h"
+#include "fir_funs_def.h"
+#include "../dexter/slicer/dex_ir_builder.h"
 
-namespace fjava_api {
 
-    /// 直接构造绕行方法
-    lir::Method *get_detour_method(slicer::DetourHook *thiz,
-                                   lir::CodeIr *code_ir) {
+namespace fir_funs_def {
 
+    lir::Method *cre_method(
+            lir::CodeIr *code_ir,
+            const std::string &name_class,
+            const std::string &name_method,
+            const std::vector<std::string> &param_types,
+            const std::string &return_type
+    ) {
         ir::Builder builder(code_ir->dex_ir);
-        const auto ir_method = code_ir->ir_method;
 
-        // 就是拿原方法信息，主要是在非静态时，添加一个this 的参数类型（加一个参数）
-        //        bool is_static = (ir_method->access_flags & dex::kAccStatic) != 0;
-        bool is_static = thiz->orig_method_id_.is_static;
-
-
-        // 原方法声明的返回类型
-        auto orig_proto = ir_method->decl->prototype;
-        auto orig_return_type = orig_proto->return_type;
-
-        // 2. 构建绕行方法的参数列表（与原方法保持一致，包括非静态方法的this指针）
-        std::vector<ir::Type *> param_types;
-        if (!is_static) {
-            // 非静态方法需要传递this指针作为第一个参数
-            param_types.push_back(ir_method->decl->parent);
-        }
-        // 添加原方法的参数类型
-        if (orig_proto->param_types != nullptr) {
-            const auto &orig_params = orig_proto->param_types->types;
-            // 尾部插入
-            param_types.insert(param_types.end(), orig_params.begin(), orig_params.end());
+        // 1. 校验入参有效性（避免空指针或无效描述符导致崩溃）
+        if (code_ir == nullptr || return_type.empty() || name_method.empty() ||
+            name_class.empty()) {
+            LOGE("[cre_method] 入参无效（code_ir=nullptr或关键字符串为空）");
+            return nullptr;
         }
 
-        // 3. 构建绕行方法的签名
-        auto detour_proto = builder.GetProto(
-                orig_return_type,
-                builder.GetTypeList(param_types));
+        // 2. 构建返回值类型（从描述符获取ir::Type）
+        ir::Type *ir_return_type = builder.GetType(return_type.c_str());
+        if (ir_return_type == nullptr) {
+            LOGE("[cre_method] 无效的返回类型描述符：%s", return_type.c_str());
+            return nullptr;
+        }
 
-        // 4. 获取绕行方法的声明
-        auto detour_decl = builder.GetMethodDecl(
-                builder.GetAsciiString(thiz->detour_method_id_.method_name),
-                detour_proto,
-                builder.GetType(thiz->detour_method_id_.class_descriptor)
+        // 3. 构建参数类型列表（从描述符列表获取ir::TypeList）
+        std::vector<ir::Type *> ir_param_types;
+        for (const auto &param_desc: param_types) {
+            ir::Type *param_type = builder.GetType(param_desc.c_str());
+            if (param_type == nullptr) {
+                LOGE("[cre_method] 无效的参数类型描述符：%s", param_desc.c_str());
+                return nullptr;
+            }
+            ir_param_types.push_back(param_type);
+        }
+        ir::TypeList *ir_type_list = builder.GetTypeList(ir_param_types);  // 包装为TypeList
+
+        // 4. 构建方法原型（Proto = 返回类型 + 参数类型列表）
+        ir::Proto *ir_proto = builder.GetProto(
+                ir_return_type, ir_type_list);
+        if (ir_proto == nullptr) {
+            LOGE("[cre_method] 构建方法原型失败（返回类型：%s，参数数：%zu）",
+                 return_type.c_str(), param_types.size());
+            return nullptr;
+        }
+
+        // 5. 构建方法声明（MethodDecl = 方法名 + 原型 + 所属类）
+        ir::String *ir_method_name = builder.GetAsciiString(name_method.c_str());  // 方法名字符串
+        ir::Type *ir_owner_class = builder.GetType(name_class.c_str());          // 所属类类型
+        if (ir_method_name == nullptr || ir_owner_class == nullptr) {
+            LOGE("[cre_method] 构建方法名或所属类失败（方法名：%s，类：%s）",
+                 name_method.c_str(), name_class.c_str());
+            return nullptr;
+        }
+
+        ir::MethodDecl *ir_method_decl = builder.GetMethodDecl(
+                ir_method_name,    // 方法名
+                ir_proto,          // 方法原型
+                ir_owner_class     // 所属类
         );
-        auto detour_method = code_ir->Alloc<lir::Method>(
-                detour_decl,
-                detour_decl->orig_index);
-        return detour_method;
+        if (ir_method_decl == nullptr) {
+            LOGE("[cre_method] 构建MethodDecl失败");
+            return nullptr;
+        }
+
+        // 6. 分配lir::Method对象（传入MethodDecl和原始索引）
+        // 注：decl->orig_index是Dex常量池中的原始索引，确保非kInvalidIndex
+        if (ir_method_decl->orig_index == dex::kNoIndex) {
+            LOGE("[cre_method] MethodDecl原始索引无效（可能未注册到常量池）");
+            return nullptr;
+        }
+
+        lir::Method *lir_method = code_ir->Alloc<lir::Method>(
+                ir_method_decl,
+                ir_method_decl->orig_index
+        );
+        if (lir_method == nullptr) {
+            LOGE("[cre_method] 分配lir::Method失败");
+        }
+
+        return lir_method;
     }
 
     /// public static int d(String tag, String msg)
@@ -68,7 +103,7 @@ namespace fjava_api {
         };
         std::string return_type = "I";
 
-        return fir::FIR::cre_method(code_ir, name_class, name_method, param_types, return_type);
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
     lir::Method *
@@ -79,7 +114,7 @@ namespace fjava_api {
         std::vector<std::string> param_types = {};
         std::string return_type = "V";
 
-        return fir::FIR::cre_method(code_ir, name_class, name_method, param_types, return_type);
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
     // ------------------------------------------
@@ -94,7 +129,7 @@ namespace fjava_api {
         };
         std::string return_type = "Ljava/lang/Class;";
 
-        return fir::FIR::cre_method(code_ir, name_class, name_method, param_types, return_type);
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
     /// public static ClassLoader getSystemClassLoader()
@@ -106,7 +141,7 @@ namespace fjava_api {
         std::vector<std::string> param_types = {};
         std::string return_type = "Ljava/lang/ClassLoader;";
 
-        return fir::FIR::cre_method(code_ir, name_class, name_method, param_types, return_type);
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
     /// public Class<?> loadClass(String name) throws ClassNotFoundException
@@ -120,7 +155,7 @@ namespace fjava_api {
         };
         std::string return_type = "Ljava/lang/Class;";
 
-        return fir::FIR::cre_method(code_ir, name_class, name_method, param_types, return_type);
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
     /// public static native Thread currentThread()
@@ -132,7 +167,7 @@ namespace fjava_api {
         std::vector<std::string> param_types = {};
         std::string return_type = "Ljava/lang/Thread;";
 
-        return fir::FIR::cre_method(code_ir, name_class, name_method, param_types, return_type);
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
     /// public ClassLoader getContextClassLoader()
@@ -144,7 +179,7 @@ namespace fjava_api {
         std::vector<std::string> param_types = {};
         std::string return_type = "Ljava/lang/ClassLoader;";
 
-        return fir::FIR::cre_method(code_ir, name_class, name_method, param_types, return_type);
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
 
@@ -160,7 +195,7 @@ namespace fjava_api {
         };
         std::string return_type = "Ljava/lang/Class;";
 
-        return fir::FIR::cre_method(code_ir, name_class, name_method, param_types, return_type);
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
     /// public Method getDeclaredMethod(String name, Class<?>... parameterTypes)
@@ -174,7 +209,7 @@ namespace fjava_api {
         };
         std::string return_type = "Ljava/lang/reflect/Method;";
 
-        return fir::FIR::cre_method(code_ir, name_class, name_method, param_types, return_type);
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
     /// public native Object invoke(Object obj, Object... args)
@@ -188,7 +223,7 @@ namespace fjava_api {
         };
         std::string return_type = "Ljava/lang/Object;";
 
-        return fir::FIR::cre_method(code_ir, name_class, name_method, param_types, return_type);
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
     // ------------------------------------------
@@ -203,7 +238,7 @@ namespace fjava_api {
         };
         std::string return_type = "[Ljava/lang/Object;";
 
-        return fir::FIR::cre_method(code_ir, name_class, name_method, param_types, return_type);
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
     ///  public static Object onExit(Object ret)
@@ -216,7 +251,7 @@ namespace fjava_api {
         };
         std::string return_type = "Ljava/lang/Object;";
 
-        return fir::FIR::cre_method(code_ir, name_class, name_method, param_types, return_type);
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
 }

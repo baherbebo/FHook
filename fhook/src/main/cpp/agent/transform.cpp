@@ -9,6 +9,7 @@
 #include "../dexter/slicer/dex_ir_builder.h"
 #include "../dexter/slicer/code_ir.h"
 #include "fsmali_printer.h"
+#include "finject.h"
 
 namespace deploy {
     /// Ltop/feadre/fhook/THook;
@@ -25,6 +26,8 @@ namespace deploy {
     void Transform::set_app_loader(bool sys_loader) {
         this->is_app_loader_ = sys_loader;
     }
+
+    bool Transform::is_app_loader() const { return is_app_loader_; }
 
     // -------- Transform: Hook 列表管理 --------
     bool Transform::hasHook(long mid) const {
@@ -77,12 +80,13 @@ namespace deploy {
         if (!dex_ir || hooks_.empty()) return;
 
         int i = 0;
-        for (const MethodHooks &hook: hooks_) {
-            LOGI("[Transform::Apply] 开始修改[%d] %s %s %s isHEnter= %d, isHEnter= %d, isRunOrigFun= %d",
+        for (MethodHooks &hook: hooks_) {
+            LOGI("[Transform::Apply] 开始修改[%d] %s %s %s isStatic= %d isHEnter= %d, isHEnter= %d, isRunOrigFun= %d",
                  ++i,
                  this->is_app_loader_ ? "应用侧" : "系统侧",
                  hook.method_name.c_str(),
                  hook.method_signature.c_str(),
+                 hook.is_static,
                  hook.isHEnter,
                  hook.isHExit,
                  hook.isRunOrigFun
@@ -119,17 +123,27 @@ namespace deploy {
 //                 ir_method->decl->name->c_str(),
 //                 ir_method->decl->prototype->Signature().c_str())
 
+            std::string _text = "修改前";
+            SmaliPrinter::CodeIrToSmali4Print(&code_ir, _text);
+
             // do 注入 .... 修改
-            SmaliPrinter::CodeIrToSmali4Print(&code_ir);
-//            finitef::do_finject(this, &code_ir);
+            bool ret = finject::do_finject(this, hook, &code_ir);
 
-            code_ir.Assemble();  // 方法块修改应用
+            _text = "修改后";
+            SmaliPrinter::CodeIrToSmali4Print(&code_ir, _text);
 
-            LOGI("[Transform::Apply] 修改完成 ... %s -> %s %s ",
-                 ir_method->decl->parent->Decl().c_str(),
-                 ir_method->decl->name->c_str(),
-                 ir_method->decl->prototype->Signature().c_str())
+            if (ret) {
+                code_ir.Assemble();  // 方法块修改应用
+                LOGI("[Transform::Apply] 修改成功完成 ... %s -> %s %s ",
+                     ir_method->decl->parent->Decl().c_str(),
+                     ir_method->decl->name->c_str(),
+                     ir_method->decl->prototype->Signature().c_str())
+            } else {
+                LOGE("[Transform::Apply] 修改失败完成 ... %s -> %s %s ",
+                     ir_method->decl->parent->Decl().c_str(),
+                     ir_method->decl->name->c_str(),
+                     ir_method->decl->prototype->Signature().c_str())
+            }
         }
-
     }
 }

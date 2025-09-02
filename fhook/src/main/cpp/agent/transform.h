@@ -94,6 +94,8 @@ namespace deploy {
 
         void set_app_loader(bool sys_loader);
 
+        bool is_app_loader() const;
+
         void Apply(std::shared_ptr<ir::DexFile> dex_ir);
 
         bool hasHook(long mid) const;

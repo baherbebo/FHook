@@ -25,6 +25,8 @@ public:
     // 把单条 bytecode 转成 smali 风格
     static std::string ToSmali(lir::Bytecode *bc);
 
+    static void CodeIrToSmali4Print(lir::CodeIr *code_ir, std::string &text);
+
     static void CodeIrToSmali4Print(lir::CodeIr *code_ir);
 
 private:

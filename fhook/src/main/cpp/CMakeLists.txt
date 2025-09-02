@@ -58,9 +58,12 @@ add_library(
         fhook_agent
         SHARED
         agent/fhook_agent.cpp
-        agent/transform.cpp
-        agent/fsmali_printer.cpp
         agent/finject.cpp
+        agent/fir_funs_def.cpp
+        agent/fir_funs_do.cpp
+        agent/fir_tools.cpp
+        agent/fsmali_printer.cpp
+        agent/transform.cpp
 
         ${COMMON_SOURCES}
 )

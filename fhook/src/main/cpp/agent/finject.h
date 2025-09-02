@@ -10,7 +10,9 @@
 #include "../dexter/slicer/code_ir.h"
 
 namespace finject {
-    bool do_finject(deploy::Transform *thiz, lir::CodeIr *code_ir);
+    bool do_finject(const deploy::Transform *transform,
+                    const deploy::MethodHooks &hook_info,
+                    lir::CodeIr *code_ir);
 
 };
 

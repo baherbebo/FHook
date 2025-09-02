@@ -160,7 +160,7 @@ public class FHook {
         }
 
         if (method == null) {
-            FLog.e(TAG, "[hook] method can not be null");
+            FLog.e(TAG, "[hook] method = null 没有找到 ...");
             return new HookHandle(-1, method).markNotHooked();
         }
 
