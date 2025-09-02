@@ -228,11 +228,11 @@ namespace fir_funs_def {
 
     // ------------------------------------------
 
-    /// public static Object[] onEnter(Object[] args)
+    /// public static Object[] onEnter4fhook(Object[] rawArgs, long methodId)
     lir::Method *get_THook_onEnter(lir::CodeIr *code_ir) {
 
-        std::string name_class = "Ltop/feadre/finject/ftest/THook;";  // 用/分隔，结尾有;
-        std::string name_method = "onEnter";
+        std::string name_class = "Ltop/feadre/fhook/FHook;";  // 用/分隔，结尾有;
+        std::string name_method = "onEnter4fhook";
         std::vector<std::string> param_types = {
                 "[Ljava/lang/Object;", "J"
         };
@@ -241,11 +241,11 @@ namespace fir_funs_def {
         return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
-    ///  public static Object onExit(Object ret)
+    ///  public static Object onExit4fhook(Object ret, long methodId)
     lir::Method *get_THook_onExit(lir::CodeIr *code_ir) {
 
-        std::string name_class = "Ltop/feadre/finject/ftest/THook;";  // 用/分隔，结尾有;
-        std::string name_method = "onExit";
+        std::string name_class = "Ltop/feadre/fhook/FHook;";  // 用/分隔，结尾有;
+        std::string name_method = "onExit4fhook";
         std::vector<std::string> param_types = {
                 "Ljava/lang/Object;", "J"
         };

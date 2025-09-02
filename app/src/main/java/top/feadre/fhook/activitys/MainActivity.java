@@ -19,6 +19,7 @@ import top.feadre.fhook.THook;
 import top.feadre.fhook.TObject;
 import top.feadre.fhook.flibs.fsys.FLog;
 import top.feadre.fhook.flibs.fsys.TypeUtils;
+import top.feadre.fhook.tools.FFunsUI;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = FCFG.TAG_PREFIX + "MainActivity";
@@ -59,9 +60,16 @@ public class MainActivity extends AppCompatActivity {
             Method jtFun_I_II = FHookTool.findMethod4First(THook.class, "jtFun_I_II");
 
 
-            FHook.hook(fun_String_String2).setOrigFunRun(false)
+            FHook.hook(fun_String_String2).setOrigFunRun(true)
                     .setHookEnter((thiz, args, types, hh) -> {
-                        FLog.d("----------- fun_String_String2  --------");
+                        FLog.d("----------- fun_String_String2  -------- thiz= " + thiz);
+                        for (int i = 0; i < args.size(); i++) {
+                            FLog.d("args[" + i + "]=" + args.get(i) + " " + types[i]);
+                        }
+                        String args0 = (String) args.set(0, "111");
+                        String args1 = (String) args.get(1);
+                        args1 = "9999" + args0;
+                        args.set(1, args1);
                     })
                     .setHookExit(
                             (ret, types, hh) -> {
@@ -70,15 +78,15 @@ public class MainActivity extends AppCompatActivity {
                             })
                     .commit();
 
-            FHook.hook(fun_I_III).setHookEnter((thiz, args, types, hh) -> {
-                        FLog.d("----------- fun_I_III  --------");
-                    }).setOrigFunRun(true)
-                    .commit();
-
-            FHook.hook(jtFun_I_II).setOrigFunRun(true).setHookEnter((thiz, args, types, hh) -> {
-                        FLog.d("----------- jtFun_I_II  --------");
-                    })
-                    .commit();
+//            FHook.hook(fun_I_III).setHookEnter((thiz, args, types, hh) -> {
+//                        FLog.d("----------- fun_I_III  --------");
+//                    }).setOrigFunRun(true)
+//                    .commit();
+//
+//            FHook.hook(jtFun_I_II).setOrigFunRun(true).setHookEnter((thiz, args, types, hh) -> {
+//                        FLog.d("----------- jtFun_I_II  --------");
+//                    })
+//                    .commit();
 
         });
 
@@ -113,19 +121,20 @@ public class MainActivity extends AppCompatActivity {
         Button bt_main_09 = findViewById(R.id.bt_main_09);
         bt_main_09.setText("09 fun_String_String2");
         bt_main_09.setOnClickListener(v -> {
-            Toast.makeText(this, tHook.fun_String_String2("09", "09"), Toast.LENGTH_SHORT).show();
+            FFunsUI.toast(this, String.valueOf(tHook.fun_String_String2("09", "09")));
         });
 
         Button bt_main_10 = findViewById(R.id.bt_main_10);
         bt_main_10.setText("10 fun_I_III");
         bt_main_10.setOnClickListener(v -> {
-            Toast.makeText(this, tHook.fun_I_III(10, 20, 30), Toast.LENGTH_SHORT).show();
+            FFunsUI.toast(this, String.valueOf(tHook.fun_I_III(10, 20, 30)));
         });
 
         Button bt_main_11 = findViewById(R.id.bt_main_11);
         bt_main_11.setText("11 jtFun_I_II");
         bt_main_11.setOnClickListener(v -> {
-            Toast.makeText(this, THook.jtFun_I_II(20, 30), Toast.LENGTH_SHORT).show();
+            FFunsUI.toast(this, String.valueOf(THook.jtFun_I_II(20, 30)));
+
         });
 
 

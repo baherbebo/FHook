@@ -134,12 +134,12 @@ namespace deploy {
 
             if (ret) {
                 code_ir.Assemble();  // 方法块修改应用
-                LOGI("[Transform::Apply] 修改成功完成 ... %s -> %s %s ",
+                LOGI("[Transform::Apply] 修改完成 ...【成功】 %s -> %s %s ",
                      ir_method->decl->parent->Decl().c_str(),
                      ir_method->decl->name->c_str(),
                      ir_method->decl->prototype->Signature().c_str())
             } else {
-                LOGE("[Transform::Apply] 修改失败完成 ... %s -> %s %s ",
+                LOGE("[Transform::Apply] 修改完成 ...【失败】 %s -> %s %s ",
                      ir_method->decl->parent->Decl().c_str(),
                      ir_method->decl->name->c_str(),
                      ir_method->decl->prototype->Signature().c_str())

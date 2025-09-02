@@ -563,13 +563,13 @@ namespace fir_tools {
      * 就是把 Object[] 数组还原成参数
      * @param code_ir
      * @param insert_point
-     * @param reg_arr
+     * @param reg_args
      * @param base_param_reg
      * @param reg_tmp_obj
      * @param reg_tmp_idx
      */
     void restore_reg_params4type(lir::CodeIr *code_ir,
-                                        dex::u4 reg_arr,            // enter 返回的 Object[] 寄存器 (e.g. v0)
+                                        dex::u4 reg_args,            // enter 返回的 Object[] 寄存器 (e.g. v0)
                                         dex::u4 base_param_reg,     // 参数区起始寄存器 (num_reg_non_param)
                                         dex::u4 reg_tmp_obj,       // 临时寄存器存 aget-object 结果 (e.g. v1)
                                         dex::u4 reg_tmp_idx,// 临时寄存器做数组索引 (e.g. v2)
@@ -584,7 +584,7 @@ namespace fir_tools {
         auto arr_type = builder.GetType("[Ljava/lang/Object;");
         auto check_cast_arr = code_ir->Alloc<lir::Bytecode>();
         check_cast_arr->opcode = dex::OP_CHECK_CAST;
-        check_cast_arr->operands.push_back(code_ir->Alloc<lir::VReg>(reg_arr));
+        check_cast_arr->operands.push_back(code_ir->Alloc<lir::VReg>(reg_args));
         check_cast_arr->operands.push_back(
                 code_ir->Alloc<lir::Type>(arr_type, arr_type->orig_index));
         code_ir->instructions.insert(insert_point, check_cast_arr);
@@ -597,19 +597,19 @@ namespace fir_tools {
 
         // 槽位游标和数组索引
         dex::u4 slot = 0;         // 写回参数寄存器槽从 base_param_reg + slot
-        dex::u4 index_arr = 0;    // 从 reg_arr[index_arr] 读取
+        dex::u4 index_arr = 0;    // 从 reg_args[index_arr] 读取
 
         // 如果是实例方法，按你打包约定，index_arr=0 对应 this
         if (!is_static) {
             // 把 index 0 的从数组拿出来
             EmitConstToReg(code_ir, insert_point, reg_tmp_idx, (dex::s4) index_arr);
 
-            // aget-object reg_tmp_obj, reg_arr, reg_tmp_idx
+            // aget-object reg_tmp_obj, reg_args, reg_tmp_idx
             {
                 auto aget = code_ir->Alloc<lir::Bytecode>();
                 aget->opcode = dex::OP_AGET_OBJECT;
                 aget->operands.push_back(code_ir->Alloc<lir::VReg>(reg_tmp_obj));
-                aget->operands.push_back(code_ir->Alloc<lir::VReg>(reg_arr));
+                aget->operands.push_back(code_ir->Alloc<lir::VReg>(reg_args));
                 aget->operands.push_back(code_ir->Alloc<lir::VReg>(reg_tmp_idx));
                 code_ir->instructions.insert(insert_point, aget);
             }
@@ -655,12 +655,12 @@ namespace fir_tools {
             // Load array index
             EmitConstToReg(code_ir, insert_point, reg_tmp_idx, (dex::s4) index_arr);
 
-            // 把值取出来先 aget-object reg_tmp_obj, reg_arr, reg_tmp_idx
+            // 把值取出来先 aget-object reg_tmp_obj, reg_args, reg_tmp_idx
             {
                 auto aget = code_ir->Alloc<lir::Bytecode>();
                 aget->opcode = dex::OP_AGET_OBJECT;
                 aget->operands.push_back(code_ir->Alloc<lir::VReg>(reg_tmp_obj));
-                aget->operands.push_back(code_ir->Alloc<lir::VReg>(reg_arr));
+                aget->operands.push_back(code_ir->Alloc<lir::VReg>(reg_args));
                 aget->operands.push_back(code_ir->Alloc<lir::VReg>(reg_tmp_idx));
                 code_ir->instructions.insert(insert_point, aget);
             }
@@ -873,7 +873,7 @@ namespace fir_tools {
                 return it;
             }
         }
-        LOGI("[find_first_code] 没有找到任何指令")
+        LOGW("[find_first_code] 没有找到任何指令")
         return insert_point;
     }
 
@@ -887,7 +887,7 @@ namespace fir_tools {
      * @return
      */
     dex::u2 req_reg(lir::CodeIr *code_ir, dex::u2 regs_count) {
-        LOGD("[req_reg] start...")
+//        LOGD("[req_reg] start...")
         const auto ir_method = code_ir->ir_method;
 
         dex::u2 orig_registers = ir_method->code->registers;
