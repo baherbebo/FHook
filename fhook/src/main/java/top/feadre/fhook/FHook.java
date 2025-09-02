@@ -3,19 +3,22 @@ package top.feadre.fhook;
 import android.content.Context;
 import android.os.Build;
 import android.os.Debug;
-import android.util.Log;
-import android.widget.Toast;
 
 import java.io.IOException;
-import java.lang.reflect.Member;
 import java.lang.reflect.Method;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 import top.feadre.fhook.flibs.fsys.FLog;
+import top.feadre.fhook.flibs.fsys.TypeUtils;
 
 public class FHook {
     private static final String TAG = FCFG.TAG_PREFIX + "FHook";
 
     private static final String name_so_fhook_agent = "libfhook_agent.so";
+
+    // 记录每个 methodId 对应的 HookHandle，供 onEnter/onExit 分发
+    private static final ConcurrentHashMap<Long, HookHandle> sHandles = new ConcurrentHashMap<>();
 
 
 //    static {
@@ -58,11 +61,6 @@ public class FHook {
         }
     }
 
-    private static boolean containsAny(String s, String... keys) {
-        s = s.toLowerCase();
-        for (String k : keys) if (s.contains(k)) return true;
-        return false;
-    }
 
     /**
      * 这个必须在  Application attachBaseContext 中调用
@@ -111,7 +109,7 @@ public class FHook {
                 r.attachOk = true;
                 FLog.i(TAG, "[init] " + r.note);
                 isInit = true;
-            }else {
+            } else {
                 r.note = "dcJvmtiSuccess 第一次就初始化成功 加载lib失败 failed Jvmti 第1次就初始化失败";
             }
             return r;
@@ -141,7 +139,7 @@ public class FHook {
                     r.note = "attach success after enabling Runtime debuggable";
                     FLog.i(TAG, "[init] 第二次 attachJvmtiAgent success after enabling Runtime debuggable");
                     isInit = true;
-                }else {
+                } else {
                     r.note = "[init] 第二次初始化成功 dcJvmtiSuccess 加载lib失败 failed Jvmti 第1次就初始化失败";
                 }
 
@@ -157,46 +155,95 @@ public class FHook {
 
     public static synchronized HookHandle hook(Method method) {
         if (!isInit) {
-            throw new IllegalStateException("[hook] 请先初始化 call FHook.init() first");
+            FLog.e(TAG, "[hook] 请先初始化 call FHook.init() first");
+            return new HookHandle(-1, method).markNotHooked();
         }
 
         if (method == null) {
-            throw new IllegalArgumentException("[hook] method can not be null");
+            FLog.e(TAG, "[hook] method can not be null");
+            return new HookHandle(-1, method).markNotHooked();
         }
 
-        long methodId = CLinker.dcHook(method, true, true, true);
-        if (methodId < 0) {
-            FLog.e(TAG, "[hook] dcHook failed: " + methodId);
-        }else {
-            FLog.i(TAG, "[hook] dcHook success: " + methodId);
+        return new HookHandle(-1, method);
+    }
+
+    static synchronized void ensureInstall(HookHandle h) {
+        if (h == null || h.isHooked() || h.method == null) return;
+
+        boolean hasEnter = (h.enterCb != null);
+        boolean hasExit = (h.exitCb != null);
+        boolean runOrig = h.runOriginalByDefault;
+
+        long mid = CLinker.dcHook(h.method, hasEnter, hasExit, runOrig);
+
+        if (mid < 0) {
+            FLog.e(TAG, "[ensureInstall] dcHook failed: " + mid);
+            h.markNotHooked();
+            return;
         }
-
-        HookHandle handle = new HookHandle(methodId, method);
-
-        return handle;
+        h.nativeHandle = mid;
+        h.setHooked(true);
+        sHandles.put(mid, h);
+        FLog.i(TAG, "[ensureInstall] dcHook success: " + mid
+                + " enter=" + hasEnter + " exit=" + hasExit + " runOrig=" + runOrig);
     }
 
 
-    public static Object[] onEnter4fhook(Object[] args, long methodId) {
-        FLog.d(TAG, "onEnter4fhook ...");
-        return args;
+    public static Object[] onEnter4fhook(Object[] rawArgs, long methodId) {
+        HookHandle hh = sHandles.get(methodId);
+        if (hh == null) return rawArgs;
+
+        hh.setThisObject(rawArgs[0]); // 缓存
+
+        if (hh.enterCb == null) return rawArgs;
+
+
+        java.util.List<Object> argsView =
+                java.util.Arrays.asList(rawArgs).subList(1, rawArgs.length);
+        final Class<?>[] paramTypes = hh.method.getParameterTypes();
+
+        // 调试
+        try {
+            FLog.d(TAG, "[enter] " + TypeUtils.dumpArgs(hh.method, rawArgs));
+        } catch (Throwable ignore) {
+        }
+
+        try {
+            hh.enterCb.onEnter(rawArgs[0], argsView, paramTypes, hh); // 允许直接修改 args[i]
+        } catch (Throwable t) {
+            FLog.e(TAG, "[onEnter] callback error", t);
+        }
+
+        return rawArgs;
     }
 
     public static Object onExit4fhook(Object ret, long methodId) {
         FLog.d(TAG, "onExit4fhook ....");
+        HookHandle hh = sHandles.get(methodId);
+        if (hh == null || hh.exitCb == null) return ret;
 
-        return ret;
+        final Class<?> returnType = hh.method.getReturnType();
+        try {
+            return hh.exitCb.onExit(ret, returnType, hh);
+        } catch (Throwable t) {
+            FLog.e(TAG, "[onExit] callback error", t);
+            return ret;
+        }
     }
 
 
     @FunctionalInterface
     public interface HookEnterCallback {
-        void onEnter(HookParam param) throws Throwable;
+        void onEnter(Object thiz, List<Object> args, Class<?>[] paramTypes, HookHandle hh) throws Throwable;
     }
 
     @FunctionalInterface
     public interface HookExitCallback {
-        void onExit(HookParam param) throws Throwable;
+        Object onExit(Object ret, Class<?> returnType, HookHandle hh) throws Throwable;
+    }
+
+    static void unregister(long methodId) {
+        sHandles.remove(methodId);
     }
 
 }

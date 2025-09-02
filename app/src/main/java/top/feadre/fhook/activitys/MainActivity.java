@@ -1,27 +1,24 @@
 package top.feadre.fhook.activitys;
 
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Log;
-import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 
 import top.feadre.fhook.FCFG;
 import top.feadre.fhook.FHook;
 import top.feadre.fhook.FHookTool;
-import top.feadre.fhook.HookParam;
 import top.feadre.fhook.R;
 import top.feadre.fhook.THook;
 import top.feadre.fhook.TObject;
+import top.feadre.fhook.flibs.fsys.FLog;
+import top.feadre.fhook.flibs.fsys.TypeUtils;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = FCFG.TAG_PREFIX + "MainActivity";
@@ -55,46 +52,26 @@ public class MainActivity extends AppCompatActivity {
 
     private void initCtr() {
         Button bt_main_01 = findViewById(R.id.bt_main_01);
-        bt_main_01.setText("hook方法");
+        bt_main_01.setText("hook普通方法");
         bt_main_01.setOnClickListener(v -> {
             Method fun_I_II = FHookTool.findMethod4First(THook.class, "fun_I_II");
             Method fun_J_DIJ = FHookTool.findMethod4First(THook.class, "fun_J_DIJ");
             Method jc_I_IntArray = FHookTool.findMethod4First(THook.class, "jc_I_IntArray");
-            FHook.hook(fun_I_II).setHookEnter(new FHook.HookEnterCallback() {
-                @Override
-                public void onEnter(HookParam param) throws Throwable {
 
-                }
-            }).setHookEnter(new FHook.HookEnterCallback() {
-                @Override
-                public void onEnter(HookParam param) throws Throwable {
 
-                }
-            }).setOrigFunRun(false);
+            FHook.hook(fun_I_II).setOrigFunRun(false)
+                    .setHookEnter((thiz, args, types, hh) -> {
+                        FLog.d("----------- fun_I_II  --------");
+                    })
+                    .setHookExit(
+                            (ret, types, hh) -> {
+                                FLog.d("----------- fun_I_II  --------");
+                                return ret;
+                            });
 
-            FHook.hook(fun_J_DIJ).setHookEnter(new FHook.HookEnterCallback() {
-                @Override
-                public void onEnter(HookParam param) throws Throwable {
+            FHook.hook(fun_J_DIJ).setOrigFunRun(true);
 
-                }
-            }).setHookEnter(new FHook.HookEnterCallback() {
-                @Override
-                public void onEnter(HookParam param) throws Throwable {
-
-                }
-            }).setOrigFunRun(true);
-
-            FHook.hook(jc_I_IntArray).setHookEnter(new FHook.HookEnterCallback() {
-                @Override
-                public void onEnter(HookParam param) throws Throwable {
-
-                }
-            }).setHookEnter(new FHook.HookEnterCallback() {
-                @Override
-                public void onEnter(HookParam param) throws Throwable {
-
-                }
-            }).setOrigFunRun(true);
+            FHook.hook(jc_I_IntArray).setOrigFunRun(true);
         });
 
         Button bt_main_02 = findViewById(R.id.bt_main_02);
@@ -102,6 +79,20 @@ public class MainActivity extends AppCompatActivity {
         bt_main_02.setOnClickListener(v -> {
             FHook.InitReport rep = FHook.init(this);
             Toast.makeText(this, rep.toString(), Toast.LENGTH_LONG).show();
+        });
+
+
+        Button bt_main_03 = findViewById(R.id.bt_main_03);
+        bt_main_03.setText("hook系统方法");
+        bt_main_03.setOnClickListener(v -> {
+            Method forName = FHookTool.findMethod4First(Class.class, "forName");
+            Method getString = FHookTool.findMethod4First(Settings.Secure.class, "getString");
+            Method commit = FHookTool.findMethod4First(SharedPreferences.class, "commit");
+            FHook.hook(forName).setOrigFunRun(false);
+
+            FHook.hook(getString).setOrigFunRun(true);
+
+            FHook.hook(commit).setOrigFunRun(true);
         });
 
     }
@@ -189,26 +180,17 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        bindV(R.id.bt_main_48, "Class.forName", () -> {
-            try {
-                ClassLoader classLoader = getClassLoader();
-                classLoader.loadClass("java.lang.String");
-            } catch (ClassNotFoundException e) {
-                throw new RuntimeException(e);
-            }
-        });
-
         // 48) ClassLoader.loadClass(String, boolean) —— 2参 + 返回 Class
-        Button b48 = findViewById(R.id.bt_main_48);
-        b48.setText("ClassLoader.loadClass(name,true)");
-        b48.setOnClickListener(v -> {
-            try {
-                Class<?> c = getClassLoader().loadClass("java.lang.String");
-                Toast.makeText(this, "got: " + c.getName(), Toast.LENGTH_SHORT).show();
-            } catch (Throwable e) {
-                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
-            }
-        });
+//        Button b48 = findViewById(R.id.bt_main_48);
+//        b48.setText("ClassLoader.loadClass(name,true)");
+//        b48.setOnClickListener(v -> {
+//            try {
+//                Class<?> c = getClassLoader().loadClass("java.lang.String");
+//                Toast.makeText(this, "got: " + c.getName(), Toast.LENGTH_SHORT).show();
+//            } catch (Throwable e) {
+//                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+//            }
+//        });
 
         // 49) Method.invoke(Object, Object...) —— 变参 + 返回 Object（反射调用）
         Button b49 = findViewById(R.id.bt_main_49);

@@ -18,80 +18,6 @@ static std::map<std::string, std::unique_ptr<deploy::Transform>> fClassTransform
 thread_local deploy::Transform *current_transform = nullptr; // 当前hook配置，用于缓存和隔离其它类
 
 /**
- * loader 通过 loader 拿到类加载器的类型显示
- * @param jni
- * @param loader
- * @param name
- * @return
- */
-static bool find_class_loader(JNIEnv *jni, jobject loader, const char *name) {
-    if (loader == nullptr) {
-        // Bootstrap（BootClassLoader）
-        LOGW("[find_class_loader] Class %s is loaded by Bootstrap ClassLoader", name);
-        return true;
-    }
-
-    jclass loaderClass = jni->GetObjectClass(loader);
-    if (!loaderClass) {
-        if (jni->ExceptionCheck()) jni->ExceptionClear();
-        LOGW("[find_class_loader] %s by <loader ?>(GetObjectClass failed)", name);
-        return false;
-    }
-
-    jclass pathClassLoader = jni->FindClass("dalvik/system/PathClassLoader");
-    if (jni->ExceptionCheck()) jni->ExceptionClear();
-    jclass dexClassLoader  = jni->FindClass("dalvik/system/DexClassLoader");
-    if (jni->ExceptionCheck()) jni->ExceptionClear();
-    jclass inMemClassLoader = jni->FindClass("dalvik/system/InMemoryDexClassLoader"); // 26+
-    if (jni->ExceptionCheck()) jni->ExceptionClear();
-    jclass delegLastClassLoader = jni->FindClass("dalvik/system/DelegateLastClassLoader"); // 27+
-    if (jni->ExceptionCheck()) jni->ExceptionClear();
-
-    // 打印真实 loader 类名（比 toString 稳）
-    jclass clsClass = jni->FindClass("java/lang/Class");
-    if (jni->ExceptionCheck()) jni->ExceptionClear();
-    jmethodID midGetName = clsClass ? jni->GetMethodID(clsClass, "getName", "()Ljava/lang/String;") : nullptr;
-    if (jni->ExceptionCheck()) { jni->ExceptionClear(); midGetName = nullptr; }
-
-    auto print_with_name = [&](const char* tag) {
-        if (midGetName) {
-            jstring jn = (jstring) jni->CallObjectMethod(loaderClass, midGetName);
-            if (jni->ExceptionCheck()) { jni->ExceptionClear(); jn = nullptr; }
-            const char* s = jn ? jni->GetStringUTFChars(jn, nullptr) : "<?>"; // 注意下面释放
-            LOGW("[find_class_loader] %s by %s (%s)", name, tag, s);
-            if (jn) { jni->ReleaseStringUTFChars(jn, s); jni->DeleteLocalRef(jn); }
-        } else {
-            LOGW("[find_class_loader] %s by %s", name, tag);
-        }
-    };
-
-    if (pathClassLoader && jni->IsInstanceOf(loader, pathClassLoader)) {
-        print_with_name("PathClassLoader");
-    } else if (dexClassLoader && jni->IsInstanceOf(loader, dexClassLoader)) {
-        print_with_name("DexClassLoader");
-    } else if (inMemClassLoader && jni->IsInstanceOf(loader, inMemClassLoader)) {
-        print_with_name("InMemoryDexClassLoader");
-    } else if (delegLastClassLoader && jni->IsInstanceOf(loader, delegLastClassLoader)) {
-        print_with_name("DelegateLastClassLoader");
-    } else {
-        // 兜底：自定义 ClassLoader
-        // 你的 toString 方案也行，但 getClass().getName() 更稳定
-        print_with_name("CustomClassLoader");
-    }
-
-    // 回收本地引用
-    if (clsClass) jni->DeleteLocalRef(clsClass);
-    if (pathClassLoader) jni->DeleteLocalRef(pathClassLoader);
-    if (dexClassLoader) jni->DeleteLocalRef(dexClassLoader);
-    if (inMemClassLoader) jni->DeleteLocalRef(inMemClassLoader);
-    if (delegLastClassLoader) jni->DeleteLocalRef(delegLastClassLoader);
-    jni->DeleteLocalRef(loaderClass);
-
-    return true;
-}
-
-
-/**
  * 当代理加载类文件时触发的事件   sAgentJvmtiEnv->RetransformClasses(1, &nativeClass) 重载回调
  */
 extern "C" void JNICALL HookClassFileLoadHook(
@@ -115,19 +41,53 @@ extern "C" void JNICALL HookClassFileLoadHook(
     // 有hook配置后 加载的类，不匹配不处理
     if (current_transform->GetClassName() != name) {
         // 通常由系统加载的类，这里需要过滤掉
-        LOGE("[HookClassFileLoadHook] 不需要配置 %s != %s",
-             current_transform->GetClassName().c_str(), name)
+        LOGE("[HookClassFileLoadHook] 不需要配置 %s != %s", current_transform->GetClassName().c_str(), name)
         return;
     }
 
-    LOGI("[HookClassFileLoadHook] 配置类名 %s ", name)
+    LOGI("[HookClassFileLoadHook] 配置类名 %s ",  name)
 
     // 这里确定是要改hook配置  --------
 
     /** ------------- 反射查看类加载器 的类型 ------------- */
-    current_transform->set_sys_loader(find_class_loader(jni, loader, name));
+    if (loader == nullptr) {
+        // Bootstrap（BootClassLoader）
+        current_transform->set_sys_loader(true);
+        LOGW("[HookClassFileLoadHook] Class %s is loaded by Bootstrap ClassLoader", name);
+    } else {
+        current_transform->set_sys_loader(false);
 
+        jclass loaderClass = jni->GetObjectClass(loader);
+        if (!loaderClass) {
+            if (jni->ExceptionCheck()) jni->ExceptionClear();
+            LOGW("[HookClassFileLoadHook] %s by <loader ?>(GetObjectClass failed)", name);
+            return;
+        }
 
+        jclass pathClassLoader = jni->FindClass("dalvik/system/PathClassLoader");
+        jclass bootClassLoader = jni->FindClass("java/lang/BootClassLoader");
+
+        if (jni->IsInstanceOf(loader, bootClassLoader)) {
+            // 负责加载 core-lib（/system/framework/*.jar 里的类，比如 java.lang.*
+            LOGW("[HookClassFileLoadHook] Class %s is loaded by BootClassLoader", name);
+        } else if (jni->IsInstanceOf(loader, pathClassLoader)) {
+            // 这里就是app loader 加载的类
+            LOGW("[HookClassFileLoadHook] Class %s is loaded by PathClassLoader (application class)",
+                 name);
+        } else {
+            // 其它自定义的 classloader
+            jmethodID mid = jni->GetMethodID(loaderClass, "toString", "()Ljava/lang/String;");
+            jstring desc = (jstring) jni->CallObjectMethod(loader, mid);
+            const char *str = jni->GetStringUTFChars(desc, nullptr);
+            LOGW("[HookClassFileLoadHook] Class %s is loaded by custom loader: %s", name, str);
+            jni->ReleaseStringUTFChars(desc, str);
+            jni->DeleteLocalRef(desc);
+        }
+
+        jni->DeleteLocalRef(loaderClass);
+        jni->DeleteLocalRef(pathClassLoader);
+        jni->DeleteLocalRef(bootClassLoader);
+    }
 }
 
 static int SetNeedCapabilities(jvmtiEnv *jvmti) {
