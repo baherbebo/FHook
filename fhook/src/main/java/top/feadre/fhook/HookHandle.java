@@ -4,7 +4,7 @@ import java.lang.reflect.Method;
 
 public class HookHandle {
     Object thisObject;
-    boolean isHooked = false;
+    boolean isHooked = false; // native 已安装
     long nativeHandle;              // 由 native 返回的句柄
     Method method;
     volatile FHook.HookEnterCallback enterCb;
@@ -34,15 +34,17 @@ public class HookHandle {
         this.isHooked = hooked;
     }
 
+    public Method getMethod() {
+        return method;
+    }
+
     public HookHandle setHookEnter(FHook.HookEnterCallback cb) {
         this.enterCb = cb;
-        FHook.ensureInstall(this);
         return this;
     }
 
     public HookHandle setHookExit(FHook.HookExitCallback cb) {
         this.exitCb = cb;
-        FHook.ensureInstall(this);
         return this;
     }
 
@@ -51,12 +53,12 @@ public class HookHandle {
      */
     public HookHandle setOrigFunRun(boolean run) {
         this.runOriginalByDefault = run;
-        FHook.ensureInstall(this);
         return this;
     }
 
-    public Method getMethod() {
-        return method;
+    public synchronized HookHandle commit() {
+        FHook.installOnce(this);          // 只安装一次
+        return this;
     }
 
     /**
@@ -65,6 +67,7 @@ public class HookHandle {
     public void unhook() {
         if (!isHooked) return;
 
+        // 这里需要
         FHook.unregister(nativeHandle);
         isHooked = false;
     }

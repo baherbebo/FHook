@@ -33,9 +33,9 @@ public class THook {
     }
 
     // ========= 实例：系统类 / 字符串 =========
-    public String fun_String_String(String s) {
-        String ret = s + "_ret";
-        FLog.d(TAG, "fun_String_String ... s=" + s + " -> ret=" + ret);
+    public String fun_String_String2(String a,String b) {
+        String ret = a + b;
+        FLog.d(TAG, "fun_String_String2 ... a=" + a + ", b=" + b + " -> ret=" + ret);
         return ret;
     }
 
@@ -169,11 +169,11 @@ public class THook {
         FLog.d(TAG, "jc_fun_V_I ... a=" + a);
     }
 
-    public static void jc_fun_V_II(int a, int b) {
+    public static void jtFun_V_II(int a, int b) {
         FLog.d(TAG, "jc_fun_V_II ... a=" + a + ", b=" + b);
     }
 
-    public static int jc_I_II(int a, int b) {
+    public static int jtFun_I_II(int a, int b) {
         int ret = a + b;
         FLog.d(TAG, "jc_I_II ... a=" + a + ", b=" + b + " -> ret=" + ret);
         return ret;
@@ -225,58 +225,5 @@ public class THook {
         double ret = a + b + c;
         FLog.d(TAG, "jc_D_DID ... a=" + a + ", b=" + b + ", c=" + c + " -> ret=" + ret);
         return ret;
-    }
-
-    // ====== 可选：一键跑一遍，方便看到日志（也便于你做对照 Hook）======
-    public static void demoRun() {
-        THook ins = new THook();
-
-        ins.fun_V_V();
-        ins.fun_V_I(7);
-        ins.fun_I_I(9);
-        ins.fun_I_II(3, 4);
-        ins.fun_I_III(1, 2, 3);
-
-        ins.fun_String_String("abc");
-        ins.fun_String_StringArray(new String[]{"x", "y", "z"});
-
-        TObject t = new TObject("tom", 18);
-        ins.fun_TObject_T(t);
-        ins.fun_V_TObjectArray(new TObject[]{t, new TObject("jerry", 20)});
-
-        ins.fun_I_IArray(new int[]{1, 2, 3});
-        ins.fun_I_Varargs(5, 6, 7);
-
-        ins.fun_J_J(100L);
-        ins.fun_D_D(2.5);
-        ins.fun_I_ILJ(1, 1000L, 3);
-        ins.fun_V_LI(100L, 2);
-        ins.fun_V_IL(2, 100L);
-        ins.fun_J_DIJ(3.14, 9, 100L);
-        ins.fun_D_IDI(1, 2.5, 3);
-
-        ins.fun_Z_Z(true);
-        ins.fun_C_C('a');
-        ins.fun_S_S((short) 9);
-        ins.fun_B_B((byte) 7);
-        ins.fun_F_F(3.0f);
-        ins.fun_V_Sync(123);
-        try {
-            ins.fun_V_Throw();
-        } catch (Throwable e) {
-            FLog.d(TAG, "caught: " + e);
-        }
-
-        jc_fun_V_V();
-        jc_fun_V_I(8);
-        jc_fun_V_II(8, 9);
-        jc_I_II(10, 20);
-        jc_J_JJ(100L, 200L);
-        jc_D_DD(1.2, 3.4);
-        jc_String_String("XYZ");
-        jc_TObject_T(new TObject("bob", 30));
-        jc_I_IntArray(new int[]{7, 8, 9});
-        jc_I_Varargs(10, 20, 30);
-        jc_D_DID(1.5, 2, 3.5);
     }
 }

@@ -4,7 +4,10 @@
 #include "../FGlobal_flib.h"
 
 #define TAG FEADRE_TAG("transform")
+
 #include "transform.h"
+#include "../dexter/slicer/dex_ir_builder.h"
+#include "../dexter/slicer/code_ir.h"
 
 namespace deploy {
     /// Ltop/feadre/fhook/THook;
@@ -18,45 +21,20 @@ namespace deploy {
         return class_name_;
     };
 
-    void Transform::set_sys_loader(bool sys_loader) {
-        this->is_sys_loader_ = sys_loader;
-    }
-
-    void Transform::Apply(std::shared_ptr<ir::DexFile> dex_ir) {
-        LOGD("[Transform::Apply]  %s", GetClassName().c_str());
-        if (!dex_ir || hooks_.empty()) return;
-
-        const std::string internal_name = GetClassName();  // 例如 java/lang/String 或原样（非 L…;）
-
-        // 伪代码示意（根据你的 dexter 接口调整）：
-        // auto* klass = dex_ir->FindClass(internal_name);
-        // if (!klass) return;
-        //
-        // for (const auto& h : hooks_) {
-        //     // h.method_name, h.method_signature（例如 "(II)I"）
-        //     auto* method = klass->FindMethod(h.method_name, h.method_signature, h.is_static);
-        //     if (!method) continue;
-        //
-        //     if (h.isHEnter) { /* 注入方法进入日志/回调 */ }
-        //     if (h.isHExit)  { /* 注入方法退出日志/回调 */ }
-        //     if (!h.isRunOrigFun) {
-        //         /* 替换原实现或短路返回常量/代理调用 */
-        //     }
-        // }
-
-        // 完成后通常需要 writer/encoder 把 IR 写回（你已有 dexter/writer.cc 可用）
+    void Transform::set_app_loader(bool sys_loader) {
+        this->is_app_loader_ = sys_loader;
     }
 
     // -------- Transform: Hook 列表管理 --------
     bool Transform::hasHook(long mid) const {
         return std::any_of(hooks_.begin(), hooks_.end(),
-                           [mid](const MethodHooks& h){ return h.j_method_id == mid; });
+                           [mid](const MethodHooks &h) { return h.j_method_id == mid; });
     }
 
     bool Transform::removeHook(long mid) {
         const auto old_sz = hooks_.size();
         hooks_.erase(std::remove_if(hooks_.begin(), hooks_.end(),
-                                    [mid](const MethodHooks& h){ return h.j_method_id == mid; }),
+                                    [mid](const MethodHooks &h) { return h.j_method_id == mid; }),
                      hooks_.end());
         return hooks_.size() != old_sz;
     }
@@ -70,14 +48,14 @@ namespace deploy {
                             bool isRunOrigFun) {
         // 若已存在同一 j_method_id，则更新配置；否则追加
         auto it = std::find_if(hooks_.begin(), hooks_.end(),
-                               [mid](const MethodHooks& h){ return h.j_method_id == mid; });
+                               [mid](const MethodHooks &h) { return h.j_method_id == mid; });
         if (it != hooks_.end()) {
-            it->is_static       = is_static;
-            it->method_name     = method_name;       // 拷贝（入参是 lvalue ref）
-            it->method_signature= method_signature;  // 拷贝
-            it->isHEnter        = isHEnter;
-            it->isHExit         = isHExit;
-            it->isRunOrigFun    = isRunOrigFun;
+            it->is_static = is_static;
+            it->method_name = method_name;       // 拷贝（入参是 lvalue ref）
+            it->method_signature = method_signature;  // 拷贝
+            it->isHEnter = isHEnter;
+            it->isHExit = isHExit;
+            it->isRunOrigFun = isRunOrigFun;
             return;
         }
         hooks_.emplace_back(mid, is_static, method_name, method_signature,
@@ -87,5 +65,61 @@ namespace deploy {
     int Transform::getHooksSize() const {
         // size_t -> int 显式收窄（列表不会很大，安全）
         return static_cast<int>(hooks_.size());
+    }
+
+    /**
+     * 核心修改逻辑 这里是把整个原始类送进来改
+     * @param dex_ir
+     */
+    void Transform::Apply(std::shared_ptr<ir::DexFile> dex_ir) {
+        LOGD("[Transform::Apply] 开始修改 %s 类 ------------------- ", GetClassName().c_str());
+        if (!dex_ir || hooks_.empty()) return;
+
+        int i = 0;
+        for (const MethodHooks &hook: hooks_) {
+            LOGI("[Transform::Apply] 开始修改[%d] %s %s %s isHEnter= %d, isHEnter= %d, isRunOrigFun= %d",
+                 ++i,
+                 this->is_app_loader_ ? "应用侧" : "系统侧",
+                 hook.method_name.c_str(),
+                 hook.method_signature.c_str(),
+                 hook.isHEnter,
+                 hook.isHExit,
+                 hook.isRunOrigFun
+            );
+
+            // 组装 dex MethodId 类
+            const ir::MethodId orig_method_obj(
+                    GetJniClassName().c_str(),
+                    hook.method_name.c_str(),
+                    hook.method_signature.c_str(),
+                    hook.is_static
+            );
+
+            ir::Builder builder(dex_ir);
+            auto ir_method = builder.FindMethod(orig_method_obj);
+            if (ir_method == nullptr) {
+                // we couldn't find the specified method
+                LOGE("[Transform::Apply] FindMethod 找不到指定方法")
+                return;
+            }
+
+
+            if (ir_method->code == nullptr) {
+                LOGE("[Transform::Apply] 方法不可修改 ir_method->code 为空")
+                // 不可修改：抽象方法（无实现）、native 方法（实现由虚拟机提供）
+                return;
+            }
+
+            // 拿到这个方法的IR
+            lir::CodeIr code_ir(ir_method, dex_ir);
+
+
+            LOGI("[Transform::Apply] code_ir成功 ... %s -> %s %s ",
+                 ir_method->decl->parent->Decl().c_str(),
+                 ir_method->decl->name->c_str(),
+                 ir_method->decl->prototype->Signature().c_str())
+
+        }
+
     }
 }

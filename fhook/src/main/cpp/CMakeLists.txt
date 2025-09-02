@@ -66,6 +66,7 @@ target_link_libraries(
         fhook_agent
 
         dexter  # 静态库
+        z
 
         android
         log

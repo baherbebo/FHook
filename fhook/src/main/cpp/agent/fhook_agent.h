@@ -6,6 +6,7 @@
 #define FHOOK_FHOOK_AGENT_H
 
 #include "../jvmti.h"
+#include "../dexter/slicer/writer.h"
 
 typedef jlong (*AgentDoTransformFn)(
         JNIEnv *env,
@@ -36,5 +37,26 @@ private:
     char *mPtr;
 };
 
+class JvmtiAllocator : public dex::Writer::Allocator {
+public:
+    JvmtiAllocator(jvmtiEnv *jvmti) : jvmti_(jvmti) {}
+
+    virtual void *Allocate(size_t size) {
+        unsigned char *alloc = nullptr;
+        jvmti_->Allocate(size, &alloc);
+        return (void *) alloc;
+    }
+
+    virtual void Free(void *ptr) {
+        if (ptr == nullptr) {
+            return;
+        }
+
+        jvmti_->Deallocate((unsigned char *) ptr);
+    }
+
+private:
+    jvmtiEnv *jvmti_;
+};
 
 #endif //FHOOK_FHOOK_AGENT_H

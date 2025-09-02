@@ -167,25 +167,25 @@ public class FHook {
         return new HookHandle(-1, method);
     }
 
-    static synchronized void ensureInstall(HookHandle h) {
-        if (h == null || h.isHooked() || h.method == null) return;
+    static synchronized void installOnce(HookHandle h) {
+        if (h == null || h.method == null) return;
+        if (h.isHooked) return; // 已安装就别重复
 
         boolean hasEnter = (h.enterCb != null);
-        boolean hasExit = (h.exitCb != null);
-        boolean runOrig = h.runOriginalByDefault;
+        boolean hasExit  = (h.exitCb  != null);
+        boolean runOrig  = h.runOriginalByDefault;
 
         long mid = CLinker.dcHook(h.method, hasEnter, hasExit, runOrig);
-
         if (mid < 0) {
-            FLog.e(TAG, "[ensureInstall] dcHook failed: " + mid);
+            FLog.e(TAG, "[installOnce] dcHook failed: " + mid);
             h.markNotHooked();
             return;
         }
         h.nativeHandle = mid;
         h.setHooked(true);
         sHandles.put(mid, h);
-        FLog.i(TAG, "[ensureInstall] dcHook success: " + mid
-                + " enter=" + hasEnter + " exit=" + hasExit + " runOrig=" + runOrig);
+        FLog.i(TAG, "[installOnce] success: mid=" + mid +
+                " enter=" + hasEnter + " exit=" + hasExit + " runOrig=" + runOrig);
     }
 
 
@@ -243,6 +243,7 @@ public class FHook {
     }
 
     static void unregister(long methodId) {
+        // 这里要调native 方法
         sHandles.remove(methodId);
     }
 

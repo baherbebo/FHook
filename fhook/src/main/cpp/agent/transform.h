@@ -92,7 +92,7 @@ namespace deploy {
 
         std::string GetClassName() const;
 
-        void set_sys_loader(bool sys_loader);
+        void set_app_loader(bool sys_loader);
 
         void Apply(std::shared_ptr<ir::DexFile> dex_ir);
 
@@ -113,7 +113,7 @@ namespace deploy {
     private:
         const std::string class_name_;
 
-        bool is_sys_loader_ = false;
+        bool is_app_loader_ = false;
 
         std::vector<MethodHooks> hooks_; // 能够在同一个转换操作中处理多个方法 hook
     };

@@ -12,6 +12,8 @@
 #include "../tools/fsys.h"
 #include "transform.h"
 #include "../agent/transform.h"
+#include "../dexter/slicer/reader.h"
+#include "../dexter/slicer/writer.h"
 
 static jvmtiEnv *fAgentJvmtiEnv = nullptr; // 全局JVMTI环境
 static std::map<std::string, std::unique_ptr<deploy::Transform>> fClassTransforms;// 当前已hook的所有配置
@@ -24,59 +26,85 @@ thread_local deploy::Transform *current_transform = nullptr; // 当前hook配置
  * @param name
  * @return
  */
-static bool find_class_loader(JNIEnv *jni, jobject loader, const char *name) {
+static bool find_app_class_loader(JNIEnv *jni, jobject loader, const char *name) {
     if (loader == nullptr) {
-        // Bootstrap（BootClassLoader）
-        LOGW("[find_class_loader] Class %s is loaded by Bootstrap ClassLoader", name);
-        return true;
-    }
-
-    jclass loaderClass = jni->GetObjectClass(loader);
-    if (!loaderClass) {
-        if (jni->ExceptionCheck()) jni->ExceptionClear();
-        LOGW("[find_class_loader] %s by <loader ?>(GetObjectClass failed)", name);
+        // Bootstrap（BootClassLoader）——系统/核心类
+        LOGW("[find_app_class_loader] Class %s is loaded by Bootstrap ClassLoader",
+             name ? name : "<null>");
         return false;
     }
 
+    jclass loaderClass = jni->GetObjectClass(loader);        // 这是个 java.lang.Class 实例（loader 的类对象）
+    if (!loaderClass) {
+        if (jni->ExceptionCheck()) jni->ExceptionClear();
+        LOGW("[find_app_class_loader] %s by <loader ?>(GetObjectClass failed)",
+             name ? name : "<null>");
+        return false;
+    }
+
+    // 常见 App 侧 Loader
     jclass pathClassLoader = jni->FindClass("dalvik/system/PathClassLoader");
     if (jni->ExceptionCheck()) jni->ExceptionClear();
-    jclass dexClassLoader  = jni->FindClass("dalvik/system/DexClassLoader");
+    jclass dexClassLoader = jni->FindClass("dalvik/system/DexClassLoader");
     if (jni->ExceptionCheck()) jni->ExceptionClear();
-    jclass inMemClassLoader = jni->FindClass("dalvik/system/InMemoryDexClassLoader"); // 26+
-    if (jni->ExceptionCheck()) jni->ExceptionClear();
-    jclass delegLastClassLoader = jni->FindClass("dalvik/system/DelegateLastClassLoader"); // 27+
+    jclass inMemClassLoader = jni->FindClass("dalvik/system/InMemoryDexClassLoader");
+    if (jni->ExceptionCheck()) jni->ExceptionClear(); // 26+
+    jclass delegLastClassLoader = jni->FindClass("dalvik/system/DelegateLastClassLoader");
+    if (jni->ExceptionCheck()) jni->ExceptionClear(); // 27+
+    // 兜底：广义“应用侧”都继承它
+    jclass baseDexClassLoader = jni->FindClass("dalvik/system/BaseDexClassLoader");
     if (jni->ExceptionCheck()) jni->ExceptionClear();
 
-    // 打印真实 loader 类名（比 toString 稳）
+    // 打印真实 loader 类名：对 Class 实例调用 Class.getName()
     jclass clsClass = jni->FindClass("java/lang/Class");
     if (jni->ExceptionCheck()) jni->ExceptionClear();
-    jmethodID midGetName = clsClass ? jni->GetMethodID(clsClass, "getName", "()Ljava/lang/String;") : nullptr;
-    if (jni->ExceptionCheck()) { jni->ExceptionClear(); midGetName = nullptr; }
+    jmethodID midGetName = clsClass ? jni->GetMethodID(clsClass, "getName", "()Ljava/lang/String;")
+                                    : nullptr;
+    if (jni->ExceptionCheck()) {
+        jni->ExceptionClear();
+        midGetName = nullptr;
+    }
 
-    auto print_with_name = [&](const char* tag) {
+    auto print_with_name = [&](const char *tag) {
         if (midGetName) {
+            // 注意：这里的 receiver 必须是“类对象”，即 loaderClass，而不是 loader 实例
             jstring jn = (jstring) jni->CallObjectMethod(loaderClass, midGetName);
-            if (jni->ExceptionCheck()) { jni->ExceptionClear(); jn = nullptr; }
-            const char* s = jn ? jni->GetStringUTFChars(jn, nullptr) : "<?>"; // 注意下面释放
-            LOGW("[find_class_loader] %s by %s (%s)", name, tag, s);
-            if (jn) { jni->ReleaseStringUTFChars(jn, s); jni->DeleteLocalRef(jn); }
+            if (jni->ExceptionCheck()) {
+                jni->ExceptionClear();
+                jn = nullptr;
+            }
+            const char *s = jn ? jni->GetStringUTFChars(jn, nullptr) : "<?>"; // 下面会释放
+            LOGW("[find_app_class_loader] %s by %s (%s)", name ? name : "<null>", tag, s);
+            if (jn) {
+                jni->ReleaseStringUTFChars(jn, s);
+                jni->DeleteLocalRef(jn);
+            }
         } else {
-            LOGW("[find_class_loader] %s by %s", name, tag);
+            LOGW("[find_app_class_loader] %s by %s", name ? name : "<null>", tag);
         }
     };
 
+    bool is_app = false;
     if (pathClassLoader && jni->IsInstanceOf(loader, pathClassLoader)) {
         print_with_name("PathClassLoader");
+        is_app = true;
     } else if (dexClassLoader && jni->IsInstanceOf(loader, dexClassLoader)) {
         print_with_name("DexClassLoader");
+        is_app = true;
     } else if (inMemClassLoader && jni->IsInstanceOf(loader, inMemClassLoader)) {
         print_with_name("InMemoryDexClassLoader");
+        is_app = true;
     } else if (delegLastClassLoader && jni->IsInstanceOf(loader, delegLastClassLoader)) {
         print_with_name("DelegateLastClassLoader");
+        is_app = true;
+    } else if (baseDexClassLoader && jni->IsInstanceOf(loader, baseDexClassLoader)) {
+        // 任何继承 BaseDexClassLoader 的自定义 Loader（插件/热修复等）
+        print_with_name("BaseDexClassLoader<custom>");
+        is_app = true;
     } else {
-        // 兜底：自定义 ClassLoader
-        // 你的 toString 方案也行，但 getClass().getName() 更稳定
-        print_with_name("CustomClassLoader");
+        // 系统侧/厂商自定义非 BaseDex 的 Loader
+        print_with_name("Non-App/ClassLoader");
+        is_app = false;
     }
 
     // 回收本地引用
@@ -84,15 +112,30 @@ static bool find_class_loader(JNIEnv *jni, jobject loader, const char *name) {
     if (pathClassLoader) jni->DeleteLocalRef(pathClassLoader);
     if (dexClassLoader) jni->DeleteLocalRef(dexClassLoader);
     if (inMemClassLoader) jni->DeleteLocalRef(inMemClassLoader);
-    if (delegLastClassLoader) jni->DeleteLocalRef(delegLastClassLoader);
+    if (delegLastClassLoader)jni->DeleteLocalRef(delegLastClassLoader);
+    if (baseDexClassLoader) jni->DeleteLocalRef(baseDexClassLoader);
     jni->DeleteLocalRef(loaderClass);
 
-    return true;
+    return is_app;
 }
 
 
+static int SetNeedCapabilities(jvmtiEnv *jvmti) {
+    jvmtiCapabilities caps = {0};
+    jvmtiError error;
+    error = jvmti->GetPotentialCapabilities(&caps);
+    LOGD("[SetNeedCapabilities] %d, %d, %d, %d", caps.can_redefine_classes,
+         caps.can_retransform_any_class, caps.can_set_native_method_prefix, error);
+    jvmtiCapabilities newCaps = {0};
+    newCaps.can_retransform_classes = 1;
+    if (caps.can_set_native_method_prefix) {
+        newCaps.can_set_native_method_prefix = 1;
+    }
+    return jvmti->AddCapabilities(&newCaps);
+}
+
 /**
- * 当代理加载类文件时触发的事件   sAgentJvmtiEnv->RetransformClasses(1, &nativeClass) 重载回调
+ * 这个调用  transform.cpp  current_transform->Apply(dex_ir);
  */
 extern "C" void JNICALL HookClassFileLoadHook(
         jvmtiEnv *jvmti,
@@ -125,24 +168,56 @@ extern "C" void JNICALL HookClassFileLoadHook(
     // 这里确定是要改hook配置  --------
 
     /** ------------- 反射查看类加载器 的类型 ------------- */
-    current_transform->set_sys_loader(find_class_loader(jni, loader, name));
+    current_transform->set_app_loader(find_app_class_loader(jni, loader, name));
 
+    std::string descriptor = current_transform->GetJniClassName(); // 拿到jni 格式的信息
 
-}
-
-static int SetNeedCapabilities(jvmtiEnv *jvmti) {
-    jvmtiCapabilities caps = {0};
-    jvmtiError error;
-    error = jvmti->GetPotentialCapabilities(&caps);
-    LOGD("[SetNeedCapabilities] %d, %d, %d, %d", caps.can_redefine_classes,
-         caps.can_retransform_any_class, caps.can_set_native_method_prefix, error);
-    jvmtiCapabilities newCaps = {0};
-    newCaps.can_retransform_classes = 1;
-    if (caps.can_set_native_method_prefix) {
-        newCaps.can_set_native_method_prefix = 1;
+    // 定位查找类索引
+    dex::Reader reader(class_data, class_data_len);
+    auto class_index = reader.FindClassIndex(descriptor.c_str());
+    if (class_index == dex::kNoIndex) {
+        LOGE("[HookClassFileLoadHook] %s reader 定位失败", descriptor.c_str())
+        return;
     }
-    return jvmti->AddCapabilities(&newCaps);
+
+    // 类的原始字节码解析为 IR（中间表示） 包含类的方法、字段、字节码指令等
+    reader.CreateClassIr(class_index);
+    auto dex_ir = reader.GetIr();
+
+    /**这里执行 Transform::Apply 方法修改字节码 *****************/
+    current_transform->Apply(dex_ir);
+
+    // 生成新的文件
+    size_t new_image_size = 0;
+    dex::u1 *new_image = nullptr;
+    dex::Writer writer(dex_ir); // 将修改后的 IR 重新编码为 Dex 字节码
+
+    JvmtiAllocator allocator(jvmti); // 基于 JVMTI 接口分配内存
+    new_image = writer.CreateImage(&allocator, &new_image_size);
+
+#ifdef DEBUG_DEX_FILE
+    // 将修改后的 Dex 保存到 /sdcard/Download/dex_debug.dex
+    FILE* out_debug_check_file = fopen("/sdcard/Download/dex_debug.dex", "w");
+        if(out_debug_check_file == nullptr) {
+            ALOGI("out_debug_check_file open fail");
+        } else {
+            int write_cnt = fwrite(new_image, 1, new_image_size, out_debug_check_file);
+            ALOGI("DexBuild wirte out_debug_check_file %d for %zu", write_cnt, new_image_size);
+            fclose(out_debug_check_file);
+        }
+#endif
+
+    LOGD("[HookClassFileLoadHook] 修改字节码完成 长度变化 %d -> %zu", class_data_len,
+         new_image_size)
+
+    *new_class_data_len = new_image_size; // 修改后的长度
+    *new_class_data = new_image; // 修改后的字节码（new_image
+
 }
+
+/**
+ * 当代理加载类文件时触发的事件   sAgentJvmtiEnv->RetransformClasses(1, &nativeClass) 重载回调
+ */
 
 
 /**
@@ -286,7 +361,7 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
     }
 
     jlong res = transRet ? methodId4jlong : -1;
-    LOGD("[agent_do_transform] 运行完成大于0成功 res= %ld", res);
+    LOGD("[agent_do_transform] 运行完成方法ID大于0成功 res= %ld", res);
     return res;
 
 }
