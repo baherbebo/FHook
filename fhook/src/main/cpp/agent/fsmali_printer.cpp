@@ -4,9 +4,7 @@
 
 #include "fsmali_printer.h"
 // 在合适的头文件中声明（如 smali_printer.h）
-#include "../dexter/slicer/code_ir.h"
-#include "../dexter/slicer/dex_ir.h"
-#include "log.h"
+#include "../FGlobal_flib.h"
 
 #define TAG FEADRE_TAG("smali_printer")
 

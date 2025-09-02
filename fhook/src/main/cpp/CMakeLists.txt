@@ -53,11 +53,14 @@ target_link_libraries(
         log
 )
 
+# ------------------------------ fhook_agent
 add_library(
         fhook_agent
         SHARED
         agent/fhook_agent.cpp
         agent/transform.cpp
+        agent/fsmali_printer.cpp
+        agent/finject.cpp
 
         ${COMMON_SOURCES}
 )

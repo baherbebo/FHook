@@ -8,6 +8,7 @@
 #include "transform.h"
 #include "../dexter/slicer/dex_ir_builder.h"
 #include "../dexter/slicer/code_ir.h"
+#include "fsmali_printer.h"
 
 namespace deploy {
     /// Ltop/feadre/fhook/THook;
@@ -113,12 +114,21 @@ namespace deploy {
             // 拿到这个方法的IR
             lir::CodeIr code_ir(ir_method, dex_ir);
 
+//            LOGD("[Transform::Apply] code_ir成功 ... %s -> %s %s ",
+//                 ir_method->decl->parent->Decl().c_str(),
+//                 ir_method->decl->name->c_str(),
+//                 ir_method->decl->prototype->Signature().c_str())
 
-            LOGI("[Transform::Apply] code_ir成功 ... %s -> %s %s ",
+            // do 注入 .... 修改
+            SmaliPrinter::CodeIrToSmali4Print(&code_ir);
+//            finitef::do_finject(this, &code_ir);
+
+            code_ir.Assemble();  // 方法块修改应用
+
+            LOGI("[Transform::Apply] 修改完成 ... %s -> %s %s ",
                  ir_method->decl->parent->Decl().c_str(),
                  ir_method->decl->name->c_str(),
                  ir_method->decl->prototype->Signature().c_str())
-
         }
 
     }

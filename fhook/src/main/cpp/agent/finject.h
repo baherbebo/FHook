@@ -6,7 +6,11 @@
 #define FHOOK_FINJECT_H
 
 
-class finject {
+#include "transform.h"
+#include "../dexter/slicer/code_ir.h"
+
+namespace finject {
+    bool do_finject(deploy::Transform *thiz, lir::CodeIr *code_ir);
 
 };
 
