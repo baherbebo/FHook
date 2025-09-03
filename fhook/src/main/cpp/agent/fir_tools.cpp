@@ -127,6 +127,7 @@ namespace fir_tools {
 
     // ---------------------------------------
 
+
     /**
       * const/4 v2 #0x0 创建一个null引用
       * @param code_ir
@@ -141,7 +142,6 @@ namespace fir_tools {
         const_null1->operands.push_back(code_ir->Alloc<lir::Const32>(0));
         code_ir->instructions.insert(insert_point, const_null1);
     }
-
 
     /**
      * 普通
@@ -458,11 +458,7 @@ namespace fir_tools {
             // 创建默认值  直接创建 null 就不需要转换
             if (is_reference) {
                 // const/4 vX, #null  -> return-object vX
-                auto init = code_ir->Alloc<lir::Bytecode>();
-                init->opcode = dex::OP_CONST_4;
-                init->operands.push_back(code_ir->Alloc<lir::VReg>(reg_num));
-                init->operands.push_back(code_ir->Alloc<lir::Const32>(0)); // null
-                code_ir->instructions.push_back(init);
+                EmitConstToReg(code_ir, insert_point, reg_num, 0);
 
                 // return-object vX
                 auto ret = code_ir->Alloc<lir::Bytecode>();
@@ -490,12 +486,8 @@ namespace fir_tools {
 
             // 非宽非引用：普通 scalar
             {
-                auto init = code_ir->Alloc<lir::Bytecode>();
                 // 对于小常量优先使用 const/4，但这里用 const/4 (0) 足够
-                init->opcode = dex::OP_CONST_4;
-                init->operands.push_back(code_ir->Alloc<lir::VReg>(reg_num));
-                init->operands.push_back(code_ir->Alloc<lir::Const32>(0));
-                code_ir->instructions.push_back(init);
+                EmitConstToReg(code_ir, insert_point, reg_num, 0);
 
                 auto ret = code_ir->Alloc<lir::Bytecode>();
                 ret->opcode = dex::OP_RETURN;
@@ -569,11 +561,11 @@ namespace fir_tools {
      * @param reg_tmp_idx
      */
     void restore_reg_params4type(lir::CodeIr *code_ir,
-                                        dex::u4 reg_args,            // enter 返回的 Object[] 寄存器 (e.g. v0)
-                                        dex::u4 base_param_reg,     // 参数区起始寄存器 (num_reg_non_param)
-                                        dex::u4 reg_tmp_obj,       // 临时寄存器存 aget-object 结果 (e.g. v1)
-                                        dex::u4 reg_tmp_idx,// 临时寄存器做数组索引 (e.g. v2)
-                                        slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point
+                                 dex::u4 reg_args,            // enter 返回的 Object[] 寄存器 (e.g. v0)
+                                 dex::u4 base_param_reg,     // 参数区起始寄存器 (num_reg_non_param)
+                                 dex::u4 reg_tmp_obj,       // 临时寄存器存 aget-object 结果 (e.g. v1)
+                                 dex::u4 reg_tmp_idx,// 临时寄存器做数组索引 (e.g. v2)
+                                 slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point
     ) {
 
         SLICER_CHECK(code_ir && code_ir->ir_method);
@@ -817,6 +809,7 @@ namespace fir_tools {
         LOGD("[restore_reg_params4shift] done. regs=%u ins=%u shift=%u", regs, ins, shift);
     }
 
+    /// 没有就返回最后
     slicer::IntrusiveList<lir::Instruction>::Iterator
     find_return_code(lir::CodeIr *code_ir) {
         // 找到return指令前的位置  ------------ 后向前找
@@ -852,6 +845,7 @@ namespace fir_tools {
         return insert_point;
     }
 
+    ///没有就返回最开始
     slicer::IntrusiveList<lir::Instruction>::Iterator
     find_first_code(lir::CodeIr *code_ir) {
         // 找到return指令前的位置  ------------ 后向前找
@@ -1013,6 +1007,99 @@ namespace fir_tools {
         }
     }
 
+    /// 自动选一个不冲突，可选是否重复，的普通寄存器
+    int pick_reg4one(lir::CodeIr *code_ir,
+                     int reg_target,        // 返回不能与这个寄存器冲突
+                     bool is_wide_target,   // reg_target 是否为宽寄存器起点（需要避开 reg_target 与 reg_target+1）
+                     bool is_repetition)    // 是否允许返回与 reg_target 相同（仅在不冲突前提下）
+    {
+        SLICER_CHECK(code_ir && code_ir->ir_method && code_ir->ir_method->code);
+        const auto code = code_ir->ir_method->code;
+
+        const dex::u2 regs_size = code->registers;   // 总寄存器数
+        const dex::u2 ins_size = code->ins_count;   // 参数寄存器数（高位）
+        const int locals = static_cast<int>(regs_size - ins_size);
+        if (locals <= 0) {
+            LOGE("[pick_reg4one] locals=0，无可用本地寄存器");
+            return -1;
+        }
+
+        auto conflict_with_target = [&](int v) -> bool {
+            if (reg_target < 0) return false;
+            if (is_wide_target) {
+                // 目标为宽寄存器：v 不能等于 reg_target 或 reg_target+1
+                return (v == reg_target) || (v == reg_target + 1);
+            } else {
+                // 目标为普通寄存器：v 不能等于 reg_target 才算“冲突”
+                return (v == reg_target);
+            }
+        };
+
+        // 若允许“重复”，且不与 reg_target 冲突，优先返回 reg_target（仅当其在 locals 内）
+        if (is_repetition && reg_target >= 0 && reg_target < locals &&
+            !conflict_with_target(reg_target)) {
+            return reg_target;
+        }
+
+        // 从 v0 起找第一个不冲突的普通寄存器
+        for (int v = 0; v < locals; ++v) {
+            if (!conflict_with_target(v)) {
+                // 若不允许重复，还需排除 v == reg_target（仅在窄目标场景有意义）
+                if (!is_repetition && reg_target >= 0 && !is_wide_target && v == reg_target) {
+                    continue;
+                }
+                return v;
+            }
+        }
+
+        LOGE("[pick_reg4one] 无可用普通寄存器 (locals=%d, reg_target=%d, wide_target=%d, repetition=%d)",
+             locals, reg_target, is_wide_target, is_repetition);
+        return -1;
+    }
+
+
+    /// 自动选一个不冲突且不能重复的宽寄存器（返回起始号 v，占 v 与 v+1）
+    int pick_reg4wide(lir::CodeIr *code_ir,
+                      int reg_target,
+                      bool is_wide_target) {
+        SLICER_CHECK(code_ir && code_ir->ir_method && code_ir->ir_method->code);
+        const auto code = code_ir->ir_method->code;
+
+        const dex::u2 regs_size = code->registers;
+        const dex::u2 ins_size = code->ins_count;
+        const int locals = static_cast<int>(regs_size - ins_size);
+        if (locals <= 1) {
+            LOGE("[pick_reg4wide] locals<=1，无法容纳宽寄存器对");
+            return -1;
+        }
+
+        auto conflict_with_target_pair = [&](int v) -> bool {
+            if (reg_target < 0) return false;
+            const int a_lo = v, a_hi = v + 1; // 我们申请的 (v, v+1)
+            if (is_wide_target) {
+                // 目标也是宽寄存器：避开区间重叠
+                const int b_lo = reg_target, b_hi = reg_target + 1;
+                return !(a_hi < b_lo || b_hi < a_lo);
+            } else {
+                // 目标是普通寄存器：v 或 v+1 不能命中 reg_target
+                return (reg_target == a_lo) || (reg_target == a_hi);
+            }
+        };
+
+        for (int v = 0; v + 1 < locals; ++v) {
+            // “不能重复”：起点 v 不得等于 reg_target
+            if (v == reg_target) continue;
+
+            // 不冲突检查
+            if (!conflict_with_target_pair(v)) {
+                return v;
+            }
+        }
+
+        LOGE("[pick_reg4wide] 无可用宽寄存器对 (locals=%d, reg_target=%d, wide_target=%d)",
+             locals, reg_target, is_wide_target);
+        return -1;
+    }
 
 
 };

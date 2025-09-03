@@ -95,15 +95,13 @@ namespace fir_funs_do {
     }
 
 
-    void do_THook_onExit(
+    bool do_THook_onExit(
             lir::Method *f_THook_onExit,
             lir::CodeIr *code_ir,
             int reg1_arg,  // onExit object 的参数寄存器（如 v4）
-            dex::u2 reg2_tmp_long, // long 宽寄存器 用于 method_id
             int reg_tmp_return, // onExit 返回值 object
             uint64_t method_id, // uint64_t
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
-
 
         ir::Builder builder(code_ir->dex_ir);
         auto *ir_method = code_ir->ir_method;
@@ -111,33 +109,12 @@ namespace fir_funs_do {
         const dex::u2 regs_size = code->registers;
         const dex::u2 ins_count = code->ins_count;
 
-        // 校验 范围 + 宽寄存器 + 不重叠
-        {
-            // 超界检测
-            auto in_range = [&](int v) { return v >= 0 && (dex::u2) v < regs_size; };
-            if (!in_range(reg1_arg) || !in_range(reg_tmp_return) ||
-                !in_range(reg2_tmp_long) || !in_range(reg2_tmp_long + 1)) {
-                LOGE("[do_THook_onExit] reg 越界: regs=%u, reg1_arg=%d, ret=%d, long={%u,%u}",
-                     regs_size, reg1_arg, reg_tmp_return, reg2_tmp_long, reg2_tmp_long + 1);
-                return;
-            }
-            // 宽越界检测
-            if (reg2_tmp_long + 1 >= regs_size) {
-                LOGE("[do_THook_onExit] reg2_tmp_long hi 越界: %u/%u", reg2_tmp_long + 1,
-                     regs_size);
-                return;
-            }
-            // 禁止 {reg2_tmp_long, reg2_tmp_long+1} 与 reg1_arg/reg_tmp_return 重叠
-            if (reg1_arg == (int) reg2_tmp_long || reg1_arg == (int) reg2_tmp_long + 1 ||
-                reg_tmp_return == (int) reg2_tmp_long ||
-                reg_tmp_return == (int) reg2_tmp_long + 1) {
-                LOGE("[do_THook_onExit] 重叠: reg1_arg=%d, ret=%d, long={%u,%u}",
-                     reg1_arg, reg_tmp_return, reg2_tmp_long, reg2_tmp_long + 1);
-                return;
-            }
-
+        // 拿到了一个不冲突的宽寄存器 long 宽寄存器 用于 method_id
+        int reg2_tmp_long = fir_tools::pick_reg4wide(code_ir, reg1_arg, false);
+        if (reg2_tmp_long < 0) {
+            LOGE("[do_THook_onExit] reg2_tmp_long pick_reg4wide error");
+            return false;
         }
-
 
         // 写入 method_id 到 {reg2_tmp_long, reg2_tmp_long+1}  const-wide v<reg_id_lo>, 123456L
         {
@@ -169,11 +146,14 @@ namespace fir_funs_do {
         code_ir->instructions.insert(insert_point, move_res);
 
         {
+            // 恢复避免后续恢复 这个完了直接返回了，但还有有可能被使用
             // 先清高半 v+1
             fir_tools::EmitConstToReg(code_ir, insert_point, reg2_tmp_long + 1, 0);
             // 再清低半 v
             fir_tools::EmitConstToReg(code_ir, insert_point, reg2_tmp_long, 0);
         }
+
+        return true;
 
     }
 
@@ -288,6 +268,7 @@ namespace fir_funs_do {
         code_ir->instructions.insert(insert_point, mres);
 
         {
+            // 恢复宽寄存器
             // 先清高半 v+1
             fir_tools::EmitConstToReg(code_ir, insert_point, reg2_tmp_long + 1, 0);
             // 再清低半 v
@@ -691,12 +672,20 @@ namespace fir_funs_do {
     }
 
 
-    /// 生成 object 参数
+    /**
+     * 生成 object 参数
+     * @param code_ir
+     * @param reg_return
+     * @param is_wide_return
+     * @param insert_point
+     * @return 返回已打包好的寄存器编号
+     *
+     */
     // 包装返回值到 Object（放到 reg1_tmp_arg），便于后续注入 onExit(Object)
-    void cre_arr_do_args4onExit(
+    int cre_arr_do_args4onExit(
             lir::CodeIr *code_ir,
             int reg_return,         // 原方法返回值所在寄存器 清空则没有返回值
-            dex::u2 reg1_tmp_arg,       // 返回结果 目标寄存器（一定要是 object 类型寄存器）
+            bool is_wide_return,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
         SLICER_CHECK(code_ir != nullptr);
@@ -707,6 +696,11 @@ namespace fir_funs_do {
         auto return_type = proto->return_type;
         SLICER_CHECK(return_type != nullptr);
 
+        // 拿到了一个不与宽冲突可重复的寄存器
+        int reg_arg = fir_tools::pick_reg4one(
+                code_ir, reg_return, is_wide_return, true);
+        if (reg_arg < 0)return reg_arg;
+
         // 无返回值或方法已经清空情况
         if (strcmp(return_type->descriptor->c_str(), "V") == 0 || reg_return < 0) {
             // 拿到方法信息
@@ -714,29 +708,36 @@ namespace fir_funs_do {
                  ir_method->decl->parent->Decl().c_str(),
                  ir_method->decl->name->c_str(),
                  ir_method->decl->prototype->Signature().c_str(),
-                 reg1_tmp_arg);
+                 reg_arg);
             // 创建空对象
-            fir_tools::cre_null_reg(code_ir, reg1_tmp_arg, insert_point);
-            return;
+            fir_tools::cre_null_reg(code_ir, reg_arg, insert_point);
+            return reg_arg;
         }
 
         if (return_type->GetCategory() == ir::Type::Category::Reference) {
             // === 引用直接赋值 ，向上不用转换 ===
             auto move_obj = code_ir->Alloc<lir::Bytecode>();
             move_obj->opcode = dex::OP_MOVE_OBJECT;
-            move_obj->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_tmp_arg));
+            move_obj->operands.push_back(code_ir->Alloc<lir::VReg>(reg_arg));
             move_obj->operands.push_back(code_ir->Alloc<lir::VReg>(reg_return));
             code_ir->instructions.insert(insert_point, move_obj);
-            return;
+            return reg_arg;
         }
 
         // === 基本标量类型：装箱成对象 ===
         fir_tools::box_scalar_value(insert_point, code_ir, return_type,
-                                    reg_return, reg1_tmp_arg);
+                                    reg_return, reg_arg);
 
+        if (is_wide_return) {
+            // 恢复宽寄存器
+            fir_tools::EmitConstToReg(code_ir, insert_point, reg_return + 1, 0);
+            fir_tools::EmitConstToReg(code_ir, insert_point, reg_return, 0);
+        }
 
         LOGD("[cre_arr_do_args4onExit] 处理完成：%s → 转换为Object到v%d",
-             return_type->descriptor->c_str(), reg1_tmp_arg);
+             return_type->descriptor->c_str(), reg_arg);
+
+        return reg_arg;
     }
 
     /// 把方法的参数强转object 放在 object[] 数组中

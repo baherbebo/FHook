@@ -51,9 +51,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void showEnterLog(String name_fun, Object thiz, List<Object> args, Class<?>[] types) {
-        FLog.d("----------- " + name_fun + " -------- thiz= " + thiz);
+        FLog.d("----------- " + name_fun + " --------" );
+        FLog.d("    thiz=" + thiz);
         for (int i = 0; i < args.size(); i++) {
-            FLog.d("args[" + i + "]=" + args.get(i) + " " + types[i]);
+            FLog.d("    args[" + i + "]=" + args.get(i) + " " + types[i]);
         }
     }
 
@@ -66,7 +67,7 @@ public class MainActivity extends AppCompatActivity {
             Method jtFun_I_II = FHookTool.findMethod4First(THook.class, "jtFun_I_II");
 
 
-            FHook.hook(fun_String_String2).setOrigFunRun(true)
+            FHook.hook(fun_String_String2).setOrigFunRun(false)
                     .setHookEnter((thiz, args, types, hh) -> {
                         showEnterLog("fun_String_String2", thiz, args, types);
                         String args0 = (String) args.set(0, "111");
@@ -75,27 +76,29 @@ public class MainActivity extends AppCompatActivity {
                         args.set(1, args1);
                     })
                     .setHookExit(
-                            (ret, types, hh) -> {
+                            (ret, type, hh) -> {
                                 FLog.d("----------- fun_String_String2  --------");
+                                FLog.d("    ret= "+ret+" ret_type= "+type);
+                                ret = "11111";
                                 return ret;
                             })
                     .commit();
 
-            FHook.hook(fun_I_III).setHookEnter((thiz, args, types, hh) -> {
-                        showEnterLog("fun_I_III", thiz, args, types);
-
-                        args.set(0, 6666);
-
-                    }).setOrigFunRun(true)
-                    .commit();
-
-            FHook.hook(jtFun_I_II).setOrigFunRun(true).setHookEnter((thiz, args, types, hh) -> {
-                        showEnterLog("jtFun_I_II", thiz, args, types);
-                        args.set(0, 8888);
-
-
-                    })
-                    .commit();
+//            FHook.hook(fun_I_III).setHookEnter((thiz, args, types, hh) -> {
+//                        showEnterLog("fun_I_III", thiz, args, types);
+//
+//                        args.set(0, 6666);
+//
+//                    }).setOrigFunRun(true)
+//                    .commit();
+//
+//            FHook.hook(jtFun_I_II).setOrigFunRun(true).setHookEnter((thiz, args, types, hh) -> {
+//                        showEnterLog("jtFun_I_II", thiz, args, types);
+//                        args.set(0, 8888);
+//
+//
+//                    })
+//                    .commit();
 
         });
 

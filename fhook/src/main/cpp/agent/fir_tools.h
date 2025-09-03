@@ -58,6 +58,15 @@ namespace fir_tools {
     int find_return_register(lir::CodeIr *code_ir, bool *is_wide_out = nullptr);
 
     void clear_original_instructions(lir::CodeIr *code_ir);
+
+    int pick_reg4one(lir::CodeIr *code_ir,
+                     int reg_target,        // 返回不能与这个寄存器冲突
+                     bool is_wide_target,   // reg_target 是否为宽寄存器起点（需要避开 reg_target 与 reg_target+1）
+                     bool is_repetition);
+
+    int pick_reg4wide(lir::CodeIr *code_ir,
+                      int reg_target,
+                      bool is_wide_target);
 };
 
 
