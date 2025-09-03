@@ -385,7 +385,7 @@ namespace fir_tools {
     * @param return_type
     * @param reg_return 指定返回值寄存器编号： 清空 或无返回值为-1 表示自动分配
     */
-    void cre_return_code(lir::CodeIr *code_ir,
+    bool cre_return_code(lir::CodeIr *code_ir,
                          ir::Type *return_type,
                          int reg_return,
                          slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
@@ -395,7 +395,7 @@ namespace fir_tools {
             auto ret = code_ir->Alloc<lir::Bytecode>();
             ret->opcode = dex::OP_RETURN_VOID;
             code_ir->instructions.push_back(ret);
-            return;
+            return true;
         }
 
         // 确定操作码和类型特性
@@ -423,7 +423,7 @@ namespace fir_tools {
             default:
                 SLICER_CHECK(false && "不支持的返回类型");
                 LOGE("[cre_return_code] 不支持的返回类型: %s", return_type->descriptor->c_str())
-                return;
+                return false;
         }
 
         // 方法已确定有返回值
@@ -440,7 +440,7 @@ namespace fir_tools {
                 // 没有本地寄存器可用 —— 这种情况应由调用方扩展寄存器或传入 reg_return
                 LOGE("[cre_return_code] no local registers available; caller must provide a target reg");
                 SLICER_FATAL("no local regs");
-                return;
+                return false;
             }
 
             // 选最后一个索引作为起点： base = regs - ins_count - 1
@@ -450,7 +450,7 @@ namespace fir_tools {
                 if (reg_num - 1 < 0) {
                     LOGE("[cre_return_code] cannot align wide reg; out of range");
                     SLICER_FATAL("cannot align wide reg");
-                    return;
+                    return false;
                 }
                 reg_num -= 1;
             }
@@ -465,7 +465,7 @@ namespace fir_tools {
                 ret->opcode = dex::OP_RETURN_OBJECT;
                 ret->operands.push_back(code_ir->Alloc<lir::VReg>(reg_num));
                 code_ir->instructions.push_back(ret);
-                return;
+                return true;
             }
 
             if (is_wide) {
@@ -481,7 +481,7 @@ namespace fir_tools {
                 ret->opcode = dex::OP_RETURN_WIDE;
                 ret->operands.push_back(code_ir->Alloc<lir::VRegPair>(reg_num)); // 必须 VRegPair
                 code_ir->instructions.push_back(ret);
-                return;
+                return true;
             }
 
             // 非宽非引用：普通 scalar
@@ -493,7 +493,7 @@ namespace fir_tools {
                 ret->opcode = dex::OP_RETURN;
                 ret->operands.push_back(code_ir->Alloc<lir::VReg>(reg_num));
                 code_ir->instructions.push_back(ret);
-                return;
+                return true;
             }
 
         }
@@ -522,7 +522,7 @@ namespace fir_tools {
             ret->opcode = dex::OP_RETURN_OBJECT;
             ret->operands.push_back(code_ir->Alloc<lir::VReg>(reg_num));
             code_ir->instructions.push_back(ret);
-            return;
+            return true;
         }
 
         // 这里已确定是标量 从 Object 解包到 v<dst>
@@ -538,7 +538,7 @@ namespace fir_tools {
             ret->opcode = dex::OP_RETURN_WIDE;
             ret->operands.push_back(code_ir->Alloc<lir::VRegPair>(reg_num)); // 必须 VRegPair
             code_ir->instructions.push_back(ret);
-            return;
+            return true;
         }
 
         // 非宽非引用：普通 scalar
@@ -547,7 +547,7 @@ namespace fir_tools {
             ret->opcode = dex::OP_RETURN;
             ret->operands.push_back(code_ir->Alloc<lir::VReg>(reg_num));
             code_ir->instructions.push_back(ret);
-            return;
+            return true;
         }
     }
 

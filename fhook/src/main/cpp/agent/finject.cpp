@@ -90,6 +90,9 @@ namespace finject {
                     //扩展了几个寄存器 = 需要多少本地寄存器 - 原有多少个本地寄存器
                     fir_tools::restore_reg_params4shift(code_ir, insert_point, num_add_reg);
                 }
+            } else {
+                // 系统侧 调用
+
             }
         }
 
@@ -98,32 +101,45 @@ namespace finject {
         // ------------------ Exit ------------------
 
         if (hook_info.isHExit) {
-            if (transform->is_app_loader()) {
-                // 更新指针
-                auto insert_return = fir_tools::find_return_code(code_ir);
+            // 更新指针 删除原有返回代码 这里如果执行原有方法，才需要删除
+            auto insert_return = fir_tools::find_return_code(code_ir);
+            insert_point = insert_return;
+            if (hook_info.isRunOrigFun && insert_return != code_ir->instructions.end()) {
+                ++insert_point;
+                code_ir->instructions.Remove(*insert_return);
+            }
 
+
+            if (transform->is_app_loader()) {
                 // 确保不与宽冲突 创建参数
                 int reg_arg = fir_funs_do::cre_arr_do_args4onExit(
                         code_ir,
                         return_register, return_register,
-                        insert_return);
+                        insert_point);
                 if (reg_arg < 0) return false;
                 LOGD("[do_finject] reg_arg= %d", reg_arg)
 
                 auto f_THook_onExit = fir_funs_def::get_THook_onExit(code_ir);
-                bool res = fir_funs_do::do_THook_onExit(f_THook_onExit, code_ir,
-                                                        reg_arg, v0,
-                                                        hook_info.j_method_id, insert_return);
+                bool res = fir_funs_do::do_THook_onExit(
+                        f_THook_onExit, code_ir,
+                        reg_arg, v0,
+                        hook_info.j_method_id, insert_point);
+
                 if (!res) return false;
+
                 reg_return = v0;
+            } else {
+                // 系统侧 搞用
             }
         }
 
-        if (!hook_info.isRunOrigFun) {
+        // 如果不执行原方法 或者运行了 isHExit 就需要 cre_return_code
+        if (!hook_info.isRunOrigFun || hook_info.isHExit) {
             LOGD("[do_finject] 添加返回代码 ...")
             // 如果清空了，一定要恢复
-            fir_tools::cre_return_code(code_ir, orig_return_type,
-                                       reg_return, insert_point);
+            bool res = fir_tools::cre_return_code(code_ir, orig_return_type,
+                                                  reg_return, insert_point);
+            if (!res) return false;
         }
 
         return true;

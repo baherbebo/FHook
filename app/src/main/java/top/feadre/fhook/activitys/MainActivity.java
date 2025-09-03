@@ -10,6 +10,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 
 import top.feadre.fhook.FCFG;
@@ -50,13 +51,20 @@ public class MainActivity extends AppCompatActivity {
 //        FHook.hook(method).setHookEnter(传一个接口实现类).setHookExit(传一个接口实现类).setOrigFunRun(true);
     }
 
-    void showEnterLog(String name_fun, Object thiz, List<Object> args, Class<?>[] types) {
-        FLog.d("----------- " + name_fun + " --------" );
+    void showLog(String name_fun, Object thiz, List<Object> args, Class<?>[] types) {
+        FLog.d("----------- " + name_fun + " --------");
         FLog.d("    thiz=" + thiz);
         for (int i = 0; i < args.size(); i++) {
             FLog.d("    args[" + i + "]=" + args.get(i) + " " + types[i]);
         }
     }
+
+    void showLog(String name_fun, Object thiz, Object arg, Class<?> type) {
+        showLog(name_fun, thiz,
+                java.util.Collections.singletonList(arg),
+                new Class<?>[]{type});
+    }
+
 
     private void initCtr() {
         Button bt_main_01 = findViewById(R.id.bt_main_01);
@@ -67,9 +75,9 @@ public class MainActivity extends AppCompatActivity {
             Method jtFun_I_II = FHookTool.findMethod4First(THook.class, "jtFun_I_II");
 
 
-            FHook.hook(fun_String_String2).setOrigFunRun(false)
+            FHook.hook(fun_String_String2).setOrigFunRun(true)
                     .setHookEnter((thiz, args, types, hh) -> {
-                        showEnterLog("fun_String_String2", thiz, args, types);
+                        showLog("fun_String_String2", thiz, args, types);
                         String args0 = (String) args.set(0, "111");
                         String args1 = (String) args.get(1);
                         args1 = "9999" + args0;
@@ -77,28 +85,42 @@ public class MainActivity extends AppCompatActivity {
                     })
                     .setHookExit(
                             (ret, type, hh) -> {
-                                FLog.d("----------- fun_String_String2  --------");
-                                FLog.d("    ret= "+ret+" ret_type= "+type);
+                                showLog("fun_String_String2", hh.thisObject, ret, type);
+
                                 ret = "11111";
                                 return ret;
                             })
                     .commit();
 
-//            FHook.hook(fun_I_III).setHookEnter((thiz, args, types, hh) -> {
-//                        showEnterLog("fun_I_III", thiz, args, types);
-//
-//                        args.set(0, 6666);
-//
-//                    }).setOrigFunRun(true)
-//                    .commit();
-//
-//            FHook.hook(jtFun_I_II).setOrigFunRun(true).setHookEnter((thiz, args, types, hh) -> {
-//                        showEnterLog("jtFun_I_II", thiz, args, types);
-//                        args.set(0, 8888);
-//
-//
-//                    })
-//                    .commit();
+            FHook.hook(fun_I_III)
+                    .setHookEnter((thiz, args, types, hh) -> {
+                        showLog("fun_I_III", thiz, args, types);
+                        args.set(0, 6666);
+
+                    })
+                    .setHookExit((ret, type, hh) -> {
+                        showLog("fun_I_III", hh.thisObject, ret, type);
+
+                        ret = 8888;
+                        return ret;
+                    })
+                    .setOrigFunRun(true)
+                    .commit();
+
+            FHook.hook(jtFun_I_II)
+                    .setOrigFunRun(false)
+                    .setHookEnter((thiz, args, types, hh) -> {
+                        showLog("jtFun_I_II", thiz, args, types);
+                        args.set(0, 8888);
+
+                    })
+                    .setHookExit((ret, type, hh) -> {
+                        showLog("jtFun_I_II", hh.thisObject, ret, type);
+
+                        ret = 99999;
+                        return ret;
+                    })
+                    .commit();
 
         });
 

@@ -30,7 +30,7 @@ namespace fir_tools {
                           dex::u4 reg_src,
                           dex::u4 reg_dst);
 
-    void cre_return_code(lir::CodeIr *code_ir,
+    bool cre_return_code(lir::CodeIr *code_ir,
                          ir::Type *return_type,
                          int reg_return,
                          slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);

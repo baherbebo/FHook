@@ -195,7 +195,7 @@ public class FHook {
         HookHandle hh = sHandles.get(methodId);
         if (hh == null) return rawArgs;
 
-        hh.setThisObject(rawArgs[0]); // 缓存
+        hh.thisObject = rawArgs[0]; // 缓存 this 对象
 
         if (hh.enterCb == null) return rawArgs;
 
@@ -206,7 +206,7 @@ public class FHook {
 
         // 调试
         try {
-            FLog.d(TAG, "[onEnter4fhook] 开始 --- " + TypeUtils.dumpArgs(hh.method, rawArgs));
+            FLog.d(TAG, "[onEnter4fhook] 开始 --- 原数据= " + TypeUtils.dumpArgs(hh.method, rawArgs));
         } catch (Throwable ignore) {
         }
 
@@ -216,7 +216,7 @@ public class FHook {
             FLog.e(TAG, "[onEnter4fhook] callback error", t);
         }
 
-        FLog.d(TAG, "[onEnter4fhook] 完成 --- " + TypeUtils.dumpArgs(hh.method, rawArgs));
+        FLog.d(TAG, "[onEnter4fhook] 完成 --- 改后数据= " + TypeUtils.dumpArgs(hh.method, rawArgs));
         return rawArgs;
     }
 
@@ -227,10 +227,10 @@ public class FHook {
 
         final Class<?> returnType = hh.method.getReturnType();
         try {
-            FLog.d(TAG, "[onExit4fhook] 开始 --- " + ret + " " + returnType);
+            FLog.d(TAG, "[onExit4fhook] 开始 --- 原返回值= " + ret + " " + returnType);
 
             Object res = hh.exitCb.onExit(ret, returnType, hh);
-            FLog.d(TAG, "[onExit4fhook] 完成 --- " + res + " " + returnType);
+            FLog.d(TAG, "[onExit4fhook] 完成 --- 改后返回值= " + res + " " + returnType);
 
             return res;
         } catch (Throwable t) {

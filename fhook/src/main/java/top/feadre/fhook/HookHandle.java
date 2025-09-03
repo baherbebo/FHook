@@ -3,7 +3,7 @@ package top.feadre.fhook;
 import java.lang.reflect.Method;
 
 public class HookHandle {
-    Object thisObject;
+    public Object thisObject;
     boolean isHooked = false; // native 已安装
     long nativeHandle;              // 由 native 返回的句柄
     Method method;
@@ -11,19 +11,32 @@ public class HookHandle {
     volatile FHook.HookExitCallback exitCb;
     volatile boolean runOriginalByDefault = true;
 
+    // 用于带各种数据
+    public final java.util.concurrent.ConcurrentHashMap<String, Object> extras =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     HookHandle(long h, Method m) {
         this.nativeHandle = h;
         this.method = m;
     }
 
-    HookHandle markNotHooked() { this.isHooked = false; return this; }
-
-    public void setThisObject(Object thisObject) {
-        this.thisObject = thisObject;
+    HookHandle markNotHooked() {
+        this.isHooked = false;
+        return this;
     }
 
-    public Object getThisObject() {
-        return thisObject;
+
+    @SuppressWarnings("unchecked")
+    public <T> T getExtra(String key) {
+        return (T) extras.get(key);
+    }
+
+    public void putExtra(String key, Object val) {
+        extras.put(key, val);
+    }
+
+    public void removeExtra(String key) {
+        extras.remove(key);
     }
 
     public boolean isHooked() {
