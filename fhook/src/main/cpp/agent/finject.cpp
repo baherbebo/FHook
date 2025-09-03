@@ -77,7 +77,6 @@ namespace finject {
                             insert_point);
                 }
 
-
             }
         }
 

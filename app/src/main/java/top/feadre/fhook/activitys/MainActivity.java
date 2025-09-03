@@ -10,15 +10,14 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.lang.reflect.Method;
+import java.util.List;
 
 import top.feadre.fhook.FCFG;
 import top.feadre.fhook.FHook;
 import top.feadre.fhook.FHookTool;
 import top.feadre.fhook.R;
 import top.feadre.fhook.THook;
-import top.feadre.fhook.TObject;
 import top.feadre.fhook.flibs.fsys.FLog;
-import top.feadre.fhook.flibs.fsys.TypeUtils;
 import top.feadre.fhook.tools.FFunsUI;
 
 public class MainActivity extends AppCompatActivity {
@@ -51,6 +50,13 @@ public class MainActivity extends AppCompatActivity {
 //        FHook.hook(method).setHookEnter(传一个接口实现类).setHookExit(传一个接口实现类).setOrigFunRun(true);
     }
 
+    void showEnterLog(String name_fun, Object thiz, List<Object> args, Class<?>[] types) {
+        FLog.d("----------- " + name_fun + " -------- thiz= " + thiz);
+        for (int i = 0; i < args.size(); i++) {
+            FLog.d("args[" + i + "]=" + args.get(i) + " " + types[i]);
+        }
+    }
+
     private void initCtr() {
         Button bt_main_01 = findViewById(R.id.bt_main_01);
         bt_main_01.setText("hook普通方法");
@@ -62,10 +68,7 @@ public class MainActivity extends AppCompatActivity {
 
             FHook.hook(fun_String_String2).setOrigFunRun(true)
                     .setHookEnter((thiz, args, types, hh) -> {
-                        FLog.d("----------- fun_String_String2  -------- thiz= " + thiz);
-                        for (int i = 0; i < args.size(); i++) {
-                            FLog.d("args[" + i + "]=" + args.get(i) + " " + types[i]);
-                        }
+                        showEnterLog("fun_String_String2", thiz, args, types);
                         String args0 = (String) args.set(0, "111");
                         String args1 = (String) args.get(1);
                         args1 = "9999" + args0;
@@ -78,15 +81,21 @@ public class MainActivity extends AppCompatActivity {
                             })
                     .commit();
 
-//            FHook.hook(fun_I_III).setHookEnter((thiz, args, types, hh) -> {
-//                        FLog.d("----------- fun_I_III  --------");
-//                    }).setOrigFunRun(true)
-//                    .commit();
-//
-//            FHook.hook(jtFun_I_II).setOrigFunRun(true).setHookEnter((thiz, args, types, hh) -> {
-//                        FLog.d("----------- jtFun_I_II  --------");
-//                    })
-//                    .commit();
+            FHook.hook(fun_I_III).setHookEnter((thiz, args, types, hh) -> {
+                        showEnterLog("fun_I_III", thiz, args, types);
+
+                        args.set(0, 6666);
+
+                    }).setOrigFunRun(true)
+                    .commit();
+
+            FHook.hook(jtFun_I_II).setOrigFunRun(true).setHookEnter((thiz, args, types, hh) -> {
+                        showEnterLog("jtFun_I_II", thiz, args, types);
+                        args.set(0, 8888);
+
+
+                    })
+                    .commit();
 
         });
 

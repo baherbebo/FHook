@@ -6,6 +6,30 @@ public class THook {
     private static final String TAG = FCFG.TAG_PREFIX + "THook";
 
     // ========= 实例：无参/单参/多参/重载 =========
+    public int fun_I_III(int a, int b, int c) {
+        int ret = a + b + c;
+        FLog.d(TAG, "原方法输出 fun_I_III ... a=" + a + ", b=" + b + ", c=" + c + " -> ret=" + ret);
+        return ret;
+    }
+
+    public String fun_String_String2(String a,String b) {
+        String ret = a + b;
+        FLog.d(TAG, "原方法输出 fun_String_String2 ... a=" + a + ", b=" + b + " -> ret=" + ret);
+        return ret;
+    }
+
+    public static int jtFun_I_II(int a, int b) {
+        int ret = a + b;
+        FLog.d(TAG, "原方法输出 jc_I_II ... a=" + a + ", b=" + b + " -> ret=" + ret);
+        return ret;
+    }
+
+    public int fun_I_II(int a, int b) {
+        int ret = a + b;
+        FLog.d(TAG, "fun_I_II ... a=" + a + ", b=" + b + " -> ret=" + ret);
+        return ret;
+    }
+
     public void fun_V_V() {
         FLog.d(TAG, "fun_V_V ...");
     }
@@ -20,25 +44,6 @@ public class THook {
         return ret;
     }
 
-    public int fun_I_II(int a, int b) {
-        int ret = a + b;
-        FLog.d(TAG, "fun_I_II ... a=" + a + ", b=" + b + " -> ret=" + ret);
-        return ret;
-    }
-
-    public int fun_I_III(int a, int b, int c) {
-        int ret = a + b + c;
-        FLog.d(TAG, "fun_I_III ... a=" + a + ", b=" + b + ", c=" + c + " -> ret=" + ret);
-        return ret;
-    }
-
-    // ========= 实例：系统类 / 字符串 =========
-    public String fun_String_String2(String a,String b) {
-        String ret = a + b;
-        FLog.d(TAG, "fun_String_String2 ... a=" + a + ", b=" + b + " -> ret=" + ret);
-        return ret;
-    }
-
     public String fun_String_StringArray(String[] arr) {
         StringBuilder sb = new StringBuilder();
         if (arr != null) for (int i = 0; i < arr.length; i++) {
@@ -49,8 +54,8 @@ public class THook {
         FLog.d(TAG, "fun_String_StringArray ... len=" + (arr == null ? 0 : arr.length) + " -> ret=" + ret);
         return ret;
     }
-
     // ========= 实例：引用类型（自定义类） =========
+
     public TObject fun_TObject_T(TObject obj) {
         FLog.d(TAG, "fun_TObject_T ... in=" + obj);
         if (obj != null) {
@@ -63,8 +68,8 @@ public class THook {
     public void fun_V_TObjectArray(TObject[] list) {
         FLog.d(TAG, "fun_V_TObjectArray ... len=" + (list == null ? 0 : list.length));
     }
-
     // ========= 实例：数组 / varargs =========
+
     public int fun_I_IArray(int[] arr) {
         int sum = 0;
         if (arr != null) for (int v : arr) sum += v;
@@ -78,8 +83,8 @@ public class THook {
         FLog.d(TAG, "fun_I_Varargs ... len=" + (xs == null ? 0 : xs.length) + " -> sum=" + sum);
         return sum;
     }
-
     // ========= 实例：宽类型（long/double） =========
+
     public long fun_J_J(long a) {
         long ret = a + 10L;
         FLog.d(TAG, "fun_J_J ... a=" + a + " -> ret=" + ret);
@@ -91,8 +96,8 @@ public class THook {
         FLog.d(TAG, "fun_D_D ... a=" + a + " -> ret=" + ret);
         return ret;
     }
-
     // 宽类型与窄类型交错（寄存器/栈位对齐验证）
+
     public int fun_I_ILJ(int x, long y, int z) {
         int ret = x + (int) (y & 0xffff) + z;
         FLog.d(TAG, "fun_I_ILJ ... x=" + x + ", y=" + y + ", z=" + z + " -> ret=" + ret);
@@ -118,8 +123,8 @@ public class THook {
         FLog.d(TAG, "fun_D_IDI ... a=" + a + ", b=" + b + ", c=" + c + " -> ret=" + ret);
         return ret;
     }
-
     // ========= 实例：其它基本类型 =========
+
     public boolean fun_Z_Z(boolean b) {
         boolean ret = !b;
         FLog.d(TAG, "fun_Z_Z ... b=" + b + " -> ret=" + ret);
@@ -149,8 +154,8 @@ public class THook {
         FLog.d(TAG, "fun_F_F ... f=" + f + " -> ret=" + ret);
         return ret;
     }
-
     // ========= 实例：同步、抛异常 =========
+
     public synchronized void fun_V_Sync(int a) {
         FLog.d(TAG, "fun_V_Sync ... a=" + a + ", thread=" + Thread.currentThread().getName());
     }
@@ -159,8 +164,8 @@ public class THook {
         FLog.d(TAG, "fun_V_Throw ... about to throw");
         throw new IllegalStateException("fun_V_Throw boom");
     }
-
     // ========= 静态：对应一组静态方法 =========
+
     public static void jc_fun_V_V() {
         FLog.d(TAG, "jc_fun_V_V ...");
     }
@@ -170,18 +175,12 @@ public class THook {
     }
 
     public static void jtFun_V_II(int a, int b) {
-        FLog.d(TAG, "jc_fun_V_II ... a=" + a + ", b=" + b);
-    }
-
-    public static int jtFun_I_II(int a, int b) {
-        int ret = a + b;
-        FLog.d(TAG, "jc_I_II ... a=" + a + ", b=" + b + " -> ret=" + ret);
-        return ret;
+        FLog.d(TAG, "原方法输出 jc_fun_V_II ... a=" + a + ", b=" + b);
     }
 
     public static long jc_J_JJ(long a, long b) {
         long ret = a ^ b;
-        FLog.d(TAG, "jc_J_JJ ... a=" + a + ", b=" + b + " -> ret=" + ret);
+        FLog.d(TAG, "原方法输出 jc_J_JJ ... a=" + a + ", b=" + b + " -> ret=" + ret);
         return ret;
     }
 

@@ -172,8 +172,8 @@ public class FHook {
         if (h.isHooked) return; // 已安装就别重复
 
         boolean hasEnter = (h.enterCb != null);
-        boolean hasExit  = (h.exitCb  != null);
-        boolean runOrig  = h.runOriginalByDefault;
+        boolean hasExit = (h.exitCb != null);
+        boolean runOrig = h.runOriginalByDefault;
 
         long mid = CLinker.dcHook(h.method, hasEnter, hasExit, runOrig);
         if (mid < 0) {
@@ -190,6 +190,8 @@ public class FHook {
 
 
     public static Object[] onEnter4fhook(Object[] rawArgs, long methodId) {
+        FLog.d(TAG, "[onEnter4fhook] start ... ");
+
         HookHandle hh = sHandles.get(methodId);
         if (hh == null) return rawArgs;
 
@@ -197,36 +199,42 @@ public class FHook {
 
         if (hh.enterCb == null) return rawArgs;
 
-
+        // 参数引用转为 List
         java.util.List<Object> argsView =
                 java.util.Arrays.asList(rawArgs).subList(1, rawArgs.length);
         final Class<?>[] paramTypes = hh.method.getParameterTypes();
 
         // 调试
         try {
-            FLog.d(TAG, "[enter] " + TypeUtils.dumpArgs(hh.method, rawArgs));
+            FLog.d(TAG, "[onEnter4fhook] 开始 --- " + TypeUtils.dumpArgs(hh.method, rawArgs));
         } catch (Throwable ignore) {
         }
 
         try {
             hh.enterCb.onEnter(rawArgs[0], argsView, paramTypes, hh); // 允许直接修改 args[i]
         } catch (Throwable t) {
-            FLog.e(TAG, "[onEnter] callback error", t);
+            FLog.e(TAG, "[onEnter4fhook] callback error", t);
         }
 
+        FLog.d(TAG, "[onEnter4fhook] 完成 --- " + TypeUtils.dumpArgs(hh.method, rawArgs));
         return rawArgs;
     }
 
     public static Object onExit4fhook(Object ret, long methodId) {
-        FLog.d(TAG, "onExit4fhook ....");
+        FLog.d(TAG, "[onExit4fhook] ....");
         HookHandle hh = sHandles.get(methodId);
         if (hh == null || hh.exitCb == null) return ret;
 
         final Class<?> returnType = hh.method.getReturnType();
         try {
-            return hh.exitCb.onExit(ret, returnType, hh);
+            FLog.d(TAG, "[onExit4fhook] 开始 --- " + ret + " " + returnType);
+
+            Object res = hh.exitCb.onExit(ret, returnType, hh);
+            FLog.d(TAG, "[onExit4fhook] 完成 --- " + res + " " + returnType);
+
+            return res;
         } catch (Throwable t) {
-            FLog.e(TAG, "[onExit] callback error", t);
+            FLog.e(TAG, "[onExit4fhook] callback error", t);
             return ret;
         }
     }
