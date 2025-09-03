@@ -86,6 +86,10 @@ namespace deploy {
             );
         }
 
+        Transform(const std::string &class_name) : class_name_(class_name) {
+            hooks_.clear();
+        }
+
         ~Transform() = default;
 
         std::string GetJniClassName() const;

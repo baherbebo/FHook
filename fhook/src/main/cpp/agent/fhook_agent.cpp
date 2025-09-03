@@ -226,25 +226,29 @@ extern "C" void JNICALL HookClassFileLoadHook(
 extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
         JNIEnv *env,
         jclass clazz,
-        jobject jTargetMethod,
+        jobject jMethodObj,
         jboolean isHEnter,
         jboolean isHExit,
         jboolean isRunOrigFun) {
 
     LOGD("[agent_do_transform] start ...")
 
-    if (fAgentJvmtiEnv == nullptr || !jTargetMethod) {
-        LOGE("[agent_do_transform] fAgentJvmtiEnv or jTargetMethod is null")
+    if (fAgentJvmtiEnv == nullptr || !jMethodObj) {
+        LOGE("[agent_do_transform] fAgentJvmtiEnv or jMethodObj is null")
         return -1;
     }
 
-    jmethodID nativeMethodID = env->FromReflectedMethod(jTargetMethod);
-    if (!nativeMethodID) {
+    // 对象 ->  方法ID
+    jmethodID methodID4jmethodID = env->FromReflectedMethod(jMethodObj);
+    if (!methodID4jmethodID) {
         LOGE("[agent_do_transform] method 方法ID引用失败");
         return -1;
     }
 
     /** ---------------------- 拿到方法信息 开始 ----------------------- */
+    long methodId4long = reinterpret_cast<long>(methodID4jmethodID);
+    long methodId4jlong = reinterpret_cast<jlong>(methodID4jmethodID);
+
     std::string targetClassName, targetMethodName, targetMethodSignature;
 
     // 创建三个对象 自动回收
@@ -253,7 +257,7 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
             generic(fAgentJvmtiEnv);
 
     if (!fsys::CheckJvmti(
-            fAgentJvmtiEnv->GetMethodName(nativeMethodID,
+            fAgentJvmtiEnv->GetMethodName(methodID4jmethodID,
                                           methodName.getPtr(),
                                           signature.getPtr(),
                                           generic.getPtr()),
@@ -269,7 +273,7 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
     int modifiers; // 是否为静态方法 public、static、final 等，以整数形式表示
     if (!fsys::CheckJvmti(
             fAgentJvmtiEnv->GetMethodModifiers(
-                    nativeMethodID, &modifiers),
+                    methodID4jmethodID, &modifiers),
             "[agent_do_transform]  native class modifiers fail")) {
         return -1;
     }
@@ -277,7 +281,7 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
 
     jclass nativeClass = nullptr;
     if (!fsys::CheckJvmti(fAgentJvmtiEnv->GetMethodDeclaringClass(
-                                  nativeMethodID, &nativeClass),
+                                  methodID4jmethodID, &nativeClass),
                           "[agent_do_transform] get native class fail")) {
         return -1;
     }
@@ -301,8 +305,7 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
         current_transform = nullptr;
     }
 
-    long methodId4long = reinterpret_cast<long>(nativeMethodID);
-    long methodId4jlong = reinterpret_cast<jlong>(nativeMethodID);
+
     auto it = fClassTransforms.find(targetClassName);
     if (it == fClassTransforms.end()) {
         // 创建新的 HookTransform
@@ -350,9 +353,8 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
          targetClassName.c_str(), targetMethodName.c_str(), targetMethodSignature.c_str(),
          isStatic)
 
-    // 类配置
 
-    // 4. 强制重新加载这个类  会调用 HookClassFileLoadHook 每次 hook 一个方法， 安装都会调用重转换
+    // 强制重新加载这个类  会调用 HookClassFileLoadHook 每次 hook 一个方法， 安装都会调用重转换
     bool transRet = fsys::CheckJvmti(fAgentJvmtiEnv->RetransformClasses(1, &nativeClass),
                                      "[agent_do_transform] RetransformClasses fail");
 
@@ -365,6 +367,126 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
     return res;
 
 }
+
+
+/**
+ * 对应  dcUnhook 通过C++ 符号反射回调
+ */
+extern "C" JNIEXPORT jboolean JNICALL agent_do_unHook_transform(
+        JNIEnv *env, jlong jMethodID) {
+
+    LOGD("[agent_do_unHook_transform] start ...")
+
+    if (fAgentJvmtiEnv == nullptr) {
+        LOGE("[agent_do_unHook_transform] fAgentJvmtiEnv is null")
+        return false;
+    }
+
+    /** ---------------------- 拿到方法信息 结束 ----------------------- */
+
+    long methodID4long = reinterpret_cast<long>(jMethodID);
+    jmethodID methodID4jmethodID = reinterpret_cast<jmethodID>(jMethodID);
+
+    std::string targetClassName, targetMethodName, targetMethodSignature;
+
+    // 创建三个对象 自动回收
+    LocalJvmCharPtr methodName(fAgentJvmtiEnv),
+            signature(fAgentJvmtiEnv),
+            generic(fAgentJvmtiEnv);
+
+    if (!fsys::CheckJvmti(
+            fAgentJvmtiEnv->GetMethodName(methodID4jmethodID,
+                                          methodName.getPtr(),
+                                          signature.getPtr(),
+                                          generic.getPtr()),
+            "[agent_do_unHook_transform] get method signature fail")) {
+        return -1;
+    }
+
+    targetMethodName = methodName.getValue();
+    targetMethodSignature = signature.getValue();
+
+    // 获取方法信息
+    bool isStatic;
+    int modifiers; // 是否为静态方法 public、static、final 等，以整数形式表示
+    if (!fsys::CheckJvmti(
+            fAgentJvmtiEnv->GetMethodModifiers(
+                    methodID4jmethodID, &modifiers),
+            "[agent_do_unHook_transform]  native class modifiers fail")) {
+        return -1;
+    }
+    isStatic = (modifiers & fsys::kAccStatic) != 0; // 0x0008 是否为静态方法
+
+    jclass nativeClass = nullptr;
+    if (!fsys::CheckJvmti(fAgentJvmtiEnv->GetMethodDeclaringClass(
+                                  methodID4jmethodID, &nativeClass),
+                          "[agent_do_unHook_transform] get native class fail")) {
+        return -1;
+    }
+
+    LocalJvmCharPtr jniClassName(fAgentJvmtiEnv), jniClassGeneric(fAgentJvmtiEnv);
+    if (!fsys::CheckJvmti(fAgentJvmtiEnv->GetClassSignature(
+                                  nativeClass,
+                                  jniClassName.getPtr(),
+                                  jniClassGeneric.getPtr()),
+                          "[agent_do_unHook_transform] get native class name fail")) {
+        if (nativeClass != nullptr) {
+            env->DeleteLocalRef(nativeClass);
+        }
+        return -1;
+    }
+    targetClassName = jniClassName.getValue();
+    /** ---------------------- 拿到方法信息 结束 ----------------------- */
+
+    // 每次hook先清空 不处理删除
+    if (current_transform != nullptr) {
+        current_transform = nullptr;
+    }
+
+    auto it = fClassTransforms.find(targetClassName);
+    if (it == fClassTransforms.end()) {
+        // 没有找到 没有被hoook
+        LOGW("[agent_do_unHook_transform] %s %s 未被 hook", targetClassName.c_str(),
+             targetMethodName.c_str())
+        return true;
+    } else {
+        // 这里是清理缓存列表的方法配置 fClassTransforms
+        if (it->second->removeHook(methodID4long)) {
+            LOGD("[agent_do_unHook_transform] 移除hook 成功 该类还有 %d",
+                 it->second->getHooksSize())
+        } else {
+            LOGW("[agent_do_unHook_transform] 失败 没有找到方法配置  配置数量 %d ，%s %s",
+                 it->second->getHooksSize(),
+                 targetClassName.c_str(),
+                 targetMethodName.c_str())
+            return true;
+        }
+
+        if (it->second->getHooksSize() == 0) {
+            // 如果该类没有其它配置了释放列表对象
+            fClassTransforms.erase(it);
+            // 使用临时新对象不进列表缓存，没有任何 hook 配置 相当于直接恢复
+            current_transform = new deploy::Transform(targetClassName);
+        } else {
+            // 删除对应方法配置后继续使用
+            current_transform = it->second.get();
+        }
+    }
+
+    // 强制重新加载这个类  按空配置修改字节码
+    bool transRet = fsys::CheckJvmti(fAgentJvmtiEnv->RetransformClasses(1, &nativeClass),
+                                     "[agent_do_transform] RetransformClasses fail");
+
+    if (nativeClass != nullptr) {
+        env->DeleteLocalRef(nativeClass);
+    }
+
+    LOGD("[agent_do_unHook_transform] 运行完成方法 %s %s ...",
+         targetMethodName.c_str(),
+         transRet ? "成功" : "失败")
+    return transRet;
+}
+
 
 /**
  * Debug.attachJvmtiAgent("libfhook_agent.so", null, context.getClassLoader());

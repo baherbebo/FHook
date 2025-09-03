@@ -68,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void initCtr() {
         Button bt_main_01 = findViewById(R.id.bt_main_01);
-        bt_main_01.setText("hook普通方法");
+        bt_main_01.setText("01 hook普通方法");
         bt_main_01.setOnClickListener(v -> {
             Method fun_String_String2 = FHookTool.findMethod4First(THook.class, "fun_String_String2");
             Method fun_I_III = FHookTool.findMethod4First(THook.class, "fun_I_III");
@@ -125,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         Button bt_main_02 = findViewById(R.id.bt_main_02);
-        bt_main_02.setText("hook初始化");
+        bt_main_02.setText("02 hook初始化");
         bt_main_02.setOnClickListener(v -> {
             FHook.InitReport rep = FHook.init(this);
             Toast.makeText(this, rep.toString(), Toast.LENGTH_LONG).show();
@@ -133,7 +133,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         Button bt_main_03 = findViewById(R.id.bt_main_03);
-        bt_main_03.setText("hook系统方法");
+        bt_main_03.setText("03hook系统方法");
         bt_main_03.setOnClickListener(v -> {
             Method forName = FHookTool.findMethod4First(Class.class, "forName");
             Method getString = FHookTool.findMethod4First(Settings.Secure.class, "getString");
@@ -143,6 +143,12 @@ public class MainActivity extends AppCompatActivity {
             FHook.hook(getString).setOrigFunRun(true).commit();
 
             FHook.hook(commit).setOrigFunRun(true).commit();
+        });
+
+        Button bt_main_04 = findViewById(R.id.bt_main_04);
+        bt_main_04.setText("04 取消所有hook");
+        bt_main_04.setOnClickListener(v -> {
+            FHook.unHookAll();
         });
 
     }

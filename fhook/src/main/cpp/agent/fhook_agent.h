@@ -8,6 +8,8 @@
 #include "../jvmti.h"
 #include "../dexter/slicer/writer.h"
 
+const std::string AgentDoTransformFnName = "agent_do_transform";
+
 typedef jlong (*AgentDoTransformFn)(
         JNIEnv *env,
         jclass clazz,
@@ -16,7 +18,9 @@ typedef jlong (*AgentDoTransformFn)(
         jboolean isHExit,
         jboolean isRunOrigFun);
 
-const std::string AgentDoTransformFnName = "agent_do_transform";
+const std::string AgentDoUnHookTransformFnName = "agent_do_unHook_transform";
+
+typedef jboolean (*AgentDoUnHookTransformFn)(JNIEnv *env, jlong jTargetMethod);
 
 class LocalJvmCharPtr {
 public:

@@ -81,7 +81,7 @@ public class HookHandle {
         if (!isHooked) return;
 
         // 这里需要
-        FHook.unregister(nativeHandle);
+        FHook.unHook(nativeHandle);
         isHooked = false;
     }
 }

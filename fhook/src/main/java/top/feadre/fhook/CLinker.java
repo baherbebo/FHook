@@ -13,4 +13,6 @@ public class CLinker {
     public static native boolean dcIsJdwpAllowed();
 
     public static native boolean dcJvmtiSuccess(String nameSoFhookAgent);
+
+    public static native boolean dcUnhook(long methodId);
 }

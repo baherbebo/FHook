@@ -50,7 +50,7 @@ static FuncType getAgentFn(const char *funcName) {
 extern "C" JNIEXPORT jlong JNICALL dcHook(
         JNIEnv *env,
         jclass clazz,
-        jobject jTargetMethod,
+        jobject jMethodObj,
         jboolean isHEnter,
         jboolean isHExit,
         jboolean isRunOrigFun) {
@@ -60,19 +60,16 @@ extern "C" JNIEXPORT jlong JNICALL dcHook(
     auto transformFn = getAgentFn<AgentDoTransformFn>(
             AgentDoTransformFnName.c_str());
 
-    jlong methodID = getMethodId(env, clazz, jTargetMethod);
-    if (!methodID) {
-        LOGE("[dcHook] 获取方法ID失败")
-        return -1;
-    }
-
-
     if (transformFn == nullptr) {
         LOGE("[dcHook] 没有找到符号 %s", AgentDoTransformFnName.c_str())
         return -1;
     }
-
-    return transformFn(env, clazz, jTargetMethod, isHEnter, isHExit, isRunOrigFun);
+    jlong methodID = getMethodId(env, clazz, jMethodObj);
+    if (!methodID) {
+        LOGE("[dcHook] 获取方法ID失败")
+        return -1;
+    }
+    return transformFn(env, clazz, jMethodObj, isHEnter, isHExit, isRunOrigFun);
 }
 
 
@@ -221,12 +218,31 @@ static jboolean dcIsJdwpAllowed(JNIEnv *env, jclass clazz) {
 }
 
 
+/**
+ * 对应 agent_do_unHook_transform
+ * @param env
+ * @param clazz
+ * @param jMethodID
+ * @return
+ */
+static jboolean dcUnhook(JNIEnv *env, jclass clazz, jlong jMethodID) {
+    auto transformFn = getAgentFn<AgentDoUnHookTransformFn>(
+            AgentDoUnHookTransformFnName.c_str());
+    if (transformFn == nullptr) {
+        LOGE("[dcUnhook] 没有找到符号 %s", AgentDoUnHookTransformFnName.c_str())
+        return -1;
+    }
+    return transformFn(env, jMethodID);;
+};
+
+
 /// 签名 （参数）返回值
 static JNINativeMethod methods[] = {
         {"dcHook",                     "(Ljava/lang/reflect/Method;ZZZ)J", reinterpret_cast<void *>(dcHook)},
         {"dcEnableJdwp",               "(Z)Z",                             reinterpret_cast<void *>(dcEnableJdwp)},
         {"dcSetRuntimeJavaDebuggable", "(I)I",                             reinterpret_cast<void *>(dcSetRuntimeJavaDebuggable)},
         {"dcIsJdwpAllowed",            "()Z",                              reinterpret_cast<void *>(dcIsJdwpAllowed)},
+        {"dcUnhook",                   "(J)Z",                             reinterpret_cast<void *>(dcUnhook)},
 };
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {

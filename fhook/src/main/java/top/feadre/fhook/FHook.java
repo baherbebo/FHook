@@ -38,6 +38,7 @@ public class FHook {
 
     private static boolean isInit = false;
 
+
     public static final class InitReport {
         public boolean jdwpEnabledTried;   // 尝试过开 JDWP
         public boolean jdwpEnabledNow;     // 当前是否允许 JDWP（native 读取）
@@ -250,9 +251,35 @@ public class FHook {
         Object onExit(Object ret, Class<?> returnType, HookHandle hh) throws Throwable;
     }
 
-    static void unregister(long methodId) {
+    public static void unHook(long methodId) {
+        FLog.d(TAG, "[unHook] start ... methodId=" + methodId);
+        if (!sHandles.containsKey(methodId)) {
+            FLog.e(TAG, "[unHook] not found: " + methodId);
+            return;
+        }
+
         // 这里要调native 方法
+        boolean b = CLinker.dcUnhook(methodId);
+        if (!b) {
+            FLog.e(TAG, "[unHook] dcUnhook failed: " + methodId);
+            return;
+        }
         sHandles.remove(methodId);
+    }
+
+    public static void unHookAll() {
+        FLog.d(TAG, "[unHookAll] start ...");
+        for (long mid : sHandles.keySet()) {
+            unHook(mid);
+        }
+    }
+
+    public static void showHookInfo() {
+        FLog.d(TAG, "[showHookInfo] start ...");
+        for (long mid : sHandles.keySet()) {
+            HookHandle hh = sHandles.get(mid);
+            FLog.d(TAG, "[showHookInfo] " + mid + " " + hh.method);
+        }
     }
 
 }
