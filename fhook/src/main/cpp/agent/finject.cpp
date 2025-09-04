@@ -14,7 +14,14 @@
 
 namespace finject {
 
-
+    /**
+            void Transform::Apply(std::shared_ptr<ir::DexFile> dex_ir)
+                bool ret = finject::do_finject(this, hook, &code_ir);
+     * @param transform 类的hook配置
+     * @param hook_info 方法信息
+     * @param code_ir  方法的IR实体
+     * @return
+     */
     bool do_finject(const deploy::Transform *transform,
                     const deploy::MethodHooks &hook_info,
                     lir::CodeIr *code_ir) {
@@ -49,14 +56,13 @@ namespace finject {
 
         if (transform->is_app_loader()) {
             // 申请 只调一次，提前确认好
-//            num_add_reg = fir_tools::req_reg(code_ir, 4); // 应用侧 需要3个寄存器
-//            num_add_reg = fir_tools::req_reg(code_ir, 5); // 反射侧 需要5寄存器
-            num_add_reg = FRegManager::RequestLocals(code_ir, 5); // 这里会视情况调整
+            num_add_reg = FRegManager::RequestLocals(code_ir, 4); // 应用侧4个
 
             // 这是源参数的寄存器索引
             num_reg_non_param_new = FRegManager::Locals(code_ir);
         } else {
-
+            num_add_reg = FRegManager::RequestLocals(code_ir, 5); // 系统侧5个
+            num_reg_non_param_new = FRegManager::Locals(code_ir);
         }
 
 
@@ -187,19 +193,18 @@ namespace finject {
                 code_ir->instructions.Remove(*insert_return);
             }
 
+            // --------------------- 1
+            // 确保不与宽冲突 创建参数
+            int reg_arg = fir_funs_do::cre_arr_do_args4onExit(
+                    code_ir,
+                    return_register, is_wide_return_register,
+                    insert_point);
+            if (reg_arg < 0) return false; // 里面已汇报了错误
 
-            if (!transform->is_app_loader()) { //  调试使用
-//            if (transform->is_app_loader()) {
+
+//            if (!transform->is_app_loader()) { //  调试使用
+            if (transform->is_app_loader()) {
                 LOGD("[do_finject] 应用侧 调用 isHExit ...")
-
-                // --------------------- 1
-                // 确保不与宽冲突 创建参数
-                int reg_arg = fir_funs_do::cre_arr_do_args4onExit(
-                        code_ir,
-                        return_register, is_wide_return_register,
-                        insert_point);
-                if (reg_arg < 0) return false; // 里面已汇报了错误
-
 
                 // --------------------- 2
                 int count = 1; // 申请一个宽存
@@ -222,19 +227,11 @@ namespace finject {
                 // 系统侧 搞用
                 LOGD("[do_finject] 系统侧 调用 isHExit ...")
 
-                // --------------------- 1
-                int reg_arg = fir_funs_do::cre_arr_do_args4onExit(
-                        code_ir,
-                        return_register,
-                        is_wide_return_register,
-                        insert_point);
-                if (reg_arg < 0) return false;// 里面已汇报了错误
-
 
                 // --------------------- 2 反射 Class 要再包一层
                 int count = 2;
                 std::vector<int> forbidden_v = {reg_arg}; // 禁止使用
-                auto regs9 = FRegManager::AllocWide(
+                auto regs9 = FRegManager::AllocV(
                         code_ir, forbidden_v, count, "regs9");
                 CHECK_ALLOC_OR_RET(regs9, count, false,
                                    "[do_finject] regs9 申请寄存器失败 ...");
