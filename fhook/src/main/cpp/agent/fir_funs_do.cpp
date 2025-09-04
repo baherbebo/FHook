@@ -551,7 +551,7 @@ namespace fir_funs_do {
     /// 支持 各种参数反射执行
     bool do_apploader_static_fun(
             lir::CodeIr *code_ir,
-            dex::u2 reg1, dex::u2 reg2, dex::u2 reg3,//额外临时寄存器
+            dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp,//额外临时寄存器
             int reg_method_arg, // 可以为null 用于存储方法参数类型数组（Class[]）
             int reg_do_args,// 可以为null 原始参数数组（Object[]）
             dex::u2 reg_return, // 可重复
@@ -566,7 +566,7 @@ namespace fir_funs_do {
             LOGE("[do_apploader_static_fun] f_Thread_currentThread error");
             return false;
         }
-        do_Thread_currentThread(f_Thread_currentThread, code_ir, reg1, insert_point);
+        do_Thread_currentThread(f_Thread_currentThread, code_ir, reg1_tmp, insert_point);
 
         // 全局可使用 thread.getContextClassLoader() classloader 对象 到v1
         lir::Method *f_thread_getContextClassLoader = fir_funs_def::get_thread_getContextClassLoader(
@@ -576,7 +576,7 @@ namespace fir_funs_do {
             return false;
         }
         do_thread_getContextClassLoader(f_thread_getContextClassLoader, code_ir,
-                                        reg1, reg1, insert_point);
+                                        reg1_tmp, reg1_tmp, insert_point);
 
         // 全局可使用 执行拿到 HookBridge class 对象 到v0
         lir::Method *f_classloader_loadClass = fir_funs_def::get_classloader_loadClass(
@@ -586,7 +586,7 @@ namespace fir_funs_do {
             return false;
         }
         do_classloader_loadClass(f_classloader_loadClass, code_ir,
-                                 reg1, reg2, reg1, name_class, insert_point);
+                                 reg1_tmp, reg2_tmp, reg1_tmp, name_class, insert_point);
 
 
         /// Method m = clazz.getDeclaredMethod("onEnter", new Class[]{Object[].class});
@@ -598,15 +598,15 @@ namespace fir_funs_do {
         }
 
         if (reg_method_arg < 0) {
-            fir_tools::cre_null_reg(code_ir, reg3, insert_point);
-            reg_method_arg = reg3;
+            fir_tools::cre_null_reg(code_ir, reg3_tmp, insert_point);
+            reg_method_arg = reg3_tmp;
             LOGI("[do_apploader_static_fun] reg_method_arg= %d ", reg_method_arg)
         }
 
-        // 拿到方法对象 v1   reg1= class对象  reg2 = 方法名  reg3= 方法参数 class[]
+        // 拿到方法对象 v1   reg1_tmp= class对象  reg2_tmp = 方法名  reg3_tmp= 方法参数 class[]
         do_class_getDeclaredMethod(f_class_getDeclaredMethod, code_ir,
-                                   reg1, reg2, reg_method_arg,
-                                   reg1, name_fun, insert_point);
+                                   reg1_tmp, reg2_tmp, reg_method_arg,
+                                   reg1_tmp, name_fun, insert_point);
 
         /// Object ret = m.invoke(null, new Object[]{ args });
         lir::Method *f_method_invoke = fir_funs_def::get_method_invoke(code_ir);
@@ -616,17 +616,17 @@ namespace fir_funs_do {
         }
 
         if (reg_do_args < 0) {
-            fir_tools::cre_null_reg(code_ir, reg3, insert_point);
+            fir_tools::cre_null_reg(code_ir, reg3_tmp, insert_point);
         } else {
-            reg3 = reg_do_args;
+            reg3_tmp = reg_do_args;
         }
 
-        fir_tools::cre_null_reg(code_ir, reg2,
+        fir_tools::cre_null_reg(code_ir, reg2_tmp,
                                 insert_point);  // 创建空引用 固定为静态方法 ****************** 前面可以用
 
-//         reg1 是方法对象, reg2 静态是是 null, reg3 包装后的参数数组
-        do_method_invoke(f_method_invoke, code_ir, reg1, reg2,
-                         reg3, reg_return, insert_point);
+//         reg1_tmp 是方法对象, reg2_tmp 静态是是 null, reg3_tmp 包装后的参数数组
+        do_method_invoke(f_method_invoke, code_ir, reg1_tmp, reg2_tmp,
+                         reg3_tmp, reg_return, insert_point);
 
 
         return true;
@@ -638,8 +638,8 @@ namespace fir_funs_do {
    * 生成 onEnter 的参数类型数组（Class[]{Object[].class}） 只有一个参数
    * @param code_ir
    * @param builder
-   * @param reg1
-   * @param reg2
+   * @param reg1_tmp
+   * @param reg2_tmp
    * @param reg3_arr
    * @param insert_point
       [6] const/4 v0 #0x1
@@ -650,17 +650,17 @@ namespace fir_funs_do {
    */
     void cre_arr_class_args4onEnter(
             lir::CodeIr *code_ir,
-            dex::u2 reg1, // array_size 也是索引
-            dex::u2 reg2, // value
+            dex::u2 reg1_tmp, // array_size 也是索引
+            dex::u2 reg2_tmp, // value
             dex::u2 reg3_arr, // array 这个 object[] 对象
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
         ir::Builder builder(code_ir->dex_ir);
 
-        // const reg1 #0x2 → 数组长度2  长度=2：  Class[]{ Object[].class, long.class }
-        fir_tools::EmitConstToReg(code_ir, insert_point, reg1, 2);
+        // const reg1_tmp #0x2 → 数组长度2  长度=2：  Class[]{ Object[].class, long.class }
+        fir_tools::EmitConstToReg(code_ir, insert_point, reg1_tmp, 2);
 
-        // 填 index 0: Object[].class new-array reg3_arr reg1      reg3_arr 是  Object[].class（Class 类型）
+        // 填 index 0: Object[].class new-array reg3_arr reg1_tmp      reg3_arr 是  Object[].class（Class 类型）
         {
             const auto class_base_type = builder.GetType("[Ljava/lang/Class;");
 
@@ -668,7 +668,7 @@ namespace fir_funs_do {
             new_arr->opcode = dex::OP_NEW_ARRAY;
             new_arr->operands.push_back(
                     code_ir->Alloc<lir::VReg>(reg3_arr)); // reg3_arr = Class[] 数组
-            new_arr->operands.push_back(code_ir->Alloc<lir::VReg>(reg1)); // 长度=reg1（2）
+            new_arr->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_tmp)); // 长度=reg1_tmp（2）
             new_arr->operands.push_back(
                     code_ir->Alloc<lir::Type>(class_base_type, class_base_type->orig_index));
             code_ir->instructions.insert(insert_point, new_arr);
@@ -676,24 +676,24 @@ namespace fir_funs_do {
             /// 假设 obj_array_type = builder.GetType("[Ljava/lang/Object;")
             const auto obj_array_type = builder.GetType("[Ljava/lang/Object;");
 
-            // 生成 const-class reg2, [Ljava/lang/Object;
+            // 生成 const-class reg2_tmp, [Ljava/lang/Object;
             auto const_class_op = code_ir->Alloc<lir::Bytecode>();
             const_class_op->opcode = dex::OP_CONST_CLASS; // 注意：使用 CONST_CLASS 指令
             const_class_op->operands.push_back(
-                    code_ir->Alloc<lir::VReg>(reg2)); // reg2 <- Class object
+                    code_ir->Alloc<lir::VReg>(reg2_tmp)); // reg2_tmp <- Class object
             const_class_op->operands.push_back(
                     code_ir->Alloc<lir::Type>(obj_array_type, obj_array_type->orig_index));
             code_ir->instructions.insert(insert_point, const_class_op);
 
-            // 然后再做 index const 和 aput-object (把 reg2 存到 Class[] 数组)
-            fir_tools::EmitConstToReg(code_ir, insert_point, reg1, 0);
+            // 然后再做 index const 和 aput-object (把 reg2_tmp 存到 Class[] 数组)
+            fir_tools::EmitConstToReg(code_ir, insert_point, reg1_tmp, 0);
 
             auto aput_class = code_ir->Alloc<lir::Bytecode>();
             aput_class->opcode = dex::OP_APUT_OBJECT;
             aput_class->operands.push_back(
-                    code_ir->Alloc<lir::VReg>(reg2)); // value: Object[].class
+                    code_ir->Alloc<lir::VReg>(reg2_tmp)); // value: Object[].class
             aput_class->operands.push_back(code_ir->Alloc<lir::VReg>(reg3_arr)); // Class[] array
-            aput_class->operands.push_back(code_ir->Alloc<lir::VReg>(reg1)); // index 0
+            aput_class->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_tmp)); // index 0
             code_ir->instructions.insert(insert_point, aput_class);
         }
 
@@ -704,21 +704,21 @@ namespace fir_funs_do {
             auto name_TYPE = builder.GetAsciiString("TYPE");
             auto field_TYPE_decl = builder.GetFieldDecl(name_TYPE, java_lang_Class, java_lang_Long);
 
-            // sget-object v<reg2>, Ljava/lang/Long;->TYPE:Ljava/lang/Class;
+            // sget-object v<reg2_tmp>, Ljava/lang/Long;->TYPE:Ljava/lang/Class;
             auto sget = code_ir->Alloc<lir::Bytecode>();
             sget->opcode = dex::OP_SGET_OBJECT;
-            sget->operands.push_back(code_ir->Alloc<lir::VReg>(reg2));
+            sget->operands.push_back(code_ir->Alloc<lir::VReg>(reg2_tmp));
             sget->operands.push_back(code_ir->Alloc<lir::Field>(
                     field_TYPE_decl, field_TYPE_decl->orig_index));
             code_ir->instructions.insert(insert_point, sget);
 
-            fir_tools::EmitConstToReg(code_ir, insert_point, reg1, 1);
+            fir_tools::EmitConstToReg(code_ir, insert_point, reg1_tmp, 1);
 
             auto aput1 = code_ir->Alloc<lir::Bytecode>();
             aput1->opcode = dex::OP_APUT_OBJECT;
-            aput1->operands.push_back(code_ir->Alloc<lir::VReg>(reg2)); // Long.TYPE
+            aput1->operands.push_back(code_ir->Alloc<lir::VReg>(reg2_tmp)); // Long.TYPE
             aput1->operands.push_back(code_ir->Alloc<lir::VReg>(reg3_arr)); // Class[]
-            aput1->operands.push_back(code_ir->Alloc<lir::VReg>(reg1)); // 1
+            aput1->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_tmp)); // 1
             code_ir->instructions.insert(insert_point, aput1);
         }
     }
@@ -1075,8 +1075,8 @@ namespace fir_funs_do {
      * 创建参数 Object[] 数组在v2, 包括this 对象，或为null
      * @param code_ir
      * @param builder
-     * @param reg1
-     * @param reg2
+     * @param reg1_tmp
+     * @param reg2_tmp
      * @param reg_arr
      * @param insert_point
         [0] const v0 #0x2
@@ -1088,17 +1088,17 @@ namespace fir_funs_do {
      */
     void cre_arr_do_args4onEnter(
             lir::CodeIr *code_ir,
-            dex::u2 reg1, // array_size 也是索引
-            dex::u2 reg2, // value  array 这个 object[object[]] 再包一层对象
+            dex::u2 reg1_tmp, // array_size 也是索引
+            dex::u2 reg2_tmp, // value  array 这个 object[object[]] 再包一层对象
             dex::u2 reg_arr, // array 这个 object[] 对象
             uint64_t method_id, // 要写入的 methodId
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
         // 创建 object[] 对象 -》 reg_arr
-        cre_arr_object0(code_ir, reg1, reg_arr, reg2, insert_point);
+        cre_arr_object0(code_ir, reg1_tmp, reg_arr, reg2_tmp, insert_point);
 
         // object[object[]] 再包一层对象
-        cre_arr_object1(code_ir, reg1, reg2, reg_arr, method_id, insert_point);
+        cre_arr_object1(code_ir, reg1_tmp, reg2_tmp, reg_arr, method_id, insert_point);
 
     }
 

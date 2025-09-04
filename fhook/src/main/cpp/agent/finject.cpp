@@ -84,7 +84,8 @@ namespace finject {
                 count = 1; // 先申请宽
                 std::vector<int> forbidden_v = {regs1[2]}; // 禁止使用
                 auto regs2_wide = FRegManager::AllocWide(code_ir, forbidden_v, count);
-                CHECK_ALLOC_OR_RET(regs2_wide, count, false, "[do_finject] regs2_wide 申请寄存器失败 ...");
+                CHECK_ALLOC_OR_RET(regs2_wide, count, false,
+                                   "[do_finject] regs2_wide 申请寄存器失败 ...");
 
                 count = 1;
                 forbidden_v.push_back(regs2_wide[0]);
@@ -124,13 +125,10 @@ namespace finject {
                 LOGD("[do_finject] 系统侧 调用 isHEnter ...")
 
                 // --------------------- 1
-
                 int count = 3;
-                auto regs5 = FRegManager::AllocV(code_ir, {}, count);
-                if (regs5.size() < count) {
-                    LOGE("[do_finject] regs5 申请寄存器失败 ...")
-                    return false;
-                }
+                std::vector<int> forbidden_v = {}; // 禁止使用
+                auto regs5 = FRegManager::AllocV(code_ir, forbidden_v, count);
+                CHECK_ALLOC_OR_RET(regs5, count, false, "[do_finject] regs5 申请寄存器失败 ...");
 
                 fir_funs_do::cre_arr_do_args4onEnter(
                         code_ir, regs5[0], regs5[1], regs5[2],
@@ -138,17 +136,29 @@ namespace finject {
 
 
                 // --------------------- 2
+                count = 3;
+                forbidden_v.push_back(regs5[2]);
+                auto regs6 = FRegManager::AllocV(code_ir, forbidden_v, count);
+                CHECK_ALLOC_OR_RET(regs6, count, false, "[do_finject] regs6 申请寄存器失败 ...");
                 // 调用 onEnter 函数
                 // 创建参数 Class[] 在 v2 （Class[]{Object[].class,Long.class}）
                 fir_funs_do::cre_arr_class_args4onEnter(
-                        code_ir, regs5[0], regs5[1], regs5[2],insert_point);
+                        code_ir, regs6[0], regs6[1], regs6[2], insert_point);
 
-//                // 执行结果返回到 v0`
-//                fir_funs_do::do_apploader_static_fun(
-//                        code_ir, v0, v1, v4,
-//                        v2, v3, v0,
-//                        g_name_class_THook, g_name_fun_onEnter,
-//                        insert_point);
+
+
+                // --------------------- 3
+                count = 3;
+                forbidden_v.push_back(regs6[2]);
+                auto regs7 = FRegManager::AllocV(code_ir, forbidden_v, count);
+
+                // 执行结果返回到 v0`
+                fir_funs_do::do_apploader_static_fun(
+                        code_ir, regs7[0], regs7[1], regs7[2],
+                        regs6[2], regs5[2],
+                        regs7[0],
+                        g_name_class_THook, g_name_fun_onEnter,
+                        insert_point);
             }
 
             // 如果添加了寄存器 同时需要运行原始方法 则需要把参数移回原位

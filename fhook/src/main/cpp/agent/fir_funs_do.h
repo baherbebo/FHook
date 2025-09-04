@@ -116,11 +116,21 @@ namespace fir_funs_do {
             std::string &name_fun,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
+    bool do_apploader_static_fun(
+            lir::CodeIr *code_ir,
+            dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp,//额外临时寄存器
+            int reg_method_arg, // 可以为null 用于存储方法参数类型数组（Class[]）
+            int reg_do_args,// 可以为null 原始参数数组（Object[]）
+            dex::u2 reg_return, // 可重复
+            std::string &name_class,
+            std::string &name_fun,
+            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
+
     /** ----------------- 参数区 ------------------- */
     void cre_arr_class_args4onEnter(
             lir::CodeIr *code_ir,
-            dex::u2 reg1, // array_size 也是索引
-            dex::u2 reg2, // value
+            dex::u2 reg1_tmp, // array_size 也是索引
+            dex::u2 reg2_tmp, // value
             dex::u2 reg3_arr, // array 这个 object[] 对象
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
@@ -154,8 +164,8 @@ namespace fir_funs_do {
 
     void cre_arr_do_args4onEnter(
             lir::CodeIr *code_ir,
-            dex::u2 reg1, // array_size 也是索引
-            dex::u2 reg2, // value  array 这个 object[object[]] 再包一层对象
+            dex::u2 reg1_tmp, // array_size 也是索引
+            dex::u2 reg2_tmp, // value  array 这个 object[object[]] 再包一层对象
             dex::u2 reg_arr, // array 这个 object[] 对象
             uint64_t method_id, // 要写入的 methodId
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
