@@ -19,8 +19,8 @@ namespace deploy {
 
         Method(long j_method_id,
                bool is_static,
-               std::string &method_name,
-               std::string &method_signature)
+               std::string method_name,
+               std::string method_signature)
                 : j_method_id(j_method_id),
                   is_static(is_static),
                   method_name(method_name),
@@ -41,8 +41,8 @@ namespace deploy {
         MethodHooks(
                 long j_method_id,
                 bool is_static,
-                std::string &method_name,
-                std::string &method_signature,
+                const std::string &method_name,
+                const std::string &method_signature,
                 bool isHEnter,
                 bool isHExit,
                 bool isRunOrigFun
@@ -73,7 +73,7 @@ namespace deploy {
                   bool isHEnter,
                   bool isHExit,
                   bool isRunOrigFun
-                  )
+        )
                 : class_name_(class_name) {
             hooks_.clear();
             hooks_.emplace_back(j_method_id,
@@ -91,6 +91,12 @@ namespace deploy {
         }
 
         ~Transform() = default;
+
+        Transform(const Transform &) = default;            // 明确允许“拷贝构造”
+        Transform &operator=(const Transform &) = delete;  // 明确禁止“拷贝赋值”
+
+        Transform(Transform &&) = default;                 // 明确允许“移动构造”
+        Transform &operator=(Transform &&) = delete;       // 明确禁止“移动赋值”
 
         std::string GetJniClassName() const;
 

@@ -2,11 +2,16 @@ package top.feadre.fhook;
 
 import java.lang.reflect.Method;
 
+import top.feadre.fhook.flibs.fsys.FLog;
+
 public class HookHandle {
+    private static final String TAG = FCFG.TAG_PREFIX + "HookHandle";
+
     public Object thisObject;
     boolean isHooked = false; // native 已安装
     long nativeHandle;              // 由 native 返回的句柄
     Method method;
+    boolean disabledByPrecheck; //预检失败/禁止安装 标志
     volatile FHook.HookEnterCallback enterCb;
     volatile FHook.HookExitCallback exitCb;
     volatile boolean runOriginalByDefault = true;
@@ -21,7 +26,9 @@ public class HookHandle {
     }
 
     HookHandle markNotHooked() {
+        this.disabledByPrecheck = true;   // ★ 标记为禁用
         this.isHooked = false;
+        this.nativeHandle = -1;
         return this;
     }
 
@@ -70,6 +77,10 @@ public class HookHandle {
     }
 
     public synchronized HookHandle commit() {
+        if (disabledByPrecheck) {
+            FLog.e(TAG, "[commit] skip: precheck failed, not installing -> " + method);
+            return this;
+        }
         FHook.installOnce(this);          // 只安装一次
         return this;
     }

@@ -7,6 +7,7 @@ import android.os.Debug;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -86,7 +87,7 @@ public class FHook {
 
         InitReport r = new InitReport();
 
-        // 安卓9.0 28 以下不支持
+        // 安卓9.0（ART） 28 以下不支持  Android 8.0+ 才有 JVMTI
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
             FLog.e(TAG, "Android 9.0 28 以下不支持");
             r.note = "API<28 not supported";
@@ -164,6 +165,17 @@ public class FHook {
     }
 
 
+    /**
+     * JVMTI 不支持类型
+     * 接口/注解接口：declaringClass.isInterface() / isAnnotation()。
+     * 抽象方法：Modifier.isAbstract(method.getModifiers())（没有 CodeItem）。
+     * native 方法：Modifier.isNative(...)（没有 dex code，JVMTI 也不能给它换实现）。
+     * 类初始化方法 <clinit>：理论上可以改字节码，但在 ART 上高风险（容易触发初始化时机/验证问题），通常当作不支持处理。
+     * 类/方法产生的变更涉及结构性修改（增删方法/字段、改签名/继承结构等）：ART 仅支持不改变类结构的“换方法体”型重转换。
+     *
+     * @param method
+     * @return
+     */
     public static synchronized HookHandle hook(Method method) {
         if (!isInit) {
             FLog.e(TAG, "[hook] 请先初始化 call FHook.init() first");
@@ -175,12 +187,50 @@ public class FHook {
             return new HookHandle(-1, method).markNotHooked();
         }
 
+        // 判断 JVMTI  是否支持 Retransform
+        final Class<?> declaring = method.getDeclaringClass();
+        final int mods = method.getModifiers();
+        if (declaring.isInterface() || declaring.isAnnotation()) {
+            FLog.e(TAG, "[hook] 目标是接口/注解接口：" + declaring.getName() + "#" + method.getName() + " 不支持 Retransform");
+            return new HookHandle(-1, method).markNotHooked();
+        }
+
+        if (Modifier.isAbstract(mods)) {
+            FLog.e(TAG, "[hook] 抽象方法无代码：" + declaring.getName() + "#" + method.getName());
+            return new HookHandle(-1, method).markNotHooked();
+        }
+
+        if (Modifier.isNative(mods)) {
+            FLog.e(TAG, "[hook] native 方法无法用字节码重写：" + declaring.getName() + "#" + method.getName());
+            return new HookHandle(-1, method).markNotHooked();
+        }
+
+        // （保守）避免 <clinit>
+        if (method.getName().equals("<clinit>")) {
+            FLog.e(TAG, "[hook] 不建议 hook <clinit>（类初始化器）");
+            return new HookHandle(-1, method).markNotHooked();
+        }
+
+        if (declaring.getClassLoader() == null) { // Bootstrap/BootClassPath
+            FLog.w(TAG, "[hook] 警告：" + declaring.getName() + " 属于 BootClassPath，部分 ROM/策略可能禁止重转换");
+        }
+
+        if (Modifier.isSynchronized(mods)) {
+            FLog.w(TAG, "[hook] 警告：" + declaring.getName() + "#" + method.getName()
+                    + " 是 synchronized，若hook破坏锁边界可能验证失败");
+        }
+
         return new HookHandle(-1, method);
     }
 
     static synchronized void installOnce(HookHandle h) {
         if (h == null || h.method == null) return;
         if (h.isHooked) return; // 已安装就别重复
+
+        if (h.disabledByPrecheck) {
+            FLog.e(TAG, "[installOnce] skip disabled handle: " + h.method);
+            return;
+        }
 
         boolean hasEnter = (h.enterCb != null);
         boolean hasExit = (h.exitCb != null);
@@ -294,6 +344,17 @@ public class FHook {
             HookHandle hh = sHandles.get(mid);
             FLog.d(TAG, "[showHookInfo] " + mid + " " + hh.method);
         }
+    }
+
+    public static boolean canHook(Method method) {
+        if (method == null) return false;
+        Class<?> declaring = method.getDeclaringClass();
+        int mods = method.getModifiers();
+        if (declaring.isInterface() || declaring.isAnnotation()) return false;
+        if (Modifier.isAbstract(mods)) return false;
+        if (Modifier.isNative(mods)) return false;
+        if ("<clinit>".equals(method.getName())) return false;
+        return true;
     }
 
 }

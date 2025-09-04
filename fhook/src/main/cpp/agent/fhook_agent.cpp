@@ -300,11 +300,26 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
     targetClassName = jniClassName.getValue();
     /** ---------------------- 拿到方法信息 结束 ----------------------- */
 
-    // 每次hook先清空 不处理删除
-    if (current_transform != nullptr) {
-        current_transform = nullptr;
+    // 接口不支持 拦截
+    {
+        jint cls_mod = 0;
+        if (!fsys::CheckJvmti(
+                fAgentJvmtiEnv->GetClassModifiers(nativeClass, &cls_mod),
+                "[agent_do_transform] GetClassModifiers(class) fail")) {
+            if (nativeClass) env->DeleteLocalRef(nativeClass);
+            return -1;
+        }
+        if ((cls_mod & 0x0200) != 0) { // ACC_INTERFACE
+            LOGE("[agent_do_transform] %s#%s 是接口，JVMTI 不支持 Retransform。",
+                 targetClassName.c_str(), targetMethodName.c_str());
+            if (nativeClass) env->DeleteLocalRef(nativeClass);
+            return -1;
+        }
     }
 
+    // 每次hook先清空 不处理删除
+    current_transform = nullptr;
+    deploy::Transform *t = nullptr;
 
     auto it = fClassTransforms.find(targetClassName);
     if (it == fClassTransforms.end()) {
@@ -322,19 +337,24 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
                 isHExit,
                 isRunOrigFun);
 
-        current_transform = fClassTransforms[targetClassName].get();
+        t = fClassTransforms[targetClassName].get();
+
     } else {
-        // 判断方法是否已 hook
         // 判断方法是否已 hook
         if (it->second->hasHook(methodId4long)) {
             LOGW("[agent_do_transform] %s %s已安装 hook", targetClassName.c_str(),
                  targetMethodName.c_str())
 
+            if (nativeClass != nullptr) {
+                env->DeleteLocalRef(nativeClass);
+            }
             return methodId4jlong; // 成功返回
 
         } else {
             // 向现有的 HookTransform 添加新方法 it->first key ; it->second value
-            it->second->addHook(
+            t = it->second.get();
+
+            t->addHook(
                     methodId4long,
                     isStatic,
                     targetMethodName,
@@ -342,7 +362,7 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
                     isHEnter,
                     isHExit,
                     isRunOrigFun);
-            current_transform = it->second.get();
+            current_transform = t;
             LOGD("[agent_do_transform] 已存在该类 添加后数量 current_transform hooks size %d",
                  it->second.get()->getHooksSize())
         }
@@ -353,18 +373,34 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
          targetClassName.c_str(), targetMethodName.c_str(), targetMethodSignature.c_str(),
          isStatic)
 
+    current_transform = t;
 
     // 强制重新加载这个类  会调用 HookClassFileLoadHook 每次 hook 一个方法， 安装都会调用重转换
+    // ART 的 JVMTI 不支持对接口做 Retransform
     bool transRet = fsys::CheckJvmti(fAgentJvmtiEnv->RetransformClasses(1, &nativeClass),
                                      "[agent_do_transform] RetransformClasses fail");
+
+    current_transform = nullptr;
 
     if (nativeClass != nullptr) {
         env->DeleteLocalRef(nativeClass);
     }
 
-    jlong res = transRet ? methodId4jlong : -1;
-    LOGD("[agent_do_transform] 运行完成方法ID大于0成功 res= %ld", res);
-    return res;
+    if (!transRet) {
+        LOGE("[agent_do_transform] RetransformClasses failed, rolling back ...");
+        // 回滚这次新增
+        if (t) {
+            t->removeHook(methodId4long);              // 需要你在 Transform 里提供这个 API
+            if (t->getHooksSize() == 0) {              // 没有其它 hook 了，移除整个类
+                fClassTransforms.erase(targetClassName);
+            }
+        }
+        current_transform = nullptr;                   // 避免悬垂指针
+        return -1;
+    }
+
+    LOGD("[agent_do_transform] 运行完成方法ID大于0成功 res= %ld", methodId4jlong);
+    return methodId4jlong;
 
 }
 
@@ -439,9 +475,7 @@ extern "C" JNIEXPORT jboolean JNICALL agent_do_unHook_transform(
     /** ---------------------- 拿到方法信息 结束 ----------------------- */
 
     // 每次hook先清空 不处理删除
-    if (current_transform != nullptr) {
-        current_transform = nullptr;
-    }
+    current_transform = nullptr;
 
     auto it = fClassTransforms.find(targetClassName);
     if (it == fClassTransforms.end()) {
@@ -449,42 +483,47 @@ extern "C" JNIEXPORT jboolean JNICALL agent_do_unHook_transform(
         LOGW("[agent_do_unHook_transform] %s %s 未被 hook", targetClassName.c_str(),
              targetMethodName.c_str())
         return true;
-    } else {
-        // 这里是清理缓存列表的方法配置 fClassTransforms
-        if (it->second->removeHook(methodID4long)) {
-            LOGD("[agent_do_unHook_transform] 移除hook 成功 该类还有 %d",
-                 it->second->getHooksSize())
-        } else {
-            LOGW("[agent_do_unHook_transform] 失败 没有找到方法配置  配置数量 %d ，%s %s",
-                 it->second->getHooksSize(),
-                 targetClassName.c_str(),
-                 targetMethodName.c_str())
-            return true;
-        }
-
-        if (it->second->getHooksSize() == 0) {
-            // 如果该类没有其它配置了释放列表对象
-            fClassTransforms.erase(it);
-            // 使用临时新对象不进列表缓存，没有任何 hook 配置 相当于直接恢复
-            current_transform = new deploy::Transform(targetClassName);
-        } else {
-            // 删除对应方法配置后继续使用
-            current_transform = it->second.get();
-        }
     }
 
-    // 强制重新加载这个类  按空配置修改字节码
+    std::unique_ptr<deploy::Transform> staged =
+            std::make_unique<deploy::Transform>(*it->second);
+
+    if (!staged->removeHook(methodID4long)) {
+        LOGW("[agent_do_unHook_transform] removeHook(staged) 失败，可能已被移除：%s#%s",
+             targetClassName.c_str(), targetMethodName.c_str());
+        if (nativeClass != nullptr) env->DeleteLocalRef(nativeClass);
+        return JNI_TRUE;
+    }
+    bool staged_empty = (staged->getHooksSize() == 0);                        // ★ NEW
+
+    // ★ NEW: 仅在 Retransform 期间暴露 current_transform，供 HookClassFileLoadHook 读取
+    current_transform = staged.get();                                         // ★ NEW
     bool transRet = fsys::CheckJvmti(fAgentJvmtiEnv->RetransformClasses(1, &nativeClass),
-                                     "[agent_do_transform] RetransformClasses fail");
+                                     "[agent_do_unHook_transform] RetransformClasses fail");
+    current_transform = nullptr;                                              // ★ NEW: 立刻清空
 
     if (nativeClass != nullptr) {
         env->DeleteLocalRef(nativeClass);
     }
 
-    LOGD("[agent_do_unHook_transform] 运行完成方法 %s %s ...",
-         targetMethodName.c_str(),
-         transRet ? "成功" : "失败")
-    return transRet;
+    if (!transRet) {
+        LOGE("[agent_do_unHook_transform] RetransformClasses 失败，保持原配置不变（未提交）")
+        return JNI_FALSE;                                                     // ★ NEW: 内存未改，无需回滚
+    }
+
+    // ★ NEW: 成功 → 提交 staged 到 map
+    if (staged_empty) {
+        fClassTransforms.erase(it);
+        LOGD("[agent_do_unHook_transform] 卸载完成：类 %s 已无任何 hook，已移除",
+             targetClassName.c_str());
+    } else {
+        it->second = std::move(staged);
+        LOGD("[agent_do_unHook_transform] 卸载完成：类 %s 仍有 %zu 个 hook",
+             targetClassName.c_str(), it->second->getHooksSize());
+    }
+
+    LOGD("[agent_do_unHook_transform] 运行完成方法 %s 成功", targetMethodName.c_str())
+    return JNI_TRUE;
 }
 
 

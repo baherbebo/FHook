@@ -1,5 +1,6 @@
 package top.feadre.fhook.activitys;
 
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -67,19 +68,19 @@ public class MainActivity extends AppCompatActivity {
                 new Class<?>[]{type});
     }
 
-
     private void initCtr() {
         Button bt_main_01 = findViewById(R.id.bt_main_01);
         bt_main_01.setText("01 hook普通方法");
         bt_main_01.setOnClickListener(v -> {
-//            initHook01();
-//            initHook02();
-            initHook03();
+//            doAppHook01();
+//            doAppHook02();
+            doAppHook03();
+
 
         });
 
         Button bt_main_02 = findViewById(R.id.bt_main_02);
-        bt_main_02.setText("02 hook初始化");
+        bt_main_02.setText("02 初始化");
         bt_main_02.setOnClickListener(v -> {
             FHook.InitReport rep = FHook.init(this);
             Toast.makeText(this, rep.toString(), Toast.LENGTH_LONG).show();
@@ -89,14 +90,15 @@ public class MainActivity extends AppCompatActivity {
         Button bt_main_03 = findViewById(R.id.bt_main_03);
         bt_main_03.setText("03hook系统方法");
         bt_main_03.setOnClickListener(v -> {
-            Method forName = FHookTool.findMethod4First(Class.class, "forName");
-            Method getString = FHookTool.findMethod4First(Settings.Secure.class, "getString");
-            Method commit = FHookTool.findMethod4First(SharedPreferences.class, "commit");
-            FHook.hook(forName).setOrigFunRun(false).commit();
+            try {
+                doSysHook01();
+            } catch (Exception e) {
+                FLog.e(TAG, "doSysHook01: " + e);
 
-            FHook.hook(getString).setOrigFunRun(true).commit();
+            } catch (Throwable e) {
+                FLog.e(TAG, "doSysHook01: " + e);
 
-            FHook.hook(commit).setOrigFunRun(true).commit();
+            }
         });
 
         Button bt_main_04 = findViewById(R.id.bt_main_04);
@@ -121,41 +123,42 @@ public class MainActivity extends AppCompatActivity {
 //        initAppBt02(tHook);
         initAppBt03(tHook);
 
+        initSysBt();
+
     }
 
     private void initSysBt() {
-        // 48) ClassLoader.loadClass(String, boolean) —— 2参 + 返回 Class
-//        Button b48 = findViewById(R.id.bt_main_48);
-//        b48.setText("ClassLoader.loadClass(name,true)");
-//        b48.setOnClickListener(v -> {
-//            try {
-//                Class<?> c = getClassLoader().loadClass("java.lang.String");
-//                Toast.makeText(this, "got: " + c.getName(), Toast.LENGTH_SHORT).show();
-//            } catch (Throwable e) {
-//                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
-//            }
-//        });
 
+        initSysHook01();
 
-        Button bt_main_48 = findViewById(R.id.bt_main_48);
-        bt_main_48.setText("48 Class.forName");
-        bt_main_48.setOnClickListener(v -> {
+    }
+
+    private void initSysHook01() {
+        Button bt_main_21 = findViewById(R.id.bt_main_21);
+        bt_main_21.setText("21 Class.forName");
+        bt_main_21.setOnClickListener(v -> {
             try {
                 ClassLoader classLoader = getClassLoader();
-                classLoader.loadClass("java.lang.String");
+                Class<?> aClass = classLoader.loadClass("java.lang.String");
+                if (aClass == null) {
+                    return;
+                }
+
+                FFunsUI.toast(this, "got: " + aClass.getName());
+
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
             }
         });
 
         // 49) Method.invoke(Object, Object...) —— 变参 + 返回 Object（反射调用）
-        Button b49 = findViewById(R.id.bt_main_49);
-        b49.setText("Method.invoke(THook.fun_I_II)");
-        b49.setOnClickListener(v -> {
+        Button bt_main_22 = findViewById(R.id.bt_main_22);
+        bt_main_22.setText("22 Method.invoke(THook.fun_I_II)");
+        bt_main_22.setOnClickListener(v -> {
             try {
-                java.lang.reflect.Method m =
-                        top.feadre.fhook.THook.class.getMethod("fun_I_II", int.class, int.class);
-                Object ret = m.invoke(new top.feadre.fhook.THook(), 12, 34);
+                Method m =
+                        THook.class.getMethod("fun_I_II", int.class, int.class);
+                Object ret = m.invoke(new THook(), 12, 34);
                 Toast.makeText(this, "ret=" + ret, Toast.LENGTH_SHORT).show();
             } catch (Throwable e) {
                 Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
@@ -163,9 +166,9 @@ public class MainActivity extends AppCompatActivity {
         });
 
         // 50) Constructor.newInstance(Object...) —— 变参 + 返回实例
-        Button b50 = findViewById(R.id.bt_main_50);
-        b50.setText("Ctor.newInstance(String(bytes,charset))");
-        b50.setOnClickListener(v -> {
+        Button bt_main_23 = findViewById(R.id.bt_main_23);
+        bt_main_23.setText("23 Ctor.newInstance(String(bytes,charset))");
+        bt_main_23.setOnClickListener(v -> {
             try {
                 java.lang.reflect.Constructor<String> c =
                         String.class.getConstructor(byte[].class, java.nio.charset.Charset.class);
@@ -178,12 +181,12 @@ public class MainActivity extends AppCompatActivity {
         });
 
         // 51) Settings.Secure.getString(ContentResolver, String) —— 2参 + 返回 String（常被审计）
-        Button b51 = findViewById(R.id.bt_main_51);
-        b51.setText("Settings.Secure.getString(ANDROID_ID)");
-        b51.setOnClickListener(v -> {
+        Button bt_main_24 = findViewById(R.id.bt_main_24);
+        bt_main_24.setText("24 Settings.Secure.getString(ANDROID_ID)");
+        bt_main_24.setOnClickListener(v -> {
             try {
-                String id = android.provider.Settings.Secure.getString(
-                        getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
+                String id = Settings.Secure.getString(
+                        getContentResolver(), Settings.Secure.ANDROID_ID);
                 Toast.makeText(this, "ANDROID_ID=" + id, Toast.LENGTH_SHORT).show();
             } catch (Throwable e) {
                 Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
@@ -191,11 +194,11 @@ public class MainActivity extends AppCompatActivity {
         });
 
         // 52) SharedPreferences 写入 + 提交 —— putString(String,String) + commit() 返回 boolean
-        Button b52 = findViewById(R.id.bt_main_52);
-        b52.setText("SharedPreferences.put/commit");
-        b52.setOnClickListener(v -> {
+        Button bt_main_25 = findViewById(R.id.bt_main_25);
+        bt_main_25.setText("25 SharedPreferences.put/commit");
+        bt_main_25.setOnClickListener(v -> {
             try {
-                android.content.SharedPreferences sp = getSharedPreferences("demo", MODE_PRIVATE);
+                SharedPreferences sp = getSharedPreferences("demo", MODE_PRIVATE);
                 boolean ok = sp.edit().putString("k", "v@" + System.currentTimeMillis()).commit();
                 String v2 = sp.getString("k", "");
                 Toast.makeText(this, "commit=" + ok + ", v=" + v2, Toast.LENGTH_SHORT).show();
@@ -203,119 +206,150 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
             }
         });
-
-        //        // 53) SQLiteDatabase.query(...) —— 8参 + 返回 Cursor（高频 SQL Hook 点）
-//        Button b53 = findViewById(R.id.bt_main_53);
-//        b53.setText("SQLiteDatabase.query(8参)");
-//        b53.setOnClickListener(v -> {
-//            android.database.sqlite.SQLiteDatabase db = null;
-//            android.database.Cursor c = null;
-//            try {
-//                db = android.database.sqlite.SQLiteDatabase.create(null);
-//                db.execSQL("CREATE TABLE t(a INTEGER, b TEXT)");
-//                db.execSQL("INSERT INTO t(a,b) VALUES(?,?)", new Object[]{1, "x"});
-//                db.execSQL("INSERT INTO t(a,b) VALUES(?,?)", new Object[]{2, "y"});
-//                c = db.query("t",
-//                        new String[]{"a","b"},
-//                        "a>?",
-//                        new String[]{"0"},
-//                        null, null,
-//                        "a DESC",
-//                        "10");
-//                int rows = c.getCount();
-//                Toast.makeText(this, "rows=" + rows, Toast.LENGTH_SHORT).show();
-//            } catch (Throwable e) {
-//                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
-//            } finally {
-//                if (c != null) c.close();
-//                if (db != null) db.close();
-//            }
-//        });
-//
-//        // 54) Cipher.init(int, Key, SecureRandom) + doFinal(byte[]) —— 3参 + 返回 byte[]
-//        Button b54 = findViewById(R.id.bt_main_54);
-//        b54.setText("Cipher.init/doFinal(AES)");
-//        b54.setOnClickListener(v -> {
-//            try {
-//                javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("AES/ECB/PKCS5Padding");
-//                javax.crypto.spec.SecretKeySpec key =
-//                        new javax.crypto.spec.SecretKeySpec(
-//                                "0123456789abcdef".getBytes(java.nio.charset.StandardCharsets.UTF_8),
-//                                "AES");
-//                java.security.SecureRandom rnd = new java.security.SecureRandom();
-//                cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, key, rnd);
-//                byte[] out = cipher.doFinal("hello".getBytes(java.nio.charset.StandardCharsets.UTF_8));
-//                Toast.makeText(this, "enc len=" + out.length, Toast.LENGTH_SHORT).show();
-//            } catch (Throwable e) {
-//                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
-//            }
-//        });
-//
-//        // 55) MessageDigest.getInstance + digest(byte[]) —— 1参 + 返回 byte[]
-//        Button b55 = findViewById(R.id.bt_main_55);
-//        b55.setText("MessageDigest.digest(SHA-256)");
-//        b55.setOnClickListener(v -> {
-//            try {
-//                java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
-//                byte[] out = md.digest("abc".getBytes(java.nio.charset.StandardCharsets.UTF_8));
-//                String head = String.format("%02x%02x%02x%02x", out[0], out[1], out[2], out[3]);
-//                Toast.makeText(this, "sha256[0..3]=" + head, Toast.LENGTH_SHORT).show();
-//            } catch (Throwable e) {
-//                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
-//            }
-//        });
-//
-//        // 56) Parcel.obtain()/writeInt/readInt/recycle —— 多步 + 常见 Binder 数据面 Hook
-//        Button b56 = findViewById(R.id.bt_main_56);
-//        b56.setText("Parcel.write/read");
-//        b56.setOnClickListener(v -> {
-//            android.os.Parcel p = null;
-//            try {
-//                p = android.os.Parcel.obtain();
-//                p.writeInt(42);
-//                p.setDataPosition(0);
-//                int val = p.readInt();
-//                Toast.makeText(this, "parcel val=" + val, Toast.LENGTH_SHORT).show();
-//            } catch (Throwable e) {
-//                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
-//            } finally {
-//                if (p != null) p.recycle();
-//            }
-//        });
-//
-//        // 57) Intent.putExtra(String,int)（链式）+ getIntExtra —— 2参 + 返回 Intent/int
-//        Button b57 = findViewById(R.id.bt_main_57);
-//        b57.setText("Intent.putExtra/getExtra");
-//        b57.setOnClickListener(v -> {
-//            try {
-//                android.content.Intent it = new android.content.Intent()
-//                        .putExtra("k", 123)
-//                        .putExtra("m", 456);
-//                int got = it.getIntExtra("m", -1);
-//                Toast.makeText(this, "extra m=" + got, Toast.LENGTH_SHORT).show();
-//            } catch (Throwable e) {
-//                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
-//            }
-//        });
-//
-//        // 58) Uri.buildUpon().appendQueryParameter(...).build() —— 多步 + 返回 Uri
-//        Button b58 = findViewById(R.id.bt_main_58);
-//        b58.setText("Uri.buildUpon/appendQP/build");
-//        b58.setOnClickListener(v -> {
-//            try {
-//                android.net.Uri u = android.net.Uri.parse("https://ex.com/p")
-//                        .buildUpon()
-//                        .appendQueryParameter("a", "1")
-//                        .appendQueryParameter("b", "2")
-//                        .build();
-//                Toast.makeText(this, u.toString(), Toast.LENGTH_SHORT).show();
-//            } catch (Throwable e) {
-//                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
-//            }
-//        });
     }
 
-    private void initHook03() {
+    private void doSysHook01() throws Throwable {
+
+        // ============ 21) ClassLoader.loadClass(String) ============
+//        {
+//            java.lang.reflect.Method mLoadClass =
+//                    ClassLoader.class.getMethod("loadClass", String.class);
+//
+//            FHook.hook(mLoadClass)
+//                    .setOrigFunRun(false)   // 让原方法照常执行
+//                    .setHookEnter((thiz, args, types, hh) -> {
+//                        // thiz 是 ClassLoader 实例；args[0] 是 name
+//                        String name = (String) args.get(0);
+//                        showLog("ClassLoader.loadClass", thiz, args, types);
+//                        // 你也可以试着替换类名验证 hook 生效：
+//                        // if ("java.lang.String".equals(name)) args.set(0, "java.lang.Integer");
+//                    })
+//                    .setHookExit((ret, type, hh) -> {
+//                        // ret 是 Class<?>，打印类名
+//                        Class<?> c = (Class<?>) ret;
+//                        showLog("ClassLoader.loadClass", hh.thisObject, ret, type);
+//                        FFunsUI.toast(this, "[hook] loadClass -> " + (c != null ? c.getName() : "null"));
+//                        return ret;
+//                    })
+//                    .commit();
+//        }
+
+        // ============ 22) Method.invoke(Object, Object...) ============
+//        {
+//            java.lang.reflect.Method mInvoke =
+//                    java.lang.reflect.Method.class.getMethod("invoke", Object.class, Object[].class);
+//
+//            FHook.hook(mInvoke)
+//                    .setOrigFunRun(true)
+//                    .setHookEnter((thiz, args, types, hh) -> {
+//                        // thiz 是 java.lang.reflect.Method
+//                        java.lang.reflect.Method target = (java.lang.reflect.Method) thiz;
+//                        Object targetObj = args.get(0);          // 目标实例（static 时为 null）
+//                        Object[] invokeArgs = (Object[]) args.get(1); // 实参数组
+//
+//                        showLog("Method.invoke", thiz, args, types);
+//
+//                        // 演示：如果是调用 THook.fun_I_II(int,int)，把第一个参数+100，看是否影响结果
+//                        if (target.getDeclaringClass() == top.feadre.fhook.THook.class
+//                                && "fun_I_II".equals(target.getName())
+//                                && invokeArgs != null && invokeArgs.length >= 2
+//                                && invokeArgs[0] instanceof Integer) {
+//                            int old0 = (Integer) invokeArgs[0];
+//                            invokeArgs[0] = old0 + 100;
+//                        }
+//                    })
+//                    .setHookExit((ret, type, hh) -> {
+//                        // ret 是被调用方法的返回值（Object）
+//                        showLog("Method.invoke", hh.thisObject, ret, type);
+//                        FFunsUI.toast(this, "[hook] Method.invoke ret=" + ret);
+//                        return ret;
+//                    })
+//                    .commit();
+//        }
+
+//// ============ 23) Constructor.newInstance(Object...) ============
+//        {
+//            java.lang.reflect.Method mCtorNewInstance =
+//                    java.lang.reflect.Constructor.class.getMethod("newInstance", Object[].class);
+//
+//            FHook.hook(mCtorNewInstance)
+//                    .setOrigFunRun(true)
+//                    .setHookEnter((thiz, args, types, hh) -> {
+//                        // thiz 是 Constructor<?>；args[0] 是 Object[] initargs
+//                        java.lang.reflect.Constructor<?> ctor = (java.lang.reflect.Constructor<?>) thiz;
+//                        Object[] initargs = (Object[]) args.get(0);
+//                        showLog("Constructor.newInstance", thiz, args, types);
+//
+//                        // demo：若是 String(byte[], Charset) 构造，替换第一个参数内容
+//                        if (ctor.getDeclaringClass() == String.class && initargs != null && initargs.length == 2) {
+//                            if (initargs[0] instanceof byte[]) {
+//                                byte[] b = (byte[]) initargs[0];
+//                                // 简单演示：把前两个字节改掉
+//                                if (b.length >= 2) {
+//                                    b[0] = 'H';
+//                                    b[1] = 'K';
+//                                }
+//                            }
+//                        }
+//                    })
+//                    .setHookExit((ret, type, hh) -> {
+//                        // ret 是新建的实例
+//                        showLog("Constructor.newInstance", hh.thisObject, ret, type);
+//                        if (ret instanceof String) {
+//                            ret = ((String) ret) + " [hooked]";
+//                        }
+//                        return ret;
+//                    })
+//                    .commit();
+//        }
+
+// ============ 24) Settings.Secure.getString(ContentResolver, String) ============
+//        {
+//            java.lang.reflect.Method mGetString =
+//                    android.provider.Settings.Secure.class.getMethod(
+//                            "getString", android.content.ContentResolver.class, String.class);
+//
+//            FHook.hook(mGetString)
+//                    .setOrigFunRun(true)
+//                    .setHookEnter((thiz, args, types, hh) -> {
+//                        // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
+//                        showLog("Settings.Secure.getString", thiz, args, types);
+//                    })
+//                    .setHookExit((ret, type, hh) -> {
+//                        showLog("Settings.Secure.getString", hh.thisObject, ret, type);
+//                        // 演示：在返回值后面加标记，肉眼可见 hook 生效
+//                        if (ret instanceof String) {
+//                            ret = ret + "_HOOK";
+//                        }
+//                        return ret;
+//                    })
+//                    .commit();
+//        }
+
+// ============ 25) SharedPreferences.Editor.commit() ============
+        {
+            java.lang.reflect.Method mCommit =
+                    android.content.SharedPreferences.Editor.class.getMethod("commit");
+
+            FHook.hook(mCommit)
+                    .setOrigFunRun(true)
+                    .setHookEnter((thiz, args, types, hh) -> {
+                        // thiz 是具体 Editor 实例；无参数
+                        showLog("SharedPreferences.Editor.commit", thiz, args, types);
+                    })
+                    .setHookExit((ret, type, hh) -> {
+                        // ret 是 Boolean（primitive boolean 会被装箱）
+                        showLog("SharedPreferences.Editor.commit", hh.thisObject, ret, type);
+                        // 你也可以强制返回 true 观测效果：
+                        // ret = Boolean.TRUE;
+                        return ret;
+                    })
+                    .commit();
+        }
+
+    }
+
+    private void doAppHook03() {
         Method fun_TObject_TObject = FHookTool.findMethod4First(THook.class, "fun_TObject_TObject");
         FHook.hook(fun_TObject_TObject)
                 .setOrigFunRun(false)
@@ -390,7 +424,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private void initHook02() {
+    private void doAppHook02() {
         Method fun_V_V = FHookTool.findMethod4First(THook.class, "fun_V_V");
         Method jcFun_V_V = FHookTool.findMethod4First(THook.class, "jcFun_V_V");
 
@@ -423,7 +457,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private void initHook01() {
+    private void doAppHook01() {
         Method fun_String_String2 = FHookTool.findMethod4First(THook.class, "fun_String_String2");
         Method fun_I_III = FHookTool.findMethod4First(THook.class, "fun_I_III");
         Method jtFun_I_II = FHookTool.findMethod4First(THook.class, "jtFun_I_II");
