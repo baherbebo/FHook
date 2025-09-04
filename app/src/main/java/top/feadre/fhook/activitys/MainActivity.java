@@ -10,7 +10,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import top.feadre.fhook.FCFG;
@@ -18,6 +18,7 @@ import top.feadre.fhook.FHook;
 import top.feadre.fhook.FHookTool;
 import top.feadre.fhook.R;
 import top.feadre.fhook.THook;
+import top.feadre.fhook.TObject;
 import top.feadre.fhook.flibs.fsys.FLog;
 import top.feadre.fhook.tools.FFunsUI;
 
@@ -45,7 +46,8 @@ public class MainActivity extends AppCompatActivity {
             throw new RuntimeException(e);
         }
 
-        initViews();
+        initAppBt();
+        initSysBt();
         initCtr();//
 
 //        FHook.hook(method).setHookEnter(传一个接口实现类).setHookExit(传一个接口实现类).setOrigFunRun(true);
@@ -53,9 +55,9 @@ public class MainActivity extends AppCompatActivity {
 
     void showLog(String name_fun, Object thiz, List<Object> args, Class<?>[] types) {
         FLog.d("----------- " + name_fun + " --------");
-        FLog.d("    thiz=" + thiz);
+        FLog.d("    thiz= " + thiz);
         for (int i = 0; i < args.size(); i++) {
-            FLog.d("    args[" + i + "]=" + args.get(i) + " " + types[i]);
+            FLog.d("    args[" + i + "]= " + args.get(i) + " " + types[i]);
         }
     }
 
@@ -70,57 +72,9 @@ public class MainActivity extends AppCompatActivity {
         Button bt_main_01 = findViewById(R.id.bt_main_01);
         bt_main_01.setText("01 hook普通方法");
         bt_main_01.setOnClickListener(v -> {
-            Method fun_String_String2 = FHookTool.findMethod4First(THook.class, "fun_String_String2");
-            Method fun_I_III = FHookTool.findMethod4First(THook.class, "fun_I_III");
-            Method jtFun_I_II = FHookTool.findMethod4First(THook.class, "jtFun_I_II");
-
-
-            FHook.hook(fun_String_String2).setOrigFunRun(true)
-                    .setHookEnter((thiz, args, types, hh) -> {
-                        showLog("fun_String_String2", thiz, args, types);
-                        String args0 = (String) args.set(0, "111");
-                        String args1 = (String) args.get(1);
-                        args1 = "9999" + args0;
-                        args.set(1, args1);
-                    })
-                    .setHookExit(
-                            (ret, type, hh) -> {
-                                showLog("fun_String_String2", hh.thisObject, ret, type);
-
-                                ret = "11111";
-                                return ret;
-                            })
-                    .commit();
-
-            FHook.hook(fun_I_III)
-                    .setHookEnter((thiz, args, types, hh) -> {
-                        showLog("fun_I_III", thiz, args, types);
-                        args.set(0, 6666);
-
-                    })
-                    .setHookExit((ret, type, hh) -> {
-                        showLog("fun_I_III", hh.thisObject, ret, type);
-
-                        ret = 8888;
-                        return ret;
-                    })
-                    .setOrigFunRun(true)
-                    .commit();
-
-            FHook.hook(jtFun_I_II)
-                    .setOrigFunRun(false)
-                    .setHookEnter((thiz, args, types, hh) -> {
-                        showLog("jtFun_I_II", thiz, args, types);
-                        args.set(0, 8888);
-
-                    })
-                    .setHookExit((ret, type, hh) -> {
-                        showLog("jtFun_I_II", hh.thisObject, ret, type);
-
-                        ret = 99999;
-                        return ret;
-                    })
-                    .commit();
+//            initHook01();
+//            initHook02();
+            initHook03();
 
         });
 
@@ -151,31 +105,36 @@ public class MainActivity extends AppCompatActivity {
             FHook.unHookAll();
         });
 
+        Button bt_main_05 = findViewById(R.id.bt_main_05);
+        bt_main_05.setText("05 查看已hook的情况");
+        bt_main_05.setOnClickListener(v -> {
+            FHook.showHookInfo();
+        });
+
+
     }
 
-    // 替换你的 initViews()
-    private void initViews() {
+    private void initAppBt() {
         THook tHook = new THook();
 
-        // 09~10 你已写，这里统一用工具方法重写一遍
-        Button bt_main_09 = findViewById(R.id.bt_main_09);
-        bt_main_09.setText("09 fun_String_String2");
-        bt_main_09.setOnClickListener(v -> {
-            FFunsUI.toast(this, String.valueOf(tHook.fun_String_String2("09", "09")));
-        });
+//        initAppBt01(tHook);
+//        initAppBt02(tHook);
+        initAppBt03(tHook);
 
-        Button bt_main_10 = findViewById(R.id.bt_main_10);
-        bt_main_10.setText("10 fun_I_III");
-        bt_main_10.setOnClickListener(v -> {
-            FFunsUI.toast(this, String.valueOf(tHook.fun_I_III(10, 20, 30)));
-        });
+    }
 
-        Button bt_main_11 = findViewById(R.id.bt_main_11);
-        bt_main_11.setText("11 jtFun_I_II");
-        bt_main_11.setOnClickListener(v -> {
-            FFunsUI.toast(this, String.valueOf(THook.jtFun_I_II(20, 30)));
-
-        });
+    private void initSysBt() {
+        // 48) ClassLoader.loadClass(String, boolean) —— 2参 + 返回 Class
+//        Button b48 = findViewById(R.id.bt_main_48);
+//        b48.setText("ClassLoader.loadClass(name,true)");
+//        b48.setOnClickListener(v -> {
+//            try {
+//                Class<?> c = getClassLoader().loadClass("java.lang.String");
+//                Toast.makeText(this, "got: " + c.getName(), Toast.LENGTH_SHORT).show();
+//            } catch (Throwable e) {
+//                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+//            }
+//        });
 
 
         Button bt_main_48 = findViewById(R.id.bt_main_48);
@@ -188,18 +147,6 @@ public class MainActivity extends AppCompatActivity {
                 throw new RuntimeException(e);
             }
         });
-
-        // 48) ClassLoader.loadClass(String, boolean) —— 2参 + 返回 Class
-//        Button b48 = findViewById(R.id.bt_main_48);
-//        b48.setText("ClassLoader.loadClass(name,true)");
-//        b48.setOnClickListener(v -> {
-//            try {
-//                Class<?> c = getClassLoader().loadClass("java.lang.String");
-//                Toast.makeText(this, "got: " + c.getName(), Toast.LENGTH_SHORT).show();
-//            } catch (Throwable e) {
-//                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
-//            }
-//        });
 
         // 49) Method.invoke(Object, Object...) —— 变参 + 返回 Object（反射调用）
         Button b49 = findViewById(R.id.bt_main_49);
@@ -257,7 +204,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-//        // 53) SQLiteDatabase.query(...) —— 8参 + 返回 Cursor（高频 SQL Hook 点）
+        //        // 53) SQLiteDatabase.query(...) —— 8参 + 返回 Cursor（高频 SQL Hook 点）
 //        Button b53 = findViewById(R.id.bt_main_53);
 //        b53.setText("SQLiteDatabase.query(8参)");
 //        b53.setOnClickListener(v -> {
@@ -368,5 +315,235 @@ public class MainActivity extends AppCompatActivity {
 //        });
     }
 
+    private void initHook03() {
+        Method fun_TObject_TObject = FHookTool.findMethod4First(THook.class, "fun_TObject_TObject");
+        FHook.hook(fun_TObject_TObject)
+                .setOrigFunRun(false)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    showLog("fun_TObject_TObject", thiz, args, types);
+                    TObject o1 = (TObject) args.get(0);
+                    o1.setAge(9999);
+                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("fun_TObject_TObject", hh.thisObject, ret, type);
+                    if (ret == null) {
+                        ret = new TObject("bbbbbbbbbbb", 8888);
+                        return ret;
+                    }
+                    TObject o1 = (TObject) ret;
+                    o1.setName("aaaaaabbb");
+                    return ret;
+                })
+                .commit();
+
+
+        Method fun_I_IArray = FHookTool.findMethod4First(THook.class, "fun_I_IArray");
+        FHook.hook(fun_I_IArray)
+                .setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    showLog("fun_I_IArray", thiz, args, types);
+                    int[] arr = (int[]) args.get(0);
+                    arr[0] = 666;
+                })
+//                .setHookExit((ret, type, hh) -> {
+//                    showLog("fun_I_IArray", hh.thisObject, ret, type);
+//
+//                    return ret;
+//                })
+                .commit();
+
+        Method fun_I_DArray = FHookTool.findMethod4First(THook.class, "fun_I_DArray");
+        FHook.hook(fun_I_DArray)
+                .setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    showLog("fun_I_DArray", thiz, args, types);
+                    double[] arg0 = (double[]) args.get(0);
+                    arg0[2] = 999;
+
+                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("fun_I_DArray", hh.thisObject, ret, type);
+                    int[] ret1 = (int[]) ret;
+                    ret1[0] = 888;
+                    return ret;
+                })
+                .commit();
+
+        Method fun_DArray_IArray = FHookTool.findMethod4First(THook.class, "fun_DArray_IArray");
+        FHook.hook(fun_DArray_IArray)
+                .setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    showLog("fun_DArray_IArray", thiz, args, types);
+                    double[] o = (double[]) args.get(0);
+                    o[0] = 999;
+
+                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("fun_DArray_IArray", hh.thisObject, ret, type);
+                    TObject[] ret1 = (TObject[]) ret;
+                    ret1[0].setName("aaaaaabbb");
+                    ret1[1] = new TObject("cccccc", 9999);
+                    return ret;
+                })
+                .commit();
+
+    }
+
+    private void initHook02() {
+        Method fun_V_V = FHookTool.findMethod4First(THook.class, "fun_V_V");
+        Method jcFun_V_V = FHookTool.findMethod4First(THook.class, "jcFun_V_V");
+
+
+        FHook.hook(fun_V_V)
+                .setOrigFunRun(false)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    showLog("fun_V_V", thiz, args, types);
+
+                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("fun_V_V", hh.thisObject, ret, type);
+
+                    return ret;
+                })
+                .commit();
+
+        FHook.hook(jcFun_V_V)
+                .setOrigFunRun(false)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    showLog("jcFun_V_V", thiz, args, types);
+
+                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("jcFun_V_V", hh.thisObject, ret, type);
+
+                    return ret;
+                })
+                .commit();
+
+    }
+
+    private void initHook01() {
+        Method fun_String_String2 = FHookTool.findMethod4First(THook.class, "fun_String_String2");
+        Method fun_I_III = FHookTool.findMethod4First(THook.class, "fun_I_III");
+        Method jtFun_I_II = FHookTool.findMethod4First(THook.class, "jtFun_I_II");
+
+        FHook.hook(fun_String_String2).setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    showLog("fun_String_String2", thiz, args, types);
+                    String args0 = (String) args.set(0, "111");
+                    String args1 = (String) args.get(1);
+                    args1 = "9999" + args0;
+                    args.set(1, args1);
+                })
+                .setHookExit(
+                        (ret, type, hh) -> {
+                            showLog("fun_String_String2", hh.thisObject, ret, type);
+
+                            ret = "11111";
+                            return ret;
+                        })
+                .commit();
+
+        FHook.hook(fun_I_III)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    showLog("fun_I_III", thiz, args, types);
+                    args.set(0, 6666);
+
+                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("fun_I_III", hh.thisObject, ret, type);
+
+                    ret = 8888;
+                    return ret;
+                })
+                .setOrigFunRun(true)
+                .commit();
+
+        FHook.hook(jtFun_I_II)
+                .setOrigFunRun(false)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    showLog("jtFun_I_II", thiz, args, types);
+                    args.set(0, 8888);
+
+                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("jtFun_I_II", hh.thisObject, ret, type);
+
+                    ret = 99999;
+                    return ret;
+                })
+                .commit();
+    }
+    // 替换你的 initViews()
+
+    private void initAppBt03(THook tHook) {
+        Button bt_main_14 = findViewById(R.id.bt_main_14);
+        bt_main_14.setText("14 fun_TObject_TObject");
+        bt_main_14.setOnClickListener(v -> {
+            FFunsUI.toast(this, String.valueOf(
+                    tHook.fun_TObject_TObject(
+                            new TObject("jerry", 20))));
+        });
+
+        Button bt_main_15 = findViewById(R.id.bt_main_15);
+        bt_main_15.setText("15 fun_I_IArray");
+        bt_main_15.setOnClickListener(v -> {
+            FFunsUI.toast(this, String.valueOf(
+                    tHook.fun_I_IArray(new int[]{1, 2, 3})
+            ));
+        });
+
+        Button bt_main_16 = findViewById(R.id.bt_main_16);
+        bt_main_16.setText("15 fun_I_DArray");
+        bt_main_16.setOnClickListener(v -> {
+            FFunsUI.toast(this, Arrays.toString(
+                    tHook.fun_I_DArray(new double[]{1.1, 2.2, 3.3})));
+        });
+
+        Button bt_main_17 = findViewById(R.id.bt_main_17);
+        bt_main_17.setText("17 fun_DArray_IArray");
+        bt_main_17.setOnClickListener(v -> {
+            FFunsUI.toast(this, Arrays.toString(
+                    tHook.fun_DArray_IArray(new double[]{1.1, 2.2, 3.3})));
+        });
+    }
+
+    private void initAppBt02(THook tHook) {
+        Button bt_main_12 = findViewById(R.id.bt_main_12);
+        bt_main_12.setText("12 fun_V_V");
+        bt_main_12.setOnClickListener(v -> {
+            tHook.fun_V_V();
+            FFunsUI.toast(this, "fun_V_V");
+        });
+
+        Button bt_main_13 = findViewById(R.id.bt_main_13);
+        bt_main_13.setText("13 jcFun_V_V");
+        bt_main_13.setOnClickListener(v -> {
+            tHook.fun_V_V();
+            FFunsUI.toast(this, "jcFun_V_V");
+        });
+    }
+
+    private void initAppBt01(THook tHook) {
+        // 09~10 你已写，这里统一用工具方法重写一遍
+        Button bt_main_09 = findViewById(R.id.bt_main_09);
+        bt_main_09.setText("09 fun_String_String2");
+        bt_main_09.setOnClickListener(v -> {
+            FFunsUI.toast(this, String.valueOf(tHook.fun_String_String2("09", "09")));
+        });
+
+        Button bt_main_10 = findViewById(R.id.bt_main_10);
+        bt_main_10.setText("10 fun_I_III");
+        bt_main_10.setOnClickListener(v -> {
+            FFunsUI.toast(this, String.valueOf(tHook.fun_I_III(10, 20, 30)));
+        });
+
+        Button bt_main_11 = findViewById(R.id.bt_main_11);
+        bt_main_11.setText("11 jtFun_I_II");
+        bt_main_11.setOnClickListener(v -> {
+            FFunsUI.toast(this, String.valueOf(THook.jtFun_I_II(20, 30)));
+
+        });
+    }
 
 }

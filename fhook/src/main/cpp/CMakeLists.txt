@@ -36,15 +36,15 @@ add_library(
 set(COMMON_SOURCES
         FGlobal_flib.cpp
         tools/fsys.cpp
-
 )
 
 add_library(
         fhook          # 库名称（必须与System.loadLibrary参数一致）
         SHARED
-        main/fhook.cpp
 
         ${COMMON_SOURCES}
+
+        main/fhook.cpp
 )
 
 target_link_libraries(
@@ -57,6 +57,9 @@ target_link_libraries(
 add_library(
         fhook_agent
         SHARED
+
+        ${COMMON_SOURCES}
+
         agent/fhook_agent.cpp
         agent/finject.cpp
         agent/fir_funs_def.cpp
@@ -64,8 +67,8 @@ add_library(
         agent/fir_tools.cpp
         agent/fsmali_printer.cpp
         agent/transform.cpp
+        agent/freg_manager.cpp
 
-        ${COMMON_SOURCES}
 )
 
 target_link_libraries(

@@ -503,7 +503,7 @@ namespace fir_tools {
         LOGI("[cre_return_code] 使用指定返回寄存器 reg_return: V%d (类型: %s) ",
              reg_num, return_type->descriptor->c_str());
 
-        // 这里需要转换
+        // 是引用需要转换回来
         if (is_reference) {
             // 先转再返回
             ir::Builder builder(code_ir->dex_ir);
@@ -525,12 +525,14 @@ namespace fir_tools {
             return true;
         }
 
-        // 这里已确定是标量 从 Object 解包到 v<dst>
-        unbox_scalar_value(insert_point,
-                           code_ir,
-                           return_type,
-                           reg_num,     // src: Object 就在 dst
-                           reg_num);    // dst: 覆盖同一个寄存器
+        // 是标量，直接返回
+
+//        // 这里已确定是标量 从 Object 解包到 v<dst>
+//        unbox_scalar_value(insert_point,
+//                           code_ir,
+//                           return_type,
+//                           reg_num,     // src: Object 就在 dst
+//                           reg_num);    // dst: 覆盖同一个寄存器
 
         if (is_wide) {
             // return-wide vpair
@@ -1007,99 +1009,100 @@ namespace fir_tools {
         }
     }
 
-    /// 自动选一个不冲突，可选是否重复，的普通寄存器
-    int pick_reg4one(lir::CodeIr *code_ir,
-                     int reg_target,        // 返回不能与这个寄存器冲突
-                     bool is_wide_target,   // reg_target 是否为宽寄存器起点（需要避开 reg_target 与 reg_target+1）
-                     bool is_repetition)    // 是否允许返回与 reg_target 相同（仅在不冲突前提下）
-    {
-        SLICER_CHECK(code_ir && code_ir->ir_method && code_ir->ir_method->code);
-        const auto code = code_ir->ir_method->code;
-
-        const dex::u2 regs_size = code->registers;   // 总寄存器数
-        const dex::u2 ins_size = code->ins_count;   // 参数寄存器数（高位）
-        const int locals = static_cast<int>(regs_size - ins_size);
-        if (locals <= 0) {
-            LOGE("[pick_reg4one] locals=0，无可用本地寄存器");
-            return -1;
-        }
-
-        auto conflict_with_target = [&](int v) -> bool {
-            if (reg_target < 0) return false;
-            if (is_wide_target) {
-                // 目标为宽寄存器：v 不能等于 reg_target 或 reg_target+1
-                return (v == reg_target) || (v == reg_target + 1);
-            } else {
-                // 目标为普通寄存器：v 不能等于 reg_target 才算“冲突”
-                return (v == reg_target);
-            }
-        };
-
-        // 若允许“重复”，且不与 reg_target 冲突，优先返回 reg_target（仅当其在 locals 内）
-        if (is_repetition && reg_target >= 0 && reg_target < locals &&
-            !conflict_with_target(reg_target)) {
-            return reg_target;
-        }
-
-        // 从 v0 起找第一个不冲突的普通寄存器
-        for (int v = 0; v < locals; ++v) {
-            if (!conflict_with_target(v)) {
-                // 若不允许重复，还需排除 v == reg_target（仅在窄目标场景有意义）
-                if (!is_repetition && reg_target >= 0 && !is_wide_target && v == reg_target) {
-                    continue;
-                }
-                return v;
-            }
-        }
-
-        LOGE("[pick_reg4one] 无可用普通寄存器 (locals=%d, reg_target=%d, wide_target=%d, repetition=%d)",
-             locals, reg_target, is_wide_target, is_repetition);
-        return -1;
-    }
-
-
-    /// 自动选一个不冲突且不能重复的宽寄存器（返回起始号 v，占 v 与 v+1）
-    int pick_reg4wide(lir::CodeIr *code_ir,
-                      int reg_target,
-                      bool is_wide_target) {
-        SLICER_CHECK(code_ir && code_ir->ir_method && code_ir->ir_method->code);
-        const auto code = code_ir->ir_method->code;
-
-        const dex::u2 regs_size = code->registers;
-        const dex::u2 ins_size = code->ins_count;
-        const int locals = static_cast<int>(regs_size - ins_size);
-        if (locals <= 1) {
-            LOGE("[pick_reg4wide] locals<=1，无法容纳宽寄存器对");
-            return -1;
-        }
-
-        auto conflict_with_target_pair = [&](int v) -> bool {
-            if (reg_target < 0) return false;
-            const int a_lo = v, a_hi = v + 1; // 我们申请的 (v, v+1)
-            if (is_wide_target) {
-                // 目标也是宽寄存器：避开区间重叠
-                const int b_lo = reg_target, b_hi = reg_target + 1;
-                return !(a_hi < b_lo || b_hi < a_lo);
-            } else {
-                // 目标是普通寄存器：v 或 v+1 不能命中 reg_target
-                return (reg_target == a_lo) || (reg_target == a_hi);
-            }
-        };
-
-        for (int v = 0; v + 1 < locals; ++v) {
-            // “不能重复”：起点 v 不得等于 reg_target
-            if (v == reg_target) continue;
-
-            // 不冲突检查
-            if (!conflict_with_target_pair(v)) {
-                return v;
-            }
-        }
-
-        LOGE("[pick_reg4wide] 无可用宽寄存器对 (locals=%d, reg_target=%d, wide_target=%d)",
-             locals, reg_target, is_wide_target);
-        return -1;
-    }
+//    // -------------------------------------------- 寄存器操作
+//    /// 自动选一个不冲突，可选是否重复，的普通寄存器
+//    int pick_reg4one(lir::CodeIr *code_ir,
+//                     int reg_target,        // 返回不能与这个寄存器冲突
+//                     bool is_wide_target,   // reg_target 是否为宽寄存器起点（需要避开 reg_target 与 reg_target+1）
+//                     bool is_repetition)    // 是否允许返回与 reg_target 相同（仅在不冲突前提下）
+//    {
+//        SLICER_CHECK(code_ir && code_ir->ir_method && code_ir->ir_method->code);
+//        const auto code = code_ir->ir_method->code;
+//
+//        const dex::u2 regs_size = code->registers;   // 总寄存器数
+//        const dex::u2 ins_size = code->ins_count;   // 参数寄存器数（高位）
+//        const int locals = static_cast<int>(regs_size - ins_size);
+//        if (locals <= 0) {
+//            LOGE("[pick_reg4one] locals=0，无可用本地寄存器");
+//            return -1;
+//        }
+//
+//        auto conflict_with_target = [&](int v) -> bool {
+//            if (reg_target < 0) return false;
+//            if (is_wide_target) {
+//                // 目标为宽寄存器：v 不能等于 reg_target 或 reg_target+1
+//                return (v == reg_target) || (v == reg_target + 1);
+//            } else {
+//                // 目标为普通寄存器：v 不能等于 reg_target 才算“冲突”
+//                return (v == reg_target);
+//            }
+//        };
+//
+//        // 若允许“重复”，且不与 reg_target 冲突，优先返回 reg_target（仅当其在 locals 内）
+//        if (is_repetition && reg_target >= 0 && reg_target < locals &&
+//            !conflict_with_target(reg_target)) {
+//            return reg_target;
+//        }
+//
+//        // 从 v0 起找第一个不冲突的普通寄存器
+//        for (int v = 0; v < locals; ++v) {
+//            if (!conflict_with_target(v)) {
+//                // 若不允许重复，还需排除 v == reg_target（仅在窄目标场景有意义）
+//                if (!is_repetition && reg_target >= 0 && !is_wide_target && v == reg_target) {
+//                    continue;
+//                }
+//                return v;
+//            }
+//        }
+//
+//        LOGE("[pick_reg4one] 无可用普通寄存器 (locals=%d, reg_target=%d, wide_target=%d, repetition=%d)",
+//             locals, reg_target, is_wide_target, is_repetition);
+//        return -1;
+//    }
+//
+//
+//    /// 自动选一个不冲突且不能重复的宽寄存器（返回起始号 v，占 v 与 v+1）
+//    int pick_reg4wide(lir::CodeIr *code_ir,
+//                      int reg_target,
+//                      bool is_wide_target) {
+//        SLICER_CHECK(code_ir && code_ir->ir_method && code_ir->ir_method->code);
+//        const auto code = code_ir->ir_method->code;
+//
+//        const dex::u2 regs_size = code->registers;
+//        const dex::u2 ins_size = code->ins_count;
+//        const int locals = static_cast<int>(regs_size - ins_size);
+//        if (locals <= 1) {
+//            LOGE("[pick_reg4wide] locals<=1，无法容纳宽寄存器对");
+//            return -1;
+//        }
+//
+//        auto conflict_with_target_pair = [&](int v) -> bool {
+//            if (reg_target < 0) return false;
+//            const int a_lo = v, a_hi = v + 1; // 我们申请的 (v, v+1)
+//            if (is_wide_target) {
+//                // 目标也是宽寄存器：避开区间重叠
+//                const int b_lo = reg_target, b_hi = reg_target + 1;
+//                return !(a_hi < b_lo || b_hi < a_lo);
+//            } else {
+//                // 目标是普通寄存器：v 或 v+1 不能命中 reg_target
+//                return (reg_target == a_lo) || (reg_target == a_hi);
+//            }
+//        };
+//
+//        for (int v = 0; v + 1 < locals; ++v) {
+//            // “不能重复”：起点 v 不得等于 reg_target
+//            if (v == reg_target) continue;
+//
+//            // 不冲突检查
+//            if (!conflict_with_target_pair(v)) {
+//                return v;
+//            }
+//        }
+//
+//        LOGE("[pick_reg4wide] 无可用宽寄存器对 (locals=%d, reg_target=%d, wide_target=%d)",
+//             locals, reg_target, is_wide_target);
+//        return -1;
+//    }
 
 
 };

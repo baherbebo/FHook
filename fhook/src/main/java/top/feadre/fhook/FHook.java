@@ -1,5 +1,6 @@
 package top.feadre.fhook;
 
+
 import android.content.Context;
 import android.os.Build;
 import android.os.Debug;
@@ -8,6 +9,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+
 
 import top.feadre.fhook.flibs.fsys.FLog;
 import top.feadre.fhook.flibs.fsys.TypeUtils;
@@ -71,7 +73,15 @@ public class FHook {
      */
     public static synchronized InitReport init(Context context) {
         FLog.init(context, false);
-        FLog.setLogLevel(FLog.VERBOSE);
+        FLog.i(TAG, "FCFG.IS_DEBUG= " + FCFG.IS_DEBUG);
+
+        if (FCFG.IS_DEBUG) {
+            FLog.i(TAG, "debug mode");
+            FLog.setLogLevel(FLog.VERBOSE);
+        } else {
+            FLog.i(TAG, "INFO mode");
+            FLog.setLogLevel(FLog.INFO);
+        }
         FLog.d(TAG, "[init] start ...");
 
         InitReport r = new InitReport();
@@ -276,6 +286,10 @@ public class FHook {
 
     public static void showHookInfo() {
         FLog.d(TAG, "[showHookInfo] start ...");
+        if (sHandles.isEmpty()) {
+            FLog.w(TAG, "[showHookInfo] no hook ...");
+            return;
+        }
         for (long mid : sHandles.keySet()) {
             HookHandle hh = sHandles.get(mid);
             FLog.d(TAG, "[showHookInfo] " + mid + " " + hh.method);

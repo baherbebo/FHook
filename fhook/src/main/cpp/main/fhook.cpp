@@ -56,6 +56,12 @@ extern "C" JNIEXPORT jlong JNICALL dcHook(
         jboolean isRunOrigFun) {
     LOGD("[dcHook] start...")
 
+    if(isRunOrigFun && !isHEnter && !isHExit){
+        // 无意义的 hook 操作
+        LOGE("[dcHook] 无意义的 hook 操作")
+        return -1;
+    }
+
     //拿到  这个函数 agent_do_transform
     auto transformFn = getAgentFn<AgentDoTransformFn>(
             AgentDoTransformFnName.c_str());

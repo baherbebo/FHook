@@ -73,10 +73,14 @@ public class FLog {
 
     // 自动生成TAG（调用类名）
     private static String generateTag() {
-        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-        if (stackTrace.length < 5) return GLOBAL_PREFIX + "::Unknown";
-        String className = stackTrace[4].getClassName();
-        return GLOBAL_PREFIX + "_" + className.substring(className.lastIndexOf('.') + 1);
+        StackTraceElement[] st = Thread.currentThread().getStackTrace();
+        String cls = "Unknown";
+        for (int i = 4; i < st.length; i++) {
+            String c = st[i].getClassName();
+            if (!c.equals(FLog.class.getName())) { cls = c; break; }
+        }
+        String simple = cls.substring(cls.lastIndexOf('.') + 1);
+        return GLOBAL_PREFIX + "_" + simple;
     }
 
     /**
@@ -184,7 +188,7 @@ public class FLog {
     }
 
     public static void w(String tag, String msg) {
-        if (sLoggable && sLogLevel <= INFO) {
+        if (sLoggable && sLogLevel <= WARN) {
             Log.w(tag, msg);
             writeToFile("W", tag, msg);
         }

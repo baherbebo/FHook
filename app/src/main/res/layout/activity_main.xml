@@ -6,68 +6,69 @@
     android:layout_height="match_parent"
     tools:context=".activitys.MainActivity">
 
-    <LinearLayout
+    <!-- 只有一个 HorizontalScrollView，内部包裹所有行；纵向依旧可滚动 -->
+    <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="top"
-        android:layout_marginTop="20dp"
-        android:orientation="vertical">
+        android:fillViewport="true"
+        android:scrollbars="none">
 
-        <TextView
-            android:id="@+id/tv_main_01"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="FHook" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="----------------------------------------" />
-
-        <!-- 单列按钮（01~04）保持原样 -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:padding="12dp">
 
-            <Button
-                android:id="@+id/bt_main_01"
-                android:layout_width="wrap_content"
+            <TextView
+                android:id="@+id/tv_main_01"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="按键01" />
+                android:gravity="left"
+                android:text="FHook" />
 
-            <Button
-                android:id="@+id/bt_main_02"
-                android:layout_width="wrap_content"
+            <TextView
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="按键02" />
+                android:gravity="left"
+                android:text="----------------------------------------" />
 
-            <Button
-                android:id="@+id/bt_main_03"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="按键03" />
-
-            <Button
-                android:id="@+id/bt_main_04"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="按键04" />
-        </LinearLayout>
-
-        <!-- 从这里开始，每行外包一层 HorizontalScrollView -->
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true"
-            android:scrollbars="none">
-
+            <!-- 01~04 单列按钮 -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="vertical">
+
+                <Button
+                    android:id="@+id/bt_main_01"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="按键01" />
+
+                <Button
+                    android:id="@+id/bt_main_02"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="按键02" />
+
+                <Button
+                    android:id="@+id/bt_main_03"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="按键03" />
+
+                <Button
+                    android:id="@+id/bt_main_04"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="按键04" />
+            </LinearLayout>
+
+            <!-- 以下每一行均为横向容器，只有一个统一的 HorizontalScrollView 在最外层 -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal">
 
                 <Button
@@ -94,17 +95,11 @@
                     android:layout_height="wrap_content"
                     android:text="按键08" />
             </LinearLayout>
-        </HorizontalScrollView>
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true"
-            android:scrollbars="none">
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal">
 
                 <Button
@@ -131,17 +126,11 @@
                     android:layout_height="wrap_content"
                     android:text="按键12" />
             </LinearLayout>
-        </HorizontalScrollView>
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true"
-            android:scrollbars="none">
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal">
 
                 <Button
@@ -168,17 +157,11 @@
                     android:layout_height="wrap_content"
                     android:text="按键16" />
             </LinearLayout>
-        </HorizontalScrollView>
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true"
-            android:scrollbars="none">
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal">
 
                 <Button
@@ -205,17 +188,11 @@
                     android:layout_height="wrap_content"
                     android:text="按键20" />
             </LinearLayout>
-        </HorizontalScrollView>
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true"
-            android:scrollbars="none">
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal">
 
                 <Button
@@ -242,17 +219,11 @@
                     android:layout_height="wrap_content"
                     android:text="按键24" />
             </LinearLayout>
-        </HorizontalScrollView>
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true"
-            android:scrollbars="none">
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal">
 
                 <Button
@@ -279,17 +250,11 @@
                     android:layout_height="wrap_content"
                     android:text="按键28" />
             </LinearLayout>
-        </HorizontalScrollView>
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true"
-            android:scrollbars="none">
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal">
 
                 <Button
@@ -316,17 +281,11 @@
                     android:layout_height="wrap_content"
                     android:text="按键32" />
             </LinearLayout>
-        </HorizontalScrollView>
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true"
-            android:scrollbars="none">
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal">
 
                 <Button
@@ -353,17 +312,11 @@
                     android:layout_height="wrap_content"
                     android:text="按键36" />
             </LinearLayout>
-        </HorizontalScrollView>
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true"
-            android:scrollbars="none">
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal">
 
                 <Button
@@ -390,17 +343,11 @@
                     android:layout_height="wrap_content"
                     android:text="按键40" />
             </LinearLayout>
-        </HorizontalScrollView>
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true"
-            android:scrollbars="none">
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal">
 
                 <Button
@@ -427,23 +374,18 @@
                     android:layout_height="wrap_content"
                     android:text="按键44" />
             </LinearLayout>
-        </HorizontalScrollView>
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="----------------------------------------" />
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true"
-            android:scrollbars="none">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="left"
+                android:text="----------------------------------------" />
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal">
 
                 <Button
@@ -470,17 +412,11 @@
                     android:layout_height="wrap_content"
                     android:text="按键48" />
             </LinearLayout>
-        </HorizontalScrollView>
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true"
-            android:scrollbars="none">
 
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal">
 
                 <Button
@@ -508,20 +444,20 @@
                     android:text="按键52" />
             </LinearLayout>
 
-        </HorizontalScrollView>
+            <TextView
+                android:id="@+id/tv_main_end"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="left"
+                android:text="FHook结束" />
 
-        <TextView
-            android:id="@+id/tv_main_end"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="FHook结束" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="left"
+                android:text="----------------------------------------" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="----------------------------------------" />
-    </LinearLayout>
-
+        </LinearLayout>
+    </HorizontalScrollView>
 </ScrollView>

@@ -7,6 +7,8 @@
 
 #include "fir_funs_do.h"
 #include "fir_tools.h"
+#include "fir_funs_def.h"
+#include "freg_manager.h"
 
 namespace fir_funs_do {
     /** ----------------- 静态函数区 ------------------- */
@@ -100,21 +102,13 @@ namespace fir_funs_do {
             lir::CodeIr *code_ir,
             int reg1_arg,  // onExit object 的参数寄存器（如 v4）
             int reg_tmp_return, // onExit 返回值 object
+            int reg2_tmp_long, // 宽寄存器
             uint64_t method_id, // uint64_t
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
         ir::Builder builder(code_ir->dex_ir);
         auto *ir_method = code_ir->ir_method;
         auto *code = ir_method->code;
-        const dex::u2 regs_size = code->registers;
-        const dex::u2 ins_count = code->ins_count;
-
-        // 拿到了一个不冲突的宽寄存器 long 宽寄存器 用于 method_id
-        int reg2_tmp_long = fir_tools::pick_reg4wide(code_ir, reg1_arg, false);
-        if (reg2_tmp_long < 0) {
-            LOGE("[do_THook_onExit] reg2_tmp_long pick_reg4wide error");
-            return false;
-        }
 
         // 写入 method_id 到 {reg2_tmp_long, reg2_tmp_long+1}  const-wide v<reg_id_lo>, 123456L
         {
@@ -199,12 +193,22 @@ namespace fir_funs_do {
     }
 
 
-    void do_THook_onEnter(
+    /**
+     * 这个用了 reg2_tmp_long 是恢复了的
+     * @param f_THook_onEnter
+     * @param code_ir
+     * @param reg1_arg
+     * @param reg2_tmp_long
+     * @param reg_return
+     * @param method_id
+     * @param insert_point
+     */
+    bool do_THook_onEnter(
             lir::Method *f_THook_onEnter,
             lir::CodeIr *code_ir,
             dex::u2 reg1_arg, // Object[]
             dex::u2 reg2_tmp_long, // long 必须宽寄存器
-            dex::u2 reg_tmp_return,
+            dex::u2 reg_return, // 不能重叠
             uint64_t method_id, // uint64_t
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point
     ) {
@@ -217,27 +221,26 @@ namespace fir_funs_do {
         {
             // 超界检测
             auto in_range = [&](int v) { return v >= 0 && (dex::u2) v < regs_size; };
-            if (!in_range(reg1_arg) || !in_range(reg_tmp_return) ||
+            if (!in_range(reg1_arg) || !in_range(reg_return) ||
                 !in_range(reg2_tmp_long) || !in_range(reg2_tmp_long + 1)) {
-                LOGE("[do_THook_onExit] reg 越界: regs=%u, reg1_arg=%d, ret=%d, long={%u,%u}",
-                     regs_size, reg1_arg, reg_tmp_return, reg2_tmp_long, reg2_tmp_long + 1);
-                return;
+                LOGE("[do_THook_onEnter] reg 越界: regs=%u, reg1_arg=%d, reg_return=%d, reg2_tmp_long={%u,%u}",
+                     regs_size, reg1_arg, reg_return, reg2_tmp_long, reg2_tmp_long + 1);
+                return false;
             }
             // 宽越界检测
             if (reg2_tmp_long + 1 >= regs_size) {
-                LOGE("[do_THook_onExit] reg2_tmp_long hi 越界: %u/%u", reg2_tmp_long + 1,
+                LOGE("[do_THook_onEnter] reg2_tmp_long hi 越界: %u/%u", reg2_tmp_long + 1,
                      regs_size);
-                return;
+                return false;
             }
-            // 禁止 {reg2_tmp_long, reg2_tmp_long+1} 与 reg1_arg/reg_tmp_return 重叠
+            // 禁止 {reg2_tmp_long, reg2_tmp_long+1} 与 reg1_arg/reg_return 重叠
             if (reg1_arg == (int) reg2_tmp_long || reg1_arg == (int) reg2_tmp_long + 1 ||
-                reg_tmp_return == (int) reg2_tmp_long ||
-                reg_tmp_return == (int) reg2_tmp_long + 1) {
-                LOGE("[do_THook_onExit] 重叠: reg1_arg=%d, ret=%d, long={%u,%u}",
-                     reg1_arg, reg_tmp_return, reg2_tmp_long, reg2_tmp_long + 1);
-                return;
+                reg_return == (int) reg2_tmp_long ||
+                reg_return == (int) reg2_tmp_long + 1) {
+                LOGE("[do_THook_onEnter] 重叠: regs=%u, reg1_arg=%d, reg_return=%d, reg2_tmp_long={%u,%u}",
+                     reg1_arg, reg_return, reg2_tmp_long, reg2_tmp_long + 1);
+                return false;
             }
-
         }
 
         // 1) const-wide v<reg_id_lo>, 123456L
@@ -264,7 +267,7 @@ namespace fir_funs_do {
         // move-result-object v<reg1_arg>
         auto mres = code_ir->Alloc<lir::Bytecode>();
         mres->opcode = dex::OP_MOVE_RESULT_OBJECT;
-        mres->operands.push_back(code_ir->Alloc<lir::VReg>(reg_tmp_return));
+        mres->operands.push_back(code_ir->Alloc<lir::VReg>(reg_return));
         code_ir->instructions.insert(insert_point, mres);
 
         {
@@ -275,6 +278,7 @@ namespace fir_funs_do {
             fir_tools::EmitConstToReg(code_ir, insert_point, reg2_tmp_long, 0);
         }
 
+        return true;
     }
 
     void do_HookBridge_replace_fun(
@@ -502,6 +506,131 @@ namespace fir_funs_do {
         code_ir->instructions.insert(insert_point, move_method_ca);
     }
 
+    /**
+       * public static Application currentApplication()
+       * Object application = currentAppMethod.invoke(null); // 静态方法调用
+       * m.invoke(null, new Object[]{ args });
+       * 方法是静态的，但反射调用按照反射的调用方式来
+       * 不管用原来是什么方法，用反射都是 OP_INVOKE_VIRTUAL
+       * @param f_Log_d
+       * @param code_ir
+       * @param ir_method
+       * @param builder
+       * @param reg1
+       * @param reg2
+       * @param reg3
+       */
+    void do_method_invoke(lir::Method *f_method_invoke,
+                          lir::CodeIr *code_ir,
+                          dex::u2 reg1, dex::u2 reg2, dex::u2 reg3, dex::u2 reg_return,
+                          slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
+
+        // 调用 currentApplication() 方法
+        auto call_currentApp = code_ir->Alloc<lir::Bytecode>();
+        call_currentApp->opcode = dex::OP_INVOKE_VIRTUAL;
+        auto reg_currentApp = code_ir->Alloc<lir::VRegList>();
+        // v1=方法对象, v2=null(实例), v2=null(参数)
+        reg_currentApp->registers.clear();
+        reg_currentApp->registers.push_back(reg1);
+        reg_currentApp->registers.push_back(reg2);
+        reg_currentApp->registers.push_back(reg3);
+
+        call_currentApp->operands.push_back(reg_currentApp);
+        call_currentApp->operands.push_back(f_method_invoke);
+        code_ir->instructions.insert(insert_point, call_currentApp);
+
+        // 保存 Application 实例（Context）到 v3
+        auto move_app = code_ir->Alloc<lir::Bytecode>();
+        move_app->opcode = dex::OP_MOVE_RESULT_OBJECT;
+        move_app->operands.push_back(code_ir->Alloc<lir::VReg>(reg_return)); // v3 = Context
+        code_ir->instructions.insert(insert_point, move_app);
+
+    }
+
+
+    /// 支持 各种参数反射执行
+    bool do_apploader_static_fun(
+            lir::CodeIr *code_ir,
+            dex::u2 reg1, dex::u2 reg2, dex::u2 reg3,//额外临时寄存器
+            int reg_method_arg, // 可以为null 用于存储方法参数类型数组（Class[]）
+            int reg_do_args,// 可以为null 原始参数数组（Object[]）
+            dex::u2 reg_return, // 可重复
+            std::string &name_class,
+            std::string &name_fun,
+            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
+
+        /// ActivityThread 方案 不行 ----------------
+        // 全局可使用 Thread.currentThread() → 返回线程对象 v0
+        lir::Method *f_Thread_currentThread = fir_funs_def::get_Thread_currentThread(code_ir);
+        if (!f_Thread_currentThread) {
+            LOGE("[do_apploader_static_fun] f_Thread_currentThread error");
+            return false;
+        }
+        do_Thread_currentThread(f_Thread_currentThread, code_ir, reg1, insert_point);
+
+        // 全局可使用 thread.getContextClassLoader() classloader 对象 到v1
+        lir::Method *f_thread_getContextClassLoader = fir_funs_def::get_thread_getContextClassLoader(
+                code_ir);
+        if (!f_thread_getContextClassLoader) {
+            LOGE("[do_apploader_static_fun] f_thread_getContextClassLoader error");
+            return false;
+        }
+        do_thread_getContextClassLoader(f_thread_getContextClassLoader, code_ir,
+                                        reg1, reg1, insert_point);
+
+        // 全局可使用 执行拿到 HookBridge class 对象 到v0
+        lir::Method *f_classloader_loadClass = fir_funs_def::get_classloader_loadClass(
+                code_ir);
+        if (!f_classloader_loadClass) {
+            LOGE("[do_apploader_static_fun] f_classloader_loadClass error");
+            return false;
+        }
+        do_classloader_loadClass(f_classloader_loadClass, code_ir,
+                                 reg1, reg2, reg1, name_class, insert_point);
+
+
+        /// Method m = clazz.getDeclaredMethod("onEnter", new Class[]{Object[].class});
+        lir::Method *f_class_getDeclaredMethod = fir_funs_def::get_class_getDeclaredMethod(
+                code_ir);
+        if (!f_class_getDeclaredMethod) {
+            LOGE("[do_apploader_static_fun] f_class_getDeclaredMethod error");
+            return false;
+        }
+
+        if (reg_method_arg < 0) {
+            fir_tools::cre_null_reg(code_ir, reg3, insert_point);
+            reg_method_arg = reg3;
+            LOGI("[do_apploader_static_fun] reg_method_arg= %d ", reg_method_arg)
+        }
+
+        // 拿到方法对象 v1   reg1= class对象  reg2 = 方法名  reg3= 方法参数 class[]
+        do_class_getDeclaredMethod(f_class_getDeclaredMethod, code_ir,
+                                   reg1, reg2, reg_method_arg,
+                                   reg1, name_fun, insert_point);
+
+        /// Object ret = m.invoke(null, new Object[]{ args });
+        lir::Method *f_method_invoke = fir_funs_def::get_method_invoke(code_ir);
+        if (!f_method_invoke) {
+            LOGE("[do_apploader_static_fun] f_method_invoke error");
+            return false;
+        }
+
+        if (reg_do_args < 0) {
+            fir_tools::cre_null_reg(code_ir, reg3, insert_point);
+        } else {
+            reg3 = reg_do_args;
+        }
+
+        fir_tools::cre_null_reg(code_ir, reg2,
+                                insert_point);  // 创建空引用 固定为静态方法 ****************** 前面可以用
+
+//         reg1 是方法对象, reg2 静态是是 null, reg3 包装后的参数数组
+        do_method_invoke(f_method_invoke, code_ir, reg1, reg2,
+                         reg3, reg_return, insert_point);
+
+
+        return true;
+    }
 
     /** ----------------- 参数区 ------------------- */
 
@@ -688,6 +817,7 @@ namespace fir_funs_do {
             bool is_wide_return,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
+        LOGD("[cre_arr_do_args4onExit] reg_return= %d", reg_return)
         SLICER_CHECK(code_ir != nullptr);
         auto ir_method = code_ir->ir_method;
         SLICER_CHECK(ir_method != nullptr);
@@ -697,9 +827,25 @@ namespace fir_funs_do {
         SLICER_CHECK(return_type != nullptr);
 
         // 拿到了一个不与宽冲突可重复的寄存器
-        int reg_arg = fir_tools::pick_reg4one(
-                code_ir, reg_return, is_wide_return, true);
-        if (reg_arg < 0)return reg_arg;
+        int reg_arg;
+
+        if (reg_return >= 0 && is_wide_return) {
+            auto regs1 = FRegManager::AllocWide(
+                    code_ir, {reg_return, reg_return + 1}, 1);
+            if (regs1.size() < 1) {
+                LOGE("[do_finject] regs1-1 申请寄存器失败 ...")
+                return -1;
+            }
+            reg_arg = regs1[0];
+        } else {
+            // 不是宽，或 reg_return无效，随便弄一个
+            auto regs1 = FRegManager::AllocV(code_ir, {}, 1);
+            if (regs1.size() < 1) {
+                LOGE("[do_finject] regs1-2 申请寄存器失败 ...")
+                return -1;
+            }
+            reg_arg = regs1[0];
+        }
 
         // 无返回值或方法已经清空情况
         if (strcmp(return_type->descriptor->c_str(), "V") == 0 || reg_return < 0) {
@@ -744,7 +890,7 @@ namespace fir_funs_do {
     void cre_arr_object0(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp_idx, // array_size 也是索引
-            dex::u2 reg2_value, // value
+            dex::u2 reg2_tmp_value, // value
             dex::u2 reg3_arr, // array 这个 object[] 对象
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
@@ -805,8 +951,8 @@ namespace fir_funs_do {
                     move-result-object v1
                     Integer integerObj = Integer.valueOf(v3Value);
                  */
-                fir_tools::box_scalar_value(insert_point, code_ir, type, reg_arg, reg2_value);
-                src_reg = reg2_value; // 用临时寄存器
+                fir_tools::box_scalar_value(insert_point, code_ir, type, reg_arg, reg2_tmp_value);
+                src_reg = reg2_tmp_value; // 用临时寄存器
                 // 宽标量类型（long、double）→ 多加1个寄存器
                 reg_arg += 1 + (type->GetCategory() == ir::Type::Category::WideScalar);
             } else {
@@ -846,6 +992,7 @@ namespace fir_funs_do {
         ir::Builder builder(code_ir->dex_ir);
         const auto obj_array_type = builder.GetType("[Ljava/lang/Object;");
 
+
         {
             // outer = new Object[2]
             fir_tools::EmitConstToReg(code_ir, insert_point, reg1_tmp_idx, 2);
@@ -873,7 +1020,7 @@ namespace fir_funs_do {
         }
 
         // outer[1] = Long.valueOf(String.valueOf(method_id))
-        // 这里走 String 免使用宽寄存器：Long.valueOf(Ljava/lang/String;)Ljava/lang/Long;
+        // 这里走 String 避免使用宽寄存器：Long.valueOf(Ljava/lang/String;)Ljava/lang/Long;
         {
             // const-string v<reg_idx>, "<method_id>"
             std::string mid_str = std::to_string(method_id);
@@ -930,7 +1077,7 @@ namespace fir_funs_do {
      * @param builder
      * @param reg1
      * @param reg2
-     * @param reg3
+     * @param reg_arr
      * @param insert_point
         [0] const v0 #0x2
         [1] new-array v2 v0 [Ljava/lang/Object;
@@ -943,16 +1090,17 @@ namespace fir_funs_do {
             lir::CodeIr *code_ir,
             dex::u2 reg1, // array_size 也是索引
             dex::u2 reg2, // value  array 这个 object[object[]] 再包一层对象
-            dex::u2 reg3, // array 这个 object[] 对象
+            dex::u2 reg_arr, // array 这个 object[] 对象
             uint64_t method_id, // 要写入的 methodId
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
-        // 创建 object[] 对象 -》 reg3
-        cre_arr_object0(code_ir, reg1, reg3, reg2, insert_point);
+        // 创建 object[] 对象 -》 reg_arr
+        cre_arr_object0(code_ir, reg1, reg_arr, reg2, insert_point);
 
         // object[object[]] 再包一层对象
-        cre_arr_object1(code_ir, reg1, reg2, reg3, method_id, insert_point);
+        cre_arr_object1(code_ir, reg1, reg2, reg_arr, method_id, insert_point);
 
     }
+
 
 };

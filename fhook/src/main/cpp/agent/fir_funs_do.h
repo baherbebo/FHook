@@ -58,12 +58,12 @@ namespace fir_funs_do {
             std::string &name_fun,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
-    void do_THook_onEnter(
+    bool do_THook_onEnter(
             lir::Method *f_THook_onEnter,
             lir::CodeIr *code_ir,
             dex::u2 reg1_arg, // Object[]
             dex::u2 reg2_tmp_long, // long 必须宽寄存器
-            dex::u2 reg_tmp_return,
+            dex::u2 reg_return,
             uint64_t method_id, // uint64_t
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point
     );
@@ -140,7 +140,7 @@ namespace fir_funs_do {
     void cre_arr_object0(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp_idx, // array_size 也是索引
-            dex::u2 reg2_value, // value
+            dex::u2 reg2_tmp_value, // value
             dex::u2 reg3_arr, // array 这个 object[] 对象
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
@@ -156,7 +156,7 @@ namespace fir_funs_do {
             lir::CodeIr *code_ir,
             dex::u2 reg1, // array_size 也是索引
             dex::u2 reg2, // value  array 这个 object[object[]] 再包一层对象
-            dex::u2 reg3, // array 这个 object[] 对象
+            dex::u2 reg_arr, // array 这个 object[] 对象
             uint64_t method_id, // 要写入的 methodId
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 };
