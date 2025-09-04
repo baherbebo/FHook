@@ -331,21 +331,22 @@ public class MainActivity extends AppCompatActivity {
 // ============ 25) SharedPreferences.Editor.commit() ============
         {
             // 从实现类上取真实的 commit()（不是接口上的）
+            //  boolean commit();
             Method mCommitIface = SharedPreferences.Editor.class.getMethod("commit");
             SharedPreferences.Editor editor = this.getSharedPreferences("demo", MODE_PRIVATE).edit();
             Method mCommitImpl = FHookTool.resolveImplementationFromInstance(editor, mCommitIface);
 
             FHook.hook(mCommitImpl)
-                    .setOrigFunRun(false)
-//                    .setHookEnter((thiz, args, types, hh) -> {
-//                        // thiz 是具体 Editor 实例；无参数
-//                        showLog("SharedPreferences.Editor.commit", thiz, args, types);
-//                    })
+                    .setOrigFunRun(true)
+                    .setHookEnter((thiz, args, types, hh) -> {
+                        // thiz 是具体 Editor 实例；无参数
+                        showLog("SharedPreferences.Editor.commit", thiz, args, types);
+                    })
                     .setHookExit((ret, type, hh) -> {
                         // ret 是 Boolean（primitive boolean 会被装箱）
                         showLog("SharedPreferences.Editor.commit", hh.thisObject, ret, type);
                         // 你也可以强制返回 true 观测效果：
-                        // ret = Boolean.TRUE;
+                        ret = false;
                         return ret;
                     })
                     .commit();
