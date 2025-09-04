@@ -33,6 +33,7 @@ namespace fir_tools {
     bool cre_return_code(lir::CodeIr *code_ir,
                          ir::Type *return_type,
                          int reg_return,
+                         bool is_boxing,
                          slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
     void restore_reg_params4type(lir::CodeIr *code_ir,

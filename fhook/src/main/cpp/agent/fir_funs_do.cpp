@@ -101,7 +101,7 @@ namespace fir_funs_do {
             lir::Method *f_THook_onExit,
             lir::CodeIr *code_ir,
             int reg1_arg,  // onExit object 的参数寄存器（如 v4）
-            int reg_tmp_return, // onExit 返回值 object
+            int reg_tmp_return, // onExit 返回值 object  可以相同
             int reg2_tmp_long, // 宽寄存器
             uint64_t method_id, // uint64_t
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
@@ -826,24 +826,18 @@ namespace fir_funs_do {
         auto return_type = proto->return_type;
         SLICER_CHECK(return_type != nullptr);
 
-        // 拿到了一个不与宽冲突可重复的寄存器
+        // 拿到了一个不与宽冲突可重复的寄存器 用于存放 Class[] 对象
         int reg_arg;
-
+        // 申请一个普通寄存器
         if (reg_return >= 0 && is_wide_return) {
             auto regs1 = FRegManager::AllocWide(
                     code_ir, {reg_return, reg_return + 1}, 1);
-            if (regs1.size() < 1) {
-                LOGE("[do_finject] regs1-1 申请寄存器失败 ...")
-                return -1;
-            }
+            CHECK_ALLOC_OR_RET(regs1, 1, -1, "[cre_arr_do_args4onExit] regs1-1 申请寄存器失败 ...");
             reg_arg = regs1[0];
         } else {
             // 不是宽，或 reg_return无效，随便弄一个
             auto regs1 = FRegManager::AllocV(code_ir, {}, 1);
-            if (regs1.size() < 1) {
-                LOGE("[do_finject] regs1-2 申请寄存器失败 ...")
-                return -1;
-            }
+            CHECK_ALLOC_OR_RET(regs1, 1, -1, "[cre_arr_do_args4onExit] regs1-2 申请寄存器失败 ...");
             reg_arg = regs1[0];
         }
 

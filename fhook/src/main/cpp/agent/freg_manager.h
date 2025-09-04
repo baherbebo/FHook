@@ -39,6 +39,7 @@ public:
     static dex::u2 InsCount(const lir::CodeIr *code_ir);
 
     // ===== 扩容 =====
+
     /**
      * 让“本地寄存器(v 区)”至少有 need_locals 个；若不足则增加 registers。
      * @param need_locals 目标 v 区个数（最终至少达到该值）
@@ -46,6 +47,18 @@ public:
      */
     static dex::u2 RequestLocals(lir::CodeIr *code_ir, dex::u2 need_locals);
 
+    static std::vector<int> AllocV(lir::CodeIr *code_ir,
+                                   const std::vector<int> &forbidden_v,
+                                   int count,
+                                   const char *text,
+                                   bool prefer_low_index = true);
+
+
+    static std::vector<int> AllocWide(lir::CodeIr *code_ir,
+                                      const std::vector<int> &forbidden_v,
+                                      int count,
+                                      const char *text,
+                                      bool prefer_low_index = true);
     // ===== 分配 =====
     /**
      * 分配 count 个“普通寄存器”(v 索引)；低位优先（可通过 prefer_low_index 控制）。
@@ -60,6 +73,7 @@ public:
                                    const std::vector<int> &forbidden_v,
                                    int count,
                                    bool prefer_low_index = true);
+
 
     /**
      * 分配 count 个“宽寄存器起点”(v 索引，代表 (v, v+1) 对)；低位优先（可控制）。

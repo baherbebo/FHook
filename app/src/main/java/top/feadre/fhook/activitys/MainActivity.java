@@ -318,7 +318,7 @@ public class MainActivity extends AppCompatActivity {
     private void initHook03() {
         Method fun_TObject_TObject = FHookTool.findMethod4First(THook.class, "fun_TObject_TObject");
         FHook.hook(fun_TObject_TObject)
-                .setOrigFunRun(false)
+                .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
                     showLog("fun_TObject_TObject", thiz, args, types);
                     TObject o1 = (TObject) args.get(0);
@@ -339,17 +339,18 @@ public class MainActivity extends AppCompatActivity {
 
         Method fun_I_IArray = FHookTool.findMethod4First(THook.class, "fun_I_IArray");
         FHook.hook(fun_I_IArray)
-                .setOrigFunRun(true)
+                .setOrigFunRun(false)
                 .setHookEnter((thiz, args, types, hh) -> {
                     showLog("fun_I_IArray", thiz, args, types);
                     int[] arr = (int[]) args.get(0);
                     arr[0] = 666;
                 })
-//                .setHookExit((ret, type, hh) -> {
-//                    showLog("fun_I_IArray", hh.thisObject, ret, type);
-//
-//                    return ret;
-//                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("fun_I_IArray", hh.thisObject, ret, type);
+
+                    ret = 999;
+                    return ret;
+                })
                 .commit();
 
         Method fun_I_DArray = FHookTool.findMethod4First(THook.class, "fun_I_DArray");

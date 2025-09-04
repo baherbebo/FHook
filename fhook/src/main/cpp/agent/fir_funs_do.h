@@ -34,7 +34,8 @@ namespace fir_funs_do {
             lir::Method *f_THook_onExit,
             lir::CodeIr *code_ir,
             int reg1_arg,  // onExit object 的参数寄存器（如 v4）
-            int reg_tmp_return, // onExit 返回值 object
+            int reg_tmp_return, // onExit 返回值 object 可以相同
+            int reg2_tmp_long, // 宽寄存器
             uint64_t method_id, // uint64_t
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 

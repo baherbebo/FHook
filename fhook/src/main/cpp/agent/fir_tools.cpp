@@ -381,6 +381,7 @@ namespace fir_tools {
 
     /**
     * 创建返回指令 会自动判断返回值类型进行处理  **** 核心方法
+     * int []
     * @param code_ir
     * @param return_type
     * @param reg_return 指定返回值寄存器编号： 清空 或无返回值为-1 表示自动分配
@@ -388,6 +389,7 @@ namespace fir_tools {
     bool cre_return_code(lir::CodeIr *code_ir,
                          ir::Type *return_type,
                          int reg_return,
+                         bool is_boxing, // 是否包装，运行了isExit 肯定就包装了的
                          slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
         // 无返回值处理
@@ -428,6 +430,8 @@ namespace fir_tools {
 
         // 方法已确定有返回值
         int reg_num = reg_return;
+
+        // 随机构造返回一个值
         if (reg_num == -1) {
             // 随便 --- 选择本地区最后一个寄存器（本地区 = regs - ins_count）
             SLICER_CHECK(code_ir && code_ir->ir_method);
@@ -525,14 +529,16 @@ namespace fir_tools {
             return true;
         }
 
-        // 是标量，直接返回
+        // 是标量 判断是否包装过， 返回
 
-//        // 这里已确定是标量 从 Object 解包到 v<dst>
-//        unbox_scalar_value(insert_point,
-//                           code_ir,
-//                           return_type,
-//                           reg_num,     // src: Object 就在 dst
-//                           reg_num);    // dst: 覆盖同一个寄存器
+        if(is_boxing){
+            // 这里已确定是标量 从 Object 解包到 v<dst>
+            unbox_scalar_value(insert_point,
+                               code_ir,
+                               return_type,
+                               reg_num,     // src: Object 就在 dst
+                               reg_num);    // dst: 覆盖同一个寄存器
+        }
 
         if (is_wide) {
             // return-wide vpair
@@ -838,12 +844,12 @@ namespace fir_tools {
                 opcode == dex::OP_RETURN_OBJECT ||
                 opcode == dex::OP_RETURN_WIDE) {
                 // 直接返回指向 return 的 iterator
-                LOGI("[cre_return_code] 找到返回指令: %s",
+                LOGI("[find_return_code] 找到返回指令: %s",
                      SmaliPrinter::ToSmali(bytecode).c_str())
                 return it;
             }
         }
-        LOGI("[cre_return_code] 没有找到 return 指令")
+        LOGI("[find_return_code] 没有找到 return 指令")
         return insert_point;
     }
 

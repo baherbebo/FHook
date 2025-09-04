@@ -80,6 +80,7 @@ dex::u2 FRegManager::RequestLocals(lir::CodeIr *code_ir, dex::u2 need_locals) {
 std::vector<int> FRegManager::AllocV(lir::CodeIr *code_ir,
                                      const std::vector<int> &forbidden_v,
                                      int count,
+                                     const char *text,
                                      bool prefer_low_index) {
     check_code_ir(code_ir);
     std::vector<int> out;
@@ -87,7 +88,7 @@ std::vector<int> FRegManager::AllocV(lir::CodeIr *code_ir,
 
     const int locals = Locals(code_ir);
     if (locals <= 0) {
-        LOGE("[AllocV] 本地寄存器为 0，无法分配");
+        LOGE("[AllocV] %s 本地寄存器为 0，无法分配", text);
         return out;
     }
 
@@ -107,18 +108,27 @@ std::vector<int> FRegManager::AllocV(lir::CodeIr *code_ir,
     else try_scan(locals - 1, -1, -1);
 
     if ((int) out.size() < count) {
-        LOGW("[AllocWide] 仅分配到 %d/%d 对 (locals=%d), forbid=%s",
-             (int)out.size(), count, locals, VEC_CSTR(forbidden_v));
+        LOGW("[AllocV] %s 仅分配到 %d/%d 个 (locals=%d), forbid=%s",
+             text, (int) out.size(), count, locals, VEC_CSTR(forbidden_v));
     } else {
-        LOGI("[AllocWide] 成功分配 %d 对, starts=%s", count, VEC_CSTR(out));
+        LOGD("[AllocV] %s 成功分配 %d 个, starts=%s", text, count, VEC_CSTR(out));
     }
     return out;
 }
+
+std::vector<int> FRegManager::AllocV(lir::CodeIr *code_ir,
+                                     const std::vector<int> &forbidden_v,
+                                     int count,
+                                     bool prefer_low_index) {
+    return AllocV(code_ir, forbidden_v, count, "", prefer_low_index);
+}
+
 
 // ===== 分配：宽寄存器起点 (v, v+1) =====
 std::vector<int> FRegManager::AllocWide(lir::CodeIr *code_ir,
                                         const std::vector<int> &forbidden_v,
                                         int count,
+                                        const char *text,
                                         bool prefer_low_index) {
     check_code_ir(code_ir);
     std::vector<int> out;
@@ -126,7 +136,7 @@ std::vector<int> FRegManager::AllocWide(lir::CodeIr *code_ir,
 
     const int locals = Locals(code_ir);
     if (locals <= 1) {
-        LOGE("[AllocWide] 本地寄存器不足 2，无法分配宽寄存器对");
+        LOGE("[AllocWide] %s 本地寄存器不足 2，无法分配宽寄存器对", text);
         return out;
     }
 
@@ -147,10 +157,17 @@ std::vector<int> FRegManager::AllocWide(lir::CodeIr *code_ir,
     else try_scan(locals - 2, -1, -1);
 
     if ((int) out.size() < count) {
-        LOGW("[AllocWide] 仅分配到 %d/%d 对 (locals=%d), forbid=%s",
-             (int)out.size(), count, locals, VEC_CSTR(forbidden_v));
+        LOGW("[AllocWide] %s 仅分配到 %d/%d 对 (locals=%d), forbid=%s",
+             text, (int) out.size(), count, locals, VEC_CSTR(forbidden_v));
     } else {
-        LOGI("[AllocWide] 成功分配 %d 对, starts=%s", count, VEC_CSTR(out));
+        LOGD("[AllocWide] %s 成功分配 %d 对, starts=%s", text, count, VEC_CSTR(out));
     }
     return out;
+}
+
+std::vector<int> FRegManager::AllocWide(lir::CodeIr *code_ir,
+                                        const std::vector<int> &forbidden_v,
+                                        int count,
+                                        bool prefer_low_index) {
+    return AllocWide(code_ir, forbidden_v, count, "", prefer_low_index);
 }
