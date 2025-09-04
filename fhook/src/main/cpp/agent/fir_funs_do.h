@@ -142,11 +142,12 @@ namespace fir_funs_do {
             dex::u2 reg3_arr, // array 目标寄存器（Class[]）
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
-    int cre_arr_do_args4onExit(
+    void cre_arr_do_args4onExit(
             lir::CodeIr *code_ir,
+            dex::u2 reg_do_arg,  // 需要一个寄存器，需要外面判断完成是不是宽
             int reg_return,         // 原方法返回值所在寄存器 清空则没有返回值
             bool is_wide_return,
-            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
+            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) ;
 
     void cre_arr_object0(
             lir::CodeIr *code_ir,

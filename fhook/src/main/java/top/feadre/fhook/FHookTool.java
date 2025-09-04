@@ -48,4 +48,66 @@ public class FHookTool {
         FLog.d(TAG, "[findMethod4First] Class: " + cls.getName() + " methodName: " + methodName);
         return findMethod4Index(cls, methodName, 0);
     }
+
+
+    /**
+     * 若 method 来自接口/注解接口，则尝试用 instance 的真实类解析实现方法。
+     * 解析成功返回实现类 Method；失败返回 null（内部已打日志）。
+     * 对非接口方法，原样返回 method。
+     */
+    public static Method resolveImplementationFromInstance(Object instance, Method method) {
+        if (method == null) return null;
+
+        final Class<?> decl = method.getDeclaringClass();
+
+        // 非接口/注解接口：直接返回
+        if (!decl.isInterface() && !decl.isAnnotation()) {
+            return method;
+        }
+
+        // 接口方法但没给实例，无法解析实现
+        if (instance == null) {
+            FLog.e(TAG, "[resolveImpl] instance == null for interface method: "
+                    + decl.getName() + "#" + method.getName());
+            return null;
+        }
+
+        final Class<?> impl = instance.getClass();
+
+        // 1) 先按完全相同签名查 public 方法
+        try {
+            Method m = impl.getMethod(method.getName(), method.getParameterTypes());
+            if (!m.getDeclaringClass().isInterface()) {
+                return m;
+            }
+            // 极少数 ROM 可能把桥接方法挂在接口上，继续兜底
+        } catch (NoSuchMethodException ignore) {
+            // 走兜底
+        }
+
+        // 2) 兜底：遍历所有 public 方法按“名称 + 参数完全一致”匹配
+        //    （如果你想更激进，也可以允许 isAssignableFrom 做“兼容匹配”）
+        for (Method m : impl.getMethods()) {
+            if (m.getName().equals(method.getName())) {
+                Class<?>[] a = m.getParameterTypes();
+                Class<?>[] b = method.getParameterTypes();
+                if (a.length == b.length) {
+                    boolean same = true;
+                    for (int i = 0; i < a.length; i++) {
+                        if (a[i] != b[i]) { same = false; break; }
+                    }
+                    if (same && !m.getDeclaringClass().isInterface()) {
+                        return m;
+                    }
+                }
+            }
+        }
+
+        // 失败：打日志并返回 null
+        FLog.e(TAG, "[resolveImpl] 无法解析实现类方法："
+                + decl.getName() + "#" + method.getName()
+                + " on impl=" + impl.getName());
+        return null;
+    }
+
 }

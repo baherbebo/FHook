@@ -1,6 +1,5 @@
 package top.feadre.fhook.activitys;
 
-import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -76,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
 //            doAppHook02();
             doAppHook03();
 
-
+            FFunsUI.toast(this, "hook普通方法 点击");
         });
 
         Button bt_main_02 = findViewById(R.id.bt_main_02);
@@ -88,7 +87,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         Button bt_main_03 = findViewById(R.id.bt_main_03);
-        bt_main_03.setText("03hook系统方法");
+        bt_main_03.setText("03 hook系统方法");
         bt_main_03.setOnClickListener(v -> {
             try {
                 doSysHook01();
@@ -99,6 +98,9 @@ public class MainActivity extends AppCompatActivity {
                 FLog.e(TAG, "doSysHook01: " + e);
 
             }
+
+            FFunsUI.toast(this, "hook系统方法 点击");
+
         });
 
         Button bt_main_04 = findViewById(R.id.bt_main_04);
@@ -216,7 +218,7 @@ public class MainActivity extends AppCompatActivity {
 //                    ClassLoader.class.getMethod("loadClass", String.class);
 //
 //            FHook.hook(mLoadClass)
-//                    .setOrigFunRun(false)   // 让原方法照常执行
+//                    .setOrigFunRun(false)
 //                    .setHookEnter((thiz, args, types, hh) -> {
 //                        // thiz 是 ClassLoader 实例；args[0] 是 name
 //                        String name = (String) args.get(0);
@@ -328,15 +330,17 @@ public class MainActivity extends AppCompatActivity {
 
 // ============ 25) SharedPreferences.Editor.commit() ============
         {
-            java.lang.reflect.Method mCommit =
-                    android.content.SharedPreferences.Editor.class.getMethod("commit");
+            // 从实现类上取真实的 commit()（不是接口上的）
+            Method mCommitIface = SharedPreferences.Editor.class.getMethod("commit");
+            SharedPreferences.Editor editor = this.getSharedPreferences("demo", MODE_PRIVATE).edit();
+            Method mCommitImpl = FHookTool.resolveImplementationFromInstance(editor, mCommitIface);
 
-            FHook.hook(mCommit)
-                    .setOrigFunRun(true)
-                    .setHookEnter((thiz, args, types, hh) -> {
-                        // thiz 是具体 Editor 实例；无参数
-                        showLog("SharedPreferences.Editor.commit", thiz, args, types);
-                    })
+            FHook.hook(mCommitImpl)
+                    .setOrigFunRun(false)
+//                    .setHookEnter((thiz, args, types, hh) -> {
+//                        // thiz 是具体 Editor 实例；无参数
+//                        showLog("SharedPreferences.Editor.commit", thiz, args, types);
+//                    })
                     .setHookExit((ret, type, hh) -> {
                         // ret 是 Boolean（primitive boolean 会被装箱）
                         showLog("SharedPreferences.Editor.commit", hh.thisObject, ret, type);
@@ -371,54 +375,60 @@ public class MainActivity extends AppCompatActivity {
                 .commit();
 
 
-        Method fun_I_IArray = FHookTool.findMethod4First(THook.class, "fun_I_IArray");
-        FHook.hook(fun_I_IArray)
-                .setOrigFunRun(false)
+        Method fun_I_IArr = FHookTool.findMethod4First(THook.class, "fun_I_IArr");
+        FHook.hook(fun_I_IArr)
+                .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
-                    showLog("fun_I_IArray", thiz, args, types);
+                    showLog("fun_I_IArr", thiz, args, types);
                     int[] arr = (int[]) args.get(0);
                     arr[0] = 666;
                 })
                 .setHookExit((ret, type, hh) -> {
-                    showLog("fun_I_IArray", hh.thisObject, ret, type);
+                    showLog("fun_I_IArr", hh.thisObject, ret, type);
 
                     ret = 999;
                     return ret;
                 })
                 .commit();
 
-        Method fun_I_DArray = FHookTool.findMethod4First(THook.class, "fun_I_DArray");
-        FHook.hook(fun_I_DArray)
+        Method fun_IArr_DArr = FHookTool.findMethod4First(THook.class, "fun_IArr_DArr");
+        FHook.hook(fun_IArr_DArr)
                 .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
-                    showLog("fun_I_DArray", thiz, args, types);
+                    showLog("fun_IArr_DArr", thiz, args, types);
                     double[] arg0 = (double[]) args.get(0);
-                    arg0[2] = 999;
+                    arg0[2] = 999.99999;
 
                 })
                 .setHookExit((ret, type, hh) -> {
-                    showLog("fun_I_DArray", hh.thisObject, ret, type);
+                    showLog("fun_IArr_DArr", hh.thisObject, ret, type);
                     int[] ret1 = (int[]) ret;
-                    ret1[0] = 888;
+                    ret1[0] = 666;
                     return ret;
                 })
                 .commit();
 
-        Method fun_DArray_IArray = FHookTool.findMethod4First(THook.class, "fun_DArray_IArray");
-        FHook.hook(fun_DArray_IArray)
+        Method fun_TObjectArr_DArr = FHookTool.findMethod4First(THook.class, "fun_TObjectArr_DArr");
+        FHook.hook(fun_TObjectArr_DArr)
                 .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
-                    showLog("fun_DArray_IArray", thiz, args, types);
+                    showLog("fun_TObjectArr_DArr", thiz, args, types);
                     double[] o = (double[]) args.get(0);
-                    o[0] = 999;
+                    o[0] = 999.9999;
 
                 })
                 .setHookExit((ret, type, hh) -> {
-                    showLog("fun_DArray_IArray", hh.thisObject, ret, type);
-                    TObject[] ret1 = (TObject[]) ret;
-                    ret1[0].setName("aaaaaabbb");
-                    ret1[1] = new TObject("cccccc", 9999);
+                    showLog("fun_TObjectArr_DArr", hh.thisObject, ret, type);
+                    if (ret == null) {
+                        TObject[] out = new TObject[2];
+                        out[0] = new TObject("_new_" + 999, 999);
+                        return out; // 一定要返回 TObject[]，与原方法签名匹配
+                    }
+
+                    TObject[] oarr = (TObject[]) ret;
+                    oarr[0].setName("_new_" + 999);
                     return ret;
+
                 })
                 .commit();
 
@@ -521,25 +531,25 @@ public class MainActivity extends AppCompatActivity {
         });
 
         Button bt_main_15 = findViewById(R.id.bt_main_15);
-        bt_main_15.setText("15 fun_I_IArray");
+        bt_main_15.setText("15 fun_I_IArr");
         bt_main_15.setOnClickListener(v -> {
             FFunsUI.toast(this, String.valueOf(
-                    tHook.fun_I_IArray(new int[]{1, 2, 3})
+                    tHook.fun_I_IArr(new int[]{1, 2, 3})
             ));
         });
 
         Button bt_main_16 = findViewById(R.id.bt_main_16);
-        bt_main_16.setText("15 fun_I_DArray");
+        bt_main_16.setText("16 fun_IArr_DArr");
         bt_main_16.setOnClickListener(v -> {
             FFunsUI.toast(this, Arrays.toString(
-                    tHook.fun_I_DArray(new double[]{1.1, 2.2, 3.3})));
+                    tHook.fun_IArr_DArr(new double[]{1.1, 2.2, 3.3})));
         });
 
         Button bt_main_17 = findViewById(R.id.bt_main_17);
-        bt_main_17.setText("17 fun_DArray_IArray");
+        bt_main_17.setText("17 fun_TObjectArr_IArr");
         bt_main_17.setOnClickListener(v -> {
             FFunsUI.toast(this, Arrays.toString(
-                    tHook.fun_DArray_IArray(new double[]{1.1, 2.2, 3.3})));
+                    tHook.fun_TObjectArr_DArr(new double[]{1.1, 2.2, 3.3})));
         });
     }
 

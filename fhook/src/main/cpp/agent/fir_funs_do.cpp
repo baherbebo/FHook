@@ -549,6 +549,23 @@ namespace fir_funs_do {
 
 
     /// 支持 各种参数反射执行
+    /**
+     * 插桩绕开 loadClass，直接拿 Class<?> 或走 findClass
+     * 重入/递归保护（ThreadLocal）
+     *
+     *
+     * @param code_ir
+     * @param reg1_tmp
+     * @param reg2_tmp
+     * @param reg3_tmp
+     * @param reg_method_arg
+     * @param reg_do_args
+     * @param reg_return
+     * @param name_class
+     * @param name_fun
+     * @param insert_point
+     * @return
+     */
     bool do_apploader_static_fun(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp,//额外临时寄存器
@@ -802,17 +819,17 @@ namespace fir_funs_do {
 
 
     /**
-     * 生成 object 参数
+     * 生成 object
+     * 参数 包装返回值到 Object（放到 reg1_tmp_arg），便于后续注入 onExit(Object)
      * @param code_ir
      * @param reg_return
-     * @param is_wide_return
+     * @param is_wide_return 带有宽恢复功能
      * @param insert_point
      * @return 返回已打包好的寄存器编号
-     *
      */
-    // 包装返回值到 Object（放到 reg1_tmp_arg），便于后续注入 onExit(Object)
-    int cre_arr_do_args4onExit(
+    void cre_arr_do_args4onExit(
             lir::CodeIr *code_ir,
+            dex::u2 reg_do_arg,  // 必需要一个寄存器，需要外面判断完成是不是宽
             int reg_return,         // 原方法返回值所在寄存器 清空则没有返回值
             bool is_wide_return,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
@@ -826,21 +843,6 @@ namespace fir_funs_do {
         auto return_type = proto->return_type;
         SLICER_CHECK(return_type != nullptr);
 
-        // 拿到了一个不与宽冲突可重复的寄存器 用于存放 Class[] 对象
-        int reg_arg;
-        // 申请一个普通寄存器
-        if (reg_return >= 0 && is_wide_return) {
-            auto regs1 = FRegManager::AllocWide(
-                    code_ir, {reg_return, reg_return + 1}, 1);
-            CHECK_ALLOC_OR_RET(regs1, 1, -1, "[cre_arr_do_args4onExit] regs1-1 申请寄存器失败 ...");
-            reg_arg = regs1[0];
-        } else {
-            // 不是宽，或 reg_return无效，随便弄一个
-            auto regs1 = FRegManager::AllocV(code_ir, {}, 1);
-            CHECK_ALLOC_OR_RET(regs1, 1, -1, "[cre_arr_do_args4onExit] regs1-2 申请寄存器失败 ...");
-            reg_arg = regs1[0];
-        }
-
         // 无返回值或方法已经清空情况
         if (strcmp(return_type->descriptor->c_str(), "V") == 0 || reg_return < 0) {
             // 拿到方法信息
@@ -848,25 +850,25 @@ namespace fir_funs_do {
                  ir_method->decl->parent->Decl().c_str(),
                  ir_method->decl->name->c_str(),
                  ir_method->decl->prototype->Signature().c_str(),
-                 reg_arg);
+                 reg_do_arg);
             // 创建空对象
-            fir_tools::cre_null_reg(code_ir, reg_arg, insert_point);
-            return reg_arg;
+            fir_tools::cre_null_reg(code_ir, reg_do_arg, insert_point);
+            return;
         }
 
         if (return_type->GetCategory() == ir::Type::Category::Reference) {
             // === 引用直接赋值 ，向上不用转换 ===
             auto move_obj = code_ir->Alloc<lir::Bytecode>();
             move_obj->opcode = dex::OP_MOVE_OBJECT;
-            move_obj->operands.push_back(code_ir->Alloc<lir::VReg>(reg_arg));
+            move_obj->operands.push_back(code_ir->Alloc<lir::VReg>(reg_do_arg));
             move_obj->operands.push_back(code_ir->Alloc<lir::VReg>(reg_return));
             code_ir->instructions.insert(insert_point, move_obj);
-            return reg_arg;
+            return;
         }
 
         // === 基本标量类型：装箱成对象 ===
         fir_tools::box_scalar_value(insert_point, code_ir, return_type,
-                                    reg_return, reg_arg);
+                                    reg_return, reg_do_arg);
 
         if (is_wide_return) {
             // 恢复宽寄存器
@@ -875,9 +877,9 @@ namespace fir_funs_do {
         }
 
         LOGD("[cre_arr_do_args4onExit] 处理完成：%s → 转换为Object到v%d",
-             return_type->descriptor->c_str(), reg_arg);
+             return_type->descriptor->c_str(), reg_do_arg);
 
-        return reg_arg;
+        return;
     }
 
     /// 把方法的参数强转object 放在 object[] 数组中

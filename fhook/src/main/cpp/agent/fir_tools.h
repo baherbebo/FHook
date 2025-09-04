@@ -33,8 +33,7 @@ namespace fir_tools {
     bool cre_return_code(lir::CodeIr *code_ir,
                          ir::Type *return_type,
                          int reg_return,
-                         bool is_boxing,
-                         slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
+                         bool is_boxing);
 
     void restore_reg_params4type(lir::CodeIr *code_ir,
                                  dex::u4 reg_args,            // enter 返回的 Object[] 寄存器 (e.g. v0)
@@ -54,20 +53,11 @@ namespace fir_tools {
     slicer::IntrusiveList<lir::Instruction>::Iterator
     find_first_code(lir::CodeIr *code_ir);
 
-    dex::u2 req_reg(lir::CodeIr *code_ir, dex::u2 regs_count);
-
     int find_return_register(lir::CodeIr *code_ir, bool *is_wide_out = nullptr);
 
     void clear_original_instructions(lir::CodeIr *code_ir);
 
-    int pick_reg4one(lir::CodeIr *code_ir,
-                     int reg_target,        // 返回不能与这个寄存器冲突
-                     bool is_wide_target,   // reg_target 是否为宽寄存器起点（需要避开 reg_target 与 reg_target+1）
-                     bool is_repetition);
-
-    int pick_reg4wide(lir::CodeIr *code_ir,
-                      int reg_target,
-                      bool is_wide_target);
+    bool instrument_with_epilogue(lir::CodeIr *code_ir, dex::u2 reg_return);
 };
 
 

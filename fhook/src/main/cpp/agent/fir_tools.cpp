@@ -11,14 +11,20 @@
 
 namespace fir_tools {
 
-    struct BytecodeConvertingVisitor : public lir::Visitor {
+    struct BytecodeGrabber : public lir::Visitor {
         lir::Bytecode *out = nullptr;
 
-        bool Visit(lir::Bytecode *bytecode) {
+        bool Visit(lir::Bytecode *bytecode) override {
             out = bytecode;
             return true;
         }
     };
+
+    static inline lir::Bytecode *AsBytecode(lir::Instruction *ins) {
+        BytecodeGrabber g;            // 每次迭代重新构造，保证 out 初始为 nullptr
+        ins->Accept(&g);
+        return g.out;                 // 是 Bytecode 就返回指针，否则返回 nullptr
+    }
 
     // safe casts: 支持 RTTI 与 非 RTTI 两种情况
     static lir::Bytecode *_safe_cast_to_bytecode(lir::Instruction *instr) {
@@ -124,6 +130,103 @@ namespace fir_tools {
         return "";
     }
 
+    static bool IsReturnOp(dex::Opcode op) {
+        return op == dex::OP_RETURN_VOID ||
+               op == dex::OP_RETURN ||
+               op == dex::OP_RETURN_WIDE ||
+               op == dex::OP_RETURN_OBJECT;
+    }
+
+    enum class RetKind {
+        kVoid, kIntLike, kWide, kObject
+    };
+
+    static RetKind RetKindOf(dex::Opcode op) {
+        switch (op) {
+            case dex::OP_RETURN_VOID:
+                return RetKind::kVoid;
+            case dex::OP_RETURN_WIDE:
+                return RetKind::kWide;
+            case dex::OP_RETURN_OBJECT:
+                return RetKind::kObject;
+            case dex::OP_RETURN:
+                return RetKind::kIntLike; // int/float/short/byte/char/boolean
+            default:
+                return RetKind::kIntLike;
+        }
+    }
+
+    /// 在 return-* 之前插入 把返回值先移到 指定的寄存器上
+    static inline bool InsertMoveToRet(lir::CodeIr *code_ir,
+                                       RetKind rk,
+                                       dex::u2 reg_return, // 指定的返回寄存器号
+                                       lir::Bytecode *ret_bc /*原 return 指令*/,
+                                       lir::InstructionsList::Iterator it_ret) {
+
+        SLICER_CHECK(ret_bc != nullptr);
+        SLICER_CHECK(!ret_bc->operands.empty());
+
+        if (rk == RetKind::kVoid) return true;
+
+        auto mov = code_ir->Alloc<lir::Bytecode>();
+        switch (rk) {
+            case RetKind::kWide: { // 宽寄存器
+                // 源是 VRegPair
+                auto src_pair = ret_bc->CastOperand<lir::VRegPair>(0);
+                dex::u2 s = static_cast<dex::u2>(src_pair->base_reg);
+                dex::u2 d = reg_return;
+
+                // 1) 避免空操作：dst == src → 不插
+                if (d == s) return true;
+                if (static_cast<dex::u2>(s + 1) == d || static_cast<dex::u2>(d + 1) == s) {
+                    // 这里不做危险的直接 move-wide，直接拦截并提示上层换 reg_return
+                    LOGE("[InsertMoveToRet] wide move overlap: dst=(v%u,v%u) src=(v%u,v%u). "
+                         "半重叠不安全，请选择不重叠的 reg_return.",
+                         d, static_cast<dex::u2>(d + 1), s, static_cast<dex::u2>(s + 1));
+                    return false; // 或者用 SLICER_CHECK(false) 直接中断
+                }
+
+                mov->opcode = dex::OP_MOVE_WIDE;
+                mov->operands.push_back(
+                        code_ir->Alloc<lir::VRegPair>(reg_return));                // dst
+
+                mov->operands.push_back(code_ir->Alloc<lir::VRegPair>(src_pair->base_reg));  // src
+                break;
+            }
+            case RetKind::kObject: {
+                auto src_v = ret_bc->CastOperand<lir::VReg>(0);
+
+                if (src_v->reg == reg_return) return true; // 避免空操作：dst == src → 不插
+
+                mov->opcode = dex::OP_MOVE_OBJECT;
+                mov->operands.push_back(code_ir->Alloc<lir::VReg>(reg_return));       // dst
+                mov->operands.push_back(code_ir->Alloc<lir::VReg>(src_v->reg)); // src
+                break;
+            }
+            case RetKind::kIntLike:
+            default: {
+                auto src_v = ret_bc->CastOperand<lir::VReg>(0);
+
+                if (src_v->reg == reg_return) return true;// 避免空操作：dst == src → 不插
+
+                mov->opcode = dex::OP_MOVE;
+                mov->operands.push_back(code_ir->Alloc<lir::VReg>(reg_return));       // dst
+                mov->operands.push_back(code_ir->Alloc<lir::VReg>(src_v->reg)); // src
+                break;
+            }
+        }
+        code_ir->instructions.insert(it_ret, mov);
+        return true;
+    }
+
+    /// 把原 return-* 原位改造成：goto :epilogue
+    static inline void RewriteReturnToGoto(lir::CodeIr *code_ir,
+                                           lir::Bytecode *ret_bc,
+                                           lir::Label *L_epilogue) {
+        ret_bc->opcode = dex::OP_GOTO;
+        ret_bc->operands.clear();
+        ret_bc->operands.push_back(code_ir->Alloc<lir::CodeLocation>(L_epilogue));
+    }
 
     // ---------------------------------------
 
@@ -389,8 +492,10 @@ namespace fir_tools {
     bool cre_return_code(lir::CodeIr *code_ir,
                          ir::Type *return_type,
                          int reg_return,
-                         bool is_boxing, // 是否包装，运行了isExit 肯定就包装了的
-                         slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
+                         bool is_boxing // 是否包装，运行了isExit 肯定就包装了的
+    ) {
+
+        auto insert_point = code_ir->instructions.end();
 
         // 无返回值处理
         if (strcmp(return_type->descriptor->c_str(), "V") == 0) {
@@ -531,7 +636,7 @@ namespace fir_tools {
 
         // 是标量 判断是否包装过， 返回
 
-        if(is_boxing){
+        if (is_boxing) {
             // 这里已确定是标量 从 Object 解包到 v<dst>
             unbox_scalar_value(insert_point,
                                code_ir,
@@ -828,21 +933,16 @@ namespace fir_tools {
             --it;
             lir::Instruction *instr = *it;
 
-            BytecodeConvertingVisitor visitor;
+            // 解析指令
+            BytecodeGrabber visitor;
             instr->Accept(&visitor);
             lir::Bytecode *bytecode = visitor.out;
 
             // 跳过转换失败的指令
-            if (bytecode == nullptr) {
-                continue;
-            }
+            if (!bytecode) continue;
 
             // 检查是否为返回类型指令
-            dex::Opcode opcode = bytecode->opcode;
-            if (opcode == dex::OP_RETURN_VOID ||
-                opcode == dex::OP_RETURN ||
-                opcode == dex::OP_RETURN_OBJECT ||
-                opcode == dex::OP_RETURN_WIDE) {
+            if (IsReturnOp(bytecode->opcode)) {
                 // 直接返回指向 return 的 iterator
                 LOGI("[find_return_code] 找到返回指令: %s",
                      SmaliPrinter::ToSmali(bytecode).c_str())
@@ -862,62 +962,17 @@ namespace fir_tools {
 
         while (it != code_ir->instructions.end()) {
             ++it;
-            lir::Instruction *instr = *it;
+            lir::Bytecode *bc = AsBytecode(*it);
 
-            BytecodeConvertingVisitor visitor;
-            instr->Accept(&visitor);
-            lir::Bytecode *bytecode = visitor.out;
-
-            if (bytecode != nullptr) {
+            if (bc != nullptr) {
                 LOGI("[find_first_code] 找到第一条指令: %s",
-                     SmaliPrinter::ToSmali(bytecode).c_str())
+                     SmaliPrinter::ToSmali(bc).c_str())
                 // 找到第一条指令
                 return it;
             }
         }
         LOGW("[find_first_code] 没有找到任何指令")
         return insert_point;
-    }
-
-    /**
-     * 动态增加寄存器数量 新增寄存器在前面
-         原配置 registers=3，ins_count=2 → 新增后 registers=5，ins_count=2
-         v0（本地寄存器）、v1（第 1 个参数）、v2（第 2 个参数，参数在末尾）
-         v0、v1（新增的 2 个本地寄存器）、v2（本地寄存器）、v3（第 1 个参数）、v4（第 2 个参数，仍在末尾）
-     * @param code_ir
-     * @param regs_count
-     * @return
-     */
-    dex::u2 req_reg(lir::CodeIr *code_ir, dex::u2 regs_count) {
-//        LOGD("[req_reg] start...")
-        const auto ir_method = code_ir->ir_method;
-
-        dex::u2 orig_registers = ir_method->code->registers;
-        auto num_reg_non_param = orig_registers - ir_method->code->ins_count;
-        bool needsExtraRegs = num_reg_non_param < regs_count;
-        dex::u2 num_add_reg = 0; // 返回值 新增的寄存器数
-
-        if (needsExtraRegs) {
-            // 扩展总寄存器数：新增的数量 = 插桩需要的数量 - 原局部变量区大小
-            num_add_reg = regs_count - num_reg_non_param;
-            code_ir->ir_method->code->registers += num_add_reg;
-            LOGI("[req_reg] 已扩展  原总寄存器数= %d，扩后寄存器= %d,参数reg= %d, 非参数reg（参数开始index）= %d, 原本地= %d, 需增加= %d",
-                 orig_registers,
-                 code_ir->ir_method->code->registers,
-                 ir_method->code->ins_count,
-                 regs_count,
-                 num_reg_non_param,
-                 num_add_reg)
-        } else {
-            LOGI("[req_reg] 不需要扩展 总寄存器= %d,参数reg= %d, 非参数reg（参数开始index）= %d, 原本地= %d",
-                 code_ir->ir_method->code->registers,
-                 ir_method->code->ins_count,
-                 regs_count,
-                 num_reg_non_param)
-        }
-
-        return num_add_reg;
-
     }
 
     /**
@@ -942,13 +997,12 @@ namespace fir_tools {
         auto it = code_ir->instructions.end();
         while (it != code_ir->instructions.begin()) {
             --it;
-            lir::Instruction *instr = *it;
 
-            // 把 instruction 安全转换为 bytecode（兼容 RTTI / 非 RTTI）
-            lir::Bytecode *bytecode = _safe_cast_to_bytecode(instr);
-            if (!bytecode) continue; // 不是 Bytecode，跳过
+            lir::Bytecode *bc = AsBytecode(*it);
 
-            auto opcode = bytecode->opcode;
+            if (!bc) continue; // 不是 Bytecode，跳过
+
+            auto opcode = bc->opcode;
 
             // 处理各种 return
             switch (opcode) {
@@ -960,11 +1014,11 @@ namespace fir_tools {
                 case dex::OP_RETURN:
                 case dex::OP_RETURN_OBJECT: {
                     // 期望一个 VReg operand
-                    if (bytecode->operands.size() < 1) {
+                    if (bc->operands.size() < 1) {
                         LOGW("[find_return_register] return-object/return operand 缺失，继续回溯");
                         continue;   // <-- 改这里
                     }
-                    lir::Operand *op = bytecode->operands[0];
+                    lir::Operand *op = bc->operands[0];
                     lir::VReg *vr = _safe_cast_to_vreg(op);
                     if (!vr) {
                         LOGW("[find_return_register] return operand 不是 VReg（期待普通返回寄存器）");
@@ -976,11 +1030,11 @@ namespace fir_tools {
                 }
 
                 case dex::OP_RETURN_WIDE: {
-                    if (bytecode->operands.size() < 1) {
+                    if (bc->operands.size() < 1) {
                         LOGW("[find_return_register] return-wide operand 缺失，继续回溯");
                         continue;
                     }
-                    lir::Operand *op = bytecode->operands[0];
+                    lir::Operand *op = bc->operands[0];
                     lir::VRegPair *vp = _safe_cast_to_vregpair(op);
                     if (!vp) {
                         LOGW("[find_return_register] return-wide operand 不是 VRegPair");
@@ -1015,100 +1069,68 @@ namespace fir_tools {
         }
     }
 
-//    // -------------------------------------------- 寄存器操作
-//    /// 自动选一个不冲突，可选是否重复，的普通寄存器
-//    int pick_reg4one(lir::CodeIr *code_ir,
-//                     int reg_target,        // 返回不能与这个寄存器冲突
-//                     bool is_wide_target,   // reg_target 是否为宽寄存器起点（需要避开 reg_target 与 reg_target+1）
-//                     bool is_repetition)    // 是否允许返回与 reg_target 相同（仅在不冲突前提下）
-//    {
-//        SLICER_CHECK(code_ir && code_ir->ir_method && code_ir->ir_method->code);
-//        const auto code = code_ir->ir_method->code;
-//
-//        const dex::u2 regs_size = code->registers;   // 总寄存器数
-//        const dex::u2 ins_size = code->ins_count;   // 参数寄存器数（高位）
-//        const int locals = static_cast<int>(regs_size - ins_size);
-//        if (locals <= 0) {
-//            LOGE("[pick_reg4one] locals=0，无可用本地寄存器");
-//            return -1;
-//        }
-//
-//        auto conflict_with_target = [&](int v) -> bool {
-//            if (reg_target < 0) return false;
-//            if (is_wide_target) {
-//                // 目标为宽寄存器：v 不能等于 reg_target 或 reg_target+1
-//                return (v == reg_target) || (v == reg_target + 1);
-//            } else {
-//                // 目标为普通寄存器：v 不能等于 reg_target 才算“冲突”
-//                return (v == reg_target);
-//            }
-//        };
-//
-//        // 若允许“重复”，且不与 reg_target 冲突，优先返回 reg_target（仅当其在 locals 内）
-//        if (is_repetition && reg_target >= 0 && reg_target < locals &&
-//            !conflict_with_target(reg_target)) {
-//            return reg_target;
-//        }
-//
-//        // 从 v0 起找第一个不冲突的普通寄存器
-//        for (int v = 0; v < locals; ++v) {
-//            if (!conflict_with_target(v)) {
-//                // 若不允许重复，还需排除 v == reg_target（仅在窄目标场景有意义）
-//                if (!is_repetition && reg_target >= 0 && !is_wide_target && v == reg_target) {
-//                    continue;
-//                }
-//                return v;
-//            }
-//        }
-//
-//        LOGE("[pick_reg4one] 无可用普通寄存器 (locals=%d, reg_target=%d, wide_target=%d, repetition=%d)",
-//             locals, reg_target, is_wide_target, is_repetition);
-//        return -1;
-//    }
-//
-//
-//    /// 自动选一个不冲突且不能重复的宽寄存器（返回起始号 v，占 v 与 v+1）
-//    int pick_reg4wide(lir::CodeIr *code_ir,
-//                      int reg_target,
-//                      bool is_wide_target) {
-//        SLICER_CHECK(code_ir && code_ir->ir_method && code_ir->ir_method->code);
-//        const auto code = code_ir->ir_method->code;
-//
-//        const dex::u2 regs_size = code->registers;
-//        const dex::u2 ins_size = code->ins_count;
-//        const int locals = static_cast<int>(regs_size - ins_size);
-//        if (locals <= 1) {
-//            LOGE("[pick_reg4wide] locals<=1，无法容纳宽寄存器对");
-//            return -1;
-//        }
-//
-//        auto conflict_with_target_pair = [&](int v) -> bool {
-//            if (reg_target < 0) return false;
-//            const int a_lo = v, a_hi = v + 1; // 我们申请的 (v, v+1)
-//            if (is_wide_target) {
-//                // 目标也是宽寄存器：避开区间重叠
-//                const int b_lo = reg_target, b_hi = reg_target + 1;
-//                return !(a_hi < b_lo || b_hi < a_lo);
-//            } else {
-//                // 目标是普通寄存器：v 或 v+1 不能命中 reg_target
-//                return (reg_target == a_lo) || (reg_target == a_hi);
-//            }
-//        };
-//
-//        for (int v = 0; v + 1 < locals; ++v) {
-//            // “不能重复”：起点 v 不得等于 reg_target
-//            if (v == reg_target) continue;
-//
-//            // 不冲突检查
-//            if (!conflict_with_target_pair(v)) {
-//                return v;
-//            }
-//        }
-//
-//        LOGE("[pick_reg4wide] 无可用宽寄存器对 (locals=%d, reg_target=%d, wide_target=%d)",
-//             locals, reg_target, is_wide_target);
-//        return -1;
-//    }
+
+    /// isHExit 把所有return 都改到指定的位置 这里要避开 宽的半重叠
+    bool instrument_with_epilogue(lir::CodeIr *code_ir, dex::u2 reg_return) {
+
+        LOGD("[instrument_with_epilogue] start...")
+        SLICER_CHECK(code_ir && code_ir->ir_method && code_ir->ir_method->code);
+
+        auto &insns = code_ir->instructions;
+
+        // 1) 扫描所有 return-*，记录（迭代器 + 返回种类 + 返回操作数）
+        struct RetSite {
+            lir::InstructionsList::Iterator it;
+            lir::Bytecode *bc;
+            RetKind kind;
+        };
+
+        std::vector<RetSite> returns;
+        RetKind method_ret = RetKind::kVoid; // 用第一个枚举 return-* 的种类来确定统一返回类型
+        bool method_ret_set = false;
 
 
+        for (auto it = insns.begin(); it != insns.end(); ++it) {
+            lir::Bytecode *bc = AsBytecode(*it);
+            if (!bc) continue;
+
+            // 调试：打印每条 Bytecode 的偏移与 opcode，方便确认是否扫到 catch 分支
+//            LOGI("[find_first_code] 找到第一条指令: %s",
+//                 SmaliPrinter::ToSmali(bc).c_str())
+
+            if (!IsReturnOp(bc->opcode)) continue;
+
+            RetKind rk = RetKindOf(bc->opcode);
+            if (!method_ret_set) {
+                method_ret = rk;
+                method_ret_set = true;
+            }
+
+            returns.push_back({it, bc, rk});
+        }
+
+        LOGD("[instrument_with_epilogue] 找到 %d 个 return", (int) returns.size())
+        if (returns.empty()) return true; // 无返回，不处理
+
+
+        // 3) 创建 epilogue 标签（用无效偏移占位）
+        auto L_epilogue = code_ir->Alloc<lir::Label>(lir::kInvalidOffset);
+
+        // 4) 改写所有 return：先插入 move 到 vRet，再把原 return 改成 goto :epilogue
+        for (auto &rs: returns) {
+            // void 返回不需要 move
+            if (rs.kind != RetKind::kVoid) {
+                bool res = InsertMoveToRet(code_ir, rs.kind, reg_return,
+                                           rs.bc, rs.it);
+                if (!res) return false;
+            }
+            RewriteReturnToGoto(code_ir, rs.bc, L_epilogue);
+        }
+
+        auto tail = insns.end();
+        insns.insert(tail, L_epilogue);
+
+
+        return true;
+    }
 };

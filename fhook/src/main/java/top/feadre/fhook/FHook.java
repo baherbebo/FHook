@@ -250,7 +250,7 @@ public class FHook {
     }
 
 
-    public static Object[] onEnter4fhook(Object[] rawArgs, long methodId) {
+    public final static Object[] onEnter4fhook(Object[] rawArgs, long methodId) {
         FLog.d(TAG, "[onEnter4fhook] start ...");
 
         HookHandle hh = sHandles.get(methodId);
@@ -281,17 +281,17 @@ public class FHook {
         return rawArgs;
     }
 
-    public static Object onExit4fhook(Object ret, long methodId) {
+    public final static Object onExit4fhook(Object ret, long methodId) {
         FLog.d(TAG, "[onExit4fhook] start ...");
         HookHandle hh = sHandles.get(methodId);
         if (hh == null || hh.exitCb == null) return ret;
 
         final Class<?> returnType = hh.method.getReturnType();
         try {
-            FLog.d(TAG, "[onExit4fhook] 开始 --- 原返回值= " + ret + " " + returnType);
+            FLog.d(TAG, "[onExit4fhook] 开始 --- 原返回值= " + ret + " 原类型= " + returnType);
 
             Object res = hh.exitCb.onExit(ret, returnType, hh);
-            FLog.d(TAG, "[onExit4fhook] 完成 --- 改后返回值= " + res + " " + returnType);
+            FLog.d(TAG, "[onExit4fhook] 完成 --- 改后返回值= " + res + " 原类型= " + returnType);
 
             return res;
         } catch (Throwable t) {
