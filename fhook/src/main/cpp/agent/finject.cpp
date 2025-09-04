@@ -188,8 +188,8 @@ namespace finject {
             }
 
 
-//            if (!transform->is_app_loader()) { //  调试使用
-            if (transform->is_app_loader()) {
+            if (!transform->is_app_loader()) { //  调试使用
+//            if (transform->is_app_loader()) {
                 LOGD("[do_finject] 应用侧 调用 isHExit ...")
 
                 // --------------------- 1
@@ -221,25 +221,58 @@ namespace finject {
             } else {
                 // 系统侧 搞用
                 LOGD("[do_finject] 系统侧 调用 isHExit ...")
-//
-//                int reg_arg = fir_funs_do::cre_arr_do_args4onExit(code_ir,
-//                                                                  return_register,
-//                                                                  is_wide_return_register,
-//                                                                  insert_point);
-//                if (reg_arg < 0) return false;// 里面已汇报了错误
-//                // 反射要再包一层  Class[]{Object[].class,Long.class}
-//                fir_funs_do::cre_arr_object1(code_ir, reg_arg,
-//                                             hook_info.j_method_id, insert_point);
-//                fir_funs_do::cre_arr_class_args4onExit(code_ir, v0, v1, v2, insert_point);
-//
-//                fir_funs_do::do_apploader_static_fun(code_ir, v0, v1, v4,
-//                                                     v2, v3, v0,
-//                                                     g_name_class_THook, g_name_fun_onExit,
-//                                                     insert_point);
 
-//                reg_return = reg_arg;
+                // --------------------- 1
+                int reg_arg = fir_funs_do::cre_arr_do_args4onExit(
+                        code_ir,
+                        return_register,
+                        is_wide_return_register,
+                        insert_point);
+                if (reg_arg < 0) return false;// 里面已汇报了错误
+
+
+                // --------------------- 2 反射 Class 要再包一层
+                int count = 2;
+                std::vector<int> forbidden_v = {reg_arg}; // 禁止使用
+                auto regs9 = FRegManager::AllocWide(
+                        code_ir, forbidden_v, count, "regs9");
+                CHECK_ALLOC_OR_RET(regs9, count, false,
+                                   "[do_finject] regs9 申请寄存器失败 ...");
+
+                // 反射要再包一层  Class[]{Object[].class,Long.class}
+                fir_funs_do::cre_arr_object1(
+                        code_ir, regs9[0], reg_arg, regs9[1],
+                        hook_info.j_method_id, insert_point);
+
+
+                // --------------------- 3
+                count = 3;// 前面只有最后的封装参数需要保留
+                forbidden_v.clear();
+                forbidden_v.push_back(regs9[1]);
+                auto regs10 = FRegManager::AllocV(
+                        code_ir, forbidden_v, count, "regs10");
+                CHECK_ALLOC_OR_RET(regs10, count, false, "[do_finject] regs10 申请寄存器失败 ...");
+
+                fir_funs_do::cre_arr_class_args4onExit(
+                        code_ir, regs10[0], regs10[1], regs10[2],
+                        insert_point);
+
+
+                // --------------------- 4
+                count = 3;
+                forbidden_v.push_back(regs10[2]);
+                auto regs11 = FRegManager::AllocV(
+                        code_ir, forbidden_v, count, "regs11");
+                CHECK_ALLOC_OR_RET(regs11, count, false, "[do_finject] regs11 申请寄存器失败 ...");
+
+                fir_funs_do::do_apploader_static_fun(
+                        code_ir, regs11[0], regs11[1], regs11[2],
+                        regs10[2], regs9[1], regs9[1],
+                        g_name_class_THook, g_name_fun_onExit,
+                        insert_point);
+
+                reg_return = regs9[1];
             }
-
 
         }
 

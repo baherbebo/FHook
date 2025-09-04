@@ -986,7 +986,6 @@ namespace fir_funs_do {
         ir::Builder builder(code_ir->dex_ir);
         const auto obj_array_type = builder.GetType("[Ljava/lang/Object;");
 
-
         {
             // outer = new Object[2]
             fir_tools::EmitConstToReg(code_ir, insert_point, reg1_tmp_idx, 2);

@@ -318,7 +318,7 @@ public class MainActivity extends AppCompatActivity {
     private void initHook03() {
         Method fun_TObject_TObject = FHookTool.findMethod4First(THook.class, "fun_TObject_TObject");
         FHook.hook(fun_TObject_TObject)
-                .setOrigFunRun(true)
+                .setOrigFunRun(false)
                 .setHookEnter((thiz, args, types, hh) -> {
                     showLog("fun_TObject_TObject", thiz, args, types);
                     TObject o1 = (TObject) args.get(0);
