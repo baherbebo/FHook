@@ -829,8 +829,8 @@ namespace fir_funs_do {
      */
     void cre_arr_do_args4onExit(
             lir::CodeIr *code_ir,
-            dex::u2 reg_do_arg,  // 必需要一个寄存器，需要外面判断完成是不是宽
-            int reg_return,         // 原方法返回值所在寄存器 清空则没有返回值
+            dex::u2 reg_do_arg,  // 必需要一个正常的寄存器，可以相等，需要外面判断完成是不是宽
+            int reg_return,         // 返回值在这里，原方法返回值所在寄存器 清空则没有返回值
             bool is_wide_return,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
@@ -870,7 +870,8 @@ namespace fir_funs_do {
         fir_tools::box_scalar_value(insert_point, code_ir, return_type,
                                     reg_return, reg_do_arg);
 
-        if (is_wide_return) {
+        // 如果是寄存器相同 就不能恢复
+        if (is_wide_return && reg_return != reg_do_arg) {
             // 恢复宽寄存器
             fir_tools::EmitConstToReg(code_ir, insert_point, reg_return + 1, 0);
             fir_tools::EmitConstToReg(code_ir, insert_point, reg_return, 0);

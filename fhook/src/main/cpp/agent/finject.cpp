@@ -152,7 +152,7 @@ namespace finject {
         // 如果需要运行原方法才进行统一出口， reg_return_orig 肯定不会是 -1
         if (hook_info.isRunOrigFun) {
             // reg_return_orig 里存的返回值原方法，不能动 这里 reg_return_orig 可能是宽寄存器
-            fir_tools::instrument_with_epilogue(code_ir,  reg_return_orig);
+            fir_tools::instrument_with_epilogue(code_ir, reg_return_orig);
         }
 
         int count;
@@ -212,6 +212,11 @@ namespace finject {
                 insert_point);
         if (reg_do_arg < 0) return -1; // 里面已汇报了错误
 
+        forbidden_v.clear();
+        forbidden_v = {reg_do_arg}; // 禁止使用
+        if (is_wide_reg_return) {
+            forbidden_v.push_back(reg_do_arg + 1);
+        }
 
 //            if (!transform->is_app_loader()) { //  调试使用
         if (transform->is_app_loader()) {
@@ -219,8 +224,6 @@ namespace finject {
 
             // --------------------- 2
             count = 1; // 申请一个宽存
-            forbidden_v.clear();
-            forbidden_v = {reg_do_arg}; // 禁止使用
             auto regs8_wide = FRegManager::AllocWide(
                     code_ir, forbidden_v, count, "regs8_wide");
             CHECK_ALLOC_OR_RET(regs8_wide, count, -1,
@@ -239,11 +242,8 @@ namespace finject {
             // 系统侧 搞用
             LOGD("[doHExit] 系统侧 调用 isHExit ...")
 
-
             // --------------------- 2 反射 Class 要再包一层
             count = 2;
-            forbidden_v.clear();
-            forbidden_v = {reg_do_arg}; // 禁止使用
             auto regs9 = FRegManager::AllocV(
                     code_ir, forbidden_v, count, "regs9");
             CHECK_ALLOC_OR_RET(regs9, count, -1,

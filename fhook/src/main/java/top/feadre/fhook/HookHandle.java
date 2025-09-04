@@ -14,7 +14,7 @@ public class HookHandle {
     boolean disabledByPrecheck; //预检失败/禁止安装 标志
     volatile FHook.HookEnterCallback enterCb;
     volatile FHook.HookExitCallback exitCb;
-    volatile boolean runOriginalByDefault = true;
+    volatile boolean runOriginalByDefault = true; // 默认是是
 
     // 用于带各种数据
     public final java.util.concurrent.ConcurrentHashMap<String, Object> extras =

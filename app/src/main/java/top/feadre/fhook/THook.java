@@ -76,5 +76,16 @@ public class THook {
         return tObjects;
     }
 
+    public double fun_double_DArr(double[] arr) {
+        int sum = 5;
+        if (arr != null) for (double v : arr) FLog.d(TAG, "fun_double_DArr ... v=" + v);
+        return sum;
+    }
 
+    public static long[] jcFun_JArr_JArr(long[] arr) {
+        int sum = 0;
+        if (arr != null) for (long v : arr) FLog.d(TAG, "jcFun_JArr_JArr ... v=" + v);
+        arr[0] = sum;
+        return arr;
+    }
 }

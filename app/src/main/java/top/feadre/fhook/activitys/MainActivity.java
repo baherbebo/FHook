@@ -432,6 +432,48 @@ public class MainActivity extends AppCompatActivity {
                 })
                 .commit();
 
+        Method fun_double_DArr = FHookTool.findMethod4First(THook.class, "fun_double_DArr");
+        FHook.hook(fun_double_DArr)
+                .setOrigFunRun(false)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    showLog("fun_double_DArr", thiz, args, types);
+                    double[] o = (double[]) args.get(0);
+                    o[0] = 5555.555;
+
+                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("fun_double_DArr", hh.thisObject, ret, type);
+                    if (ret == null) {
+                        double out = 456.6666;
+                        return out;
+                    }
+                    ret = 22.2;
+                    return ret;
+                })
+                .commit();
+
+        Method jcFun_JArr_JArr = FHookTool.findMethod4First(THook.class, "jcFun_JArr_JArr");
+        FHook.hook(jcFun_JArr_JArr)
+                .setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    showLog("jcFun_JArr_JArr", thiz, args, types);
+                    long[] o = (long[]) args.get(0);
+                    o[0] = 666;
+
+                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("jcFun_JArr_JArr", hh.thisObject, ret, type);
+                    if (ret == null) {
+                        long[] out = new long[2];
+                        out[0] = 6666;
+                        return out;
+                    }
+                    long[] r = (long[]) ret;
+                    r[1] = 99;
+                    return ret;
+                })
+                .commit();
+
     }
 
     private void doAppHook02() {
@@ -550,6 +592,20 @@ public class MainActivity extends AppCompatActivity {
         bt_main_17.setOnClickListener(v -> {
             FFunsUI.toast(this, Arrays.toString(
                     tHook.fun_TObjectArr_DArr(new double[]{1.1, 2.2, 3.3})));
+        });
+
+        Button bt_main_18 = findViewById(R.id.bt_main_18);
+        bt_main_18.setText("18 fun_double_DArr");
+        bt_main_18.setOnClickListener(v -> {
+            FFunsUI.toast(this,
+                    String.valueOf(tHook.fun_double_DArr(new double[]{1.1, 2.2, 3.3})));
+        });
+
+        Button bt_main_19 = findViewById(R.id.bt_main_19);
+        bt_main_19.setText("19 fun_TObjectArr_IArr");
+        bt_main_19.setOnClickListener(v -> {
+            FFunsUI.toast(this, Arrays.toString(
+                    THook.jcFun_JArr_JArr(new long[]{1, 2, 3})));
         });
     }
 

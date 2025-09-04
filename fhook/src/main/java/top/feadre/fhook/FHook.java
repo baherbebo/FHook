@@ -251,7 +251,7 @@ public class FHook {
 
 
     public final static Object[] onEnter4fhook(Object[] rawArgs, long methodId) {
-        FLog.d(TAG, "[onEnter4fhook] start ...");
+        FLog.i(TAG, "[onEnter4fhook] start ...");
 
         HookHandle hh = sHandles.get(methodId);
         if (hh == null) return rawArgs;
@@ -282,7 +282,7 @@ public class FHook {
     }
 
     public final static Object onExit4fhook(Object ret, long methodId) {
-        FLog.d(TAG, "[onExit4fhook] start ...");
+        FLog.i(TAG, "[onExit4fhook] start ...");
         HookHandle hh = sHandles.get(methodId);
         if (hh == null || hh.exitCb == null) return ret;
 
