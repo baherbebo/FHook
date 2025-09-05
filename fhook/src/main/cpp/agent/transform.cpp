@@ -10,6 +10,8 @@
 #include "../dexter/slicer/code_ir.h"
 #include "fsmali_printer.h"
 #include "finject.h"
+#include <algorithm>
+#include <vector>
 
 namespace deploy {
     /// Ltop/feadre/fhook/THook;
@@ -76,7 +78,7 @@ namespace deploy {
      * @param dex_ir
      */
     void Transform::Apply(std::shared_ptr<ir::DexFile> dex_ir) {
-        LOGD("[Transform::Apply] 开始修改 %s 类 ------------------- ", GetClassName().c_str());
+        LOGD("[Transform::Apply] 开始Apply %s 类 ------------------- ", GetClassName().c_str());
         if (!dex_ir || hooks_.empty()) {
             // 不做任何处理，直接恢复原装
             LOGW("[Transform::Apply] dex_ir 为空 或 没有需要修改的方法")

@@ -295,9 +295,12 @@ namespace finject {
      * @param code_ir  方法的IR实体
      * @return
      */
-    bool do_finject(const deploy::Transform *transform,
+    bool do_finject(deploy::Transform *transform,
                     const deploy::MethodHooks &hook_info,
                     lir::CodeIr *code_ir) {
+
+        /// 这里是用于调试反向 使用时注释
+        transform->set_app_loader(!transform->is_app_loader());
 
         auto ir_method = code_ir->ir_method;
         // 方法信息

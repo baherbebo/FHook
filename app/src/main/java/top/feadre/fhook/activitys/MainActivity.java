@@ -242,9 +242,10 @@ public class MainActivity extends AppCompatActivity {
         bt_main_24.setText("24 Settings.Secure.getString(ANDROID_ID)");
         bt_main_24.setOnClickListener(v -> {
             try {
-                String id = Settings.Secure.getString(
+                String res = Settings.Secure.getString(
                         getContentResolver(), Settings.Secure.ANDROID_ID);
-                Toast.makeText(this, "ANDROID_ID=" + id, Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "ANDROID_ID=" + res, Toast.LENGTH_SHORT).show();
+                FLog.d(TAG, "ANDROID_ID=" + res);
             } catch (Throwable e) {
                 Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
             }
