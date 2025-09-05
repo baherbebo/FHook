@@ -5,7 +5,6 @@ public class FCFG_fhook {
     public final static boolean IS_DEBUG = true; // 可以通过隐藏功能切换 对应 android 应用调试 log开启
 
     /*
-//      Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool");
         Thread thread = Thread.currentThread();
         ClassLoader contextClassLoader = thread.getContextClassLoader();
         Class<?> clazz = contextClassLoader.loadClass("top.feadre.fhook.FHookTool");

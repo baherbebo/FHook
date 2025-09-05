@@ -632,14 +632,6 @@ public class FHook {
                 FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn + "(String)");
                 return true;
             }
-            // （如你未来改成用 forName，可把下面这一条放开）
-            // Class.forName(String, boolean, ClassLoader)
-            if (cn.equals("java.lang.Class") && mn.equals("forName")
-                    && ps.length == 3 && ps[0] == String.class && ps[1] == boolean.class
-                    && ClassLoader.class.isAssignableFrom(ps[2])) {
-                FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn + "(String,boolean,ClassLoader)");
-                return true;
-            }
 
             // Class.getDeclaredMethod(String, Class[])
             if (cn.equals("java.lang.Class") && mn.equals("getDeclaredMethod")
@@ -648,7 +640,7 @@ public class FHook {
                 return true;
             }
 
-            // Method.invoke(Object, Object[])
+            // Method.invoke(Object, Object[])  native 方法，不支持 JVMTI
             if (cn.equals("java.lang.reflect.Method") && mn.equals("invoke")
                     && ps.length == 2 && ps[1] == Object[].class) {
                 FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn + "(Object,Object[])");

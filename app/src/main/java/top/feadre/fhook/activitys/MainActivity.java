@@ -195,7 +195,7 @@ public class MainActivity extends AppCompatActivity {
 
     // ---------------------------------------------------
     private void initSysBt01() {
-//        Class<?> aClass1 = Class.forName("java.lang.String");
+//        Class<?> clazz = classLoader.loadClass("java.lang.String");
         Button bt_main_21 = findViewById(R.id.bt_main_21);
         bt_main_21.setText("21 classLoader_loadClass_Class_S");
         bt_main_21.setOnClickListener(v -> {
@@ -327,35 +327,36 @@ public class MainActivity extends AppCompatActivity {
 //                });
 
         // method = clazz.getDeclaredMethod("printStackTrace", int.class);
-        Method class_getDeclaredMethod_M_S_C = FHookTool.findMethod4First(
-                Class.class, "getDeclaredMethod");
-        FHook.hook(class_getDeclaredMethod_M_S_C)
-                .setOrigFunRun(false)
-                .setHookEnter((thiz, args, types, hh) -> {
-                    FLog.d(TAG, "[class_getDeclaredMethod_M_S_C] start ....");
-                })
-                .setHookExit((ret, type, hh) -> {
-                    FLog.d(TAG, "[class_getDeclaredMethod_M_S_C] start ....");
-                    return ret;
-                });
-
-
-//        // Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool");
-//        Method Class_forName = FHookTool.findMethod4First(Class.class, "forName");
-//        FHook.hook(Class_forName)
+//        Method class_getDeclaredMethod_M_S_C = FHookTool.findMethod4First(
+//                Class.class, "getDeclaredMethod");
+//        FHook.hook(class_getDeclaredMethod_M_S_C)
 //                .setOrigFunRun(false)
 //                .setHookEnter((thiz, args, types, hh) -> {
-//                    FLog.d(TAG, "[Class_forName_Class_S] start ....");
-//                    args.set(0, "java.lang.Integer");
+//                    FLog.d(TAG, "[class_getDeclaredMethod_M_S_C] start ....");
 //                })
 //                .setHookExit((ret, type, hh) -> {
-//                    if (ret != null) {
-//                        Class<?> _ret = (Class<?>) ret;
-//                        FLog.d(TAG, "[Class_forName_Class_S] end ....ret= " + _ret.getName());
-//                    }
+//                    FLog.d(TAG, "[class_getDeclaredMethod_M_S_C] start ....");
 //                    return ret;
 //                })
 //                .commit();
+
+
+        // Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool");
+        Method Class_forName = FHookTool.findMethod4First(Class.class, "forName");
+        FHook.hook(Class_forName)
+                .setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    FLog.d(TAG, "[Class_forName_Class_S] start ....");
+                    args.set(0, "java.lang.Integer");
+                })
+                .setHookExit((ret, type, hh) -> {
+                    if (ret != null) {
+                        Class<?> _ret = (Class<?>) ret;
+                        FLog.d(TAG, "[Class_forName_Class_S] end ....ret= " + _ret.getName());
+                    }
+                    return ret;
+                })
+                .commit();
 //
 //        // Class<?> clazz = classLoader.loadClass("java.lang.String");
 //        Method classLoader_loadClass_Class_S = FHookTool.findMethod4First(ClassLoader.class, "loadClass");
