@@ -106,21 +106,65 @@ namespace fir_funs_def {
         return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
-    lir::Method *
-    get_HookBridge_replace_fun(lir::CodeIr *code_ir) {
+    /// lookup.findStatic(Class refc, String name, MethodType type)
+    /// (Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;
+    lir::Method *get_lookup_findStatic(lir::CodeIr *code_ir) {
+        std::string name_class = "Ljava/lang/invoke/MethodHandles$Lookup;";
+        std::string name_method = "findStatic";
+        std::vector<std::string> param_types = {
+                "Ljava/lang/Class;",                 // refc
+                "Ljava/lang/String;",                // name
+                "Ljava/lang/invoke/MethodType;"     // type
+        };
+        std::string return_type = "Ljava/lang/invoke/MethodHandle;";
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
+    }
 
-        std::string name_class = "Lcom/zxc/jtik/HookBridge;";
-        std::string name_method = "replace_fun";
-        std::vector<std::string> param_types = {};
-        std::string return_type = "V";
+    /// MethodHandle.invokeWithArguments(Object[] arguments)
+    /// ([Ljava/lang/Object;)Ljava/lang/Object;
+    lir::Method *get_methodHandle_invokeWithArguments(lir::CodeIr *code_ir) {
+        std::string name_class = "Ljava/lang/invoke/MethodHandle;";
+        std::string name_method = "invokeWithArguments";
+        std::vector<std::string> param_types = {
+                "[Ljava/lang/Object;"          // arguments
+        };
+        std::string return_type = "Ljava/lang/Object;";
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
+    }
+
+    /// public Method getDeclaredMethod(String name, Class<?>... parameterTypes)
+    lir::Method *get_class_getDeclaredMethod(lir::CodeIr *code_ir) {
+
+        std::string name_class = "Ljava/lang/Class;";
+        std::string name_method = "getDeclaredMethod";
+        std::vector<std::string> param_types = {
+                "Ljava/lang/String;",
+                "[Ljava/lang/Class;"
+        };
+        std::string return_type = "Ljava/lang/reflect/Method;";
 
         return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
+    /// public native Object invoke(Object obj, Object... args)
+    lir::Method *get_method_invoke(lir::CodeIr *code_ir) {
+
+        std::string name_class = "Ljava/lang/reflect/Method;";
+        std::string name_method = "invoke";
+        std::vector<std::string> param_types = {
+                "Ljava/lang/Object;",
+                "[Ljava/lang/Object;"
+        };
+        std::string return_type = "Ljava/lang/Object;";
+
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
+    }
+
+
     // ------------------------------------------
 
     /// public static Class<?> forName(String className)
-    lir::Method *get_Class_forName(lir::CodeIr *code_ir) {
+    lir::Method *get_Class_forName_1p(lir::CodeIr *code_ir) {
 
         std::string name_class = "Ljava/lang/Class;";
         std::string name_method = "forName";
@@ -182,52 +226,47 @@ namespace fir_funs_def {
         return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
-
-    /// public static Class<?> forName(String name, boolean initialize,ClassLoader loader)
-    lir::Method *get_Class_forName4loader(lir::CodeIr *code_ir) {
+    /// Class.forName(String, boolean, ClassLoader)
+    /// (Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;
+    lir::Method *get_Class_forName_3p(lir::CodeIr *code_ir) {
 
         std::string name_class = "Ljava/lang/Class;";
         std::string name_method = "forName";
         std::vector<std::string> param_types = {
-                "Ljava/lang/String;",
-                "Z",
-                "Ljava/lang/ClassLoader;",
+                "Ljava/lang/String;",         // className
+                "Z",                          // initialize
+                "Ljava/lang/ClassLoader;"     // loader
         };
         std::string return_type = "Ljava/lang/Class;";
 
         return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
-    /// public Method getDeclaredMethod(String name, Class<?>... parameterTypes)
-    lir::Method *get_class_getDeclaredMethod(lir::CodeIr *code_ir) {
-
-        std::string name_class = "Ljava/lang/Class;";
-        std::string name_method = "getDeclaredMethod";
-        std::vector<std::string> param_types = {
-                "Ljava/lang/String;",
-                "[Ljava/lang/Class;"
-        };
-        std::string return_type = "Ljava/lang/reflect/Method;";
-
+    /// MethodHandles.publicLookup()
+    /// ()Ljava/lang/invoke/MethodHandles$Lookup;
+    lir::Method *get_MethodHandles_publicLookup(lir::CodeIr *code_ir) {
+        std::string name_class = "Ljava/lang/invoke/MethodHandles;";
+        std::string name_method = "publicLookup";
+        std::vector<std::string> param_types = {};
+        std::string return_type = "Ljava/lang/invoke/MethodHandles$Lookup;";
         return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
-    /// public native Object invoke(Object obj, Object... args)
-    lir::Method *get_method_invoke(lir::CodeIr *code_ir) {
-
-        std::string name_class = "Ljava/lang/reflect/Method;";
-        std::string name_method = "invoke";
+    // MethodType methodType(Class rtype, Class p1, Class p2)
+    lir::Method *get_MethodType_methodType_3p(lir::CodeIr *code_ir) {
+        std::string name_class = "Ljava/lang/invoke/MethodType;";
+        std::string name_method = "methodType";
         std::vector<std::string> param_types = {
-                "Ljava/lang/Object;",
-                "[Ljava/lang/Object;"
+                "Ljava/lang/Class;",  // rtype
+                "Ljava/lang/Class;",  // p1
+                "Ljava/lang/Class;"   // p2
         };
-        std::string return_type = "Ljava/lang/Object;";
-
+        std::string return_type = "Ljava/lang/invoke/MethodType;";
         return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
+
 
     // ------------------------------------------
-
     /// public static Object[] onEnter4fhook(Object[] rawArgs, long methodId)
     lir::Method *get_THook_onEnter(lir::CodeIr *code_ir) {
 

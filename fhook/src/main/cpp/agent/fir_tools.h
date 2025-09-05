@@ -18,6 +18,11 @@ namespace fir_tools {
                         dex::u4 reg_det,
                         dex::s4 value);
 
+    void EmitConstClass(lir::CodeIr *code_ir,
+                        const char *type_desc, // "[Ljava/lang/Object;"
+                        dex::u2 reg_dst,
+                        slicer::IntrusiveList<lir::Instruction>::Iterator &it);
+
     void unbox_scalar_value(slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point,
                             lir::CodeIr *code_ir,
                             ir::Type *type,

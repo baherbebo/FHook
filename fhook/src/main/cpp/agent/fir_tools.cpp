@@ -280,6 +280,21 @@ namespace fir_tools {
         code_ir->instructions.insert(insert_point, bc);
     }
 
+    void EmitConstClass(lir::CodeIr *code_ir,
+                        const char *type_desc, // "[Ljava/lang/Object;"
+                        dex::u2 reg_dst,
+                        slicer::IntrusiveList<lir::Instruction>::Iterator &it) {
+        ir::Builder builder(code_ir->dex_ir);
+        const auto type = builder.GetType(type_desc);
+
+        auto bc = code_ir->Alloc<lir::Bytecode>();
+        bc->opcode = dex::OP_CONST_CLASS;
+        bc->operands.push_back(code_ir->Alloc<lir::VReg>(reg_dst));
+        bc->operands.push_back(code_ir->Alloc<lir::Type>(type, type->orig_index));
+        code_ir->instructions.insert(it, bc);
+    }
+
+
     /**
      * 核心方法 **********
      * 宽类型一定要用 偶数寄存器，需要在调用时处理

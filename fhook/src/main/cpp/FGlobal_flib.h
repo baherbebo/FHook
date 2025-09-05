@@ -51,4 +51,12 @@ inline bool SigEq(const std::string &a, const char *b) noexcept {
 // char 比较
 inline bool StrEq(const char *a, const char *b) noexcept { return std::strcmp(a, b) == 0; }
 
+#define CHECK_OR_RETURN(val, ret,msg)        \
+    do {                                      \
+        if (!(val)) {                         \
+            LOGE("%s", msg);                  \
+            return (ret);                     \
+        }                                     \
+    } while (0)
+
 #endif //PJ02_FGLOBAL_FLIB_H

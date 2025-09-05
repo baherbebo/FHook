@@ -10,22 +10,16 @@
 
 namespace fir_funs_do {
     /** ----------------- 静态函数区 ------------------- */
-    void do_ClassLoader_getSystemClassLoader(
-            lir::Method *f_ClassLoader_getSystemClassLoader,
-            lir::CodeIr *code_ir,
-            dex::u2 reg_tmp_return,
-            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
+    void do_static_0p(lir::Method *method,
+                      lir::CodeIr *code_ir,
+                      dex::u2 reg_return,
+                      slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
-    void do_Thread_currentThread(
-            lir::Method *f_Thread_currentThread,
-            lir::CodeIr *code_ir,
-            dex::u2 reg_tmp_return,
-            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
-    void do_Class_forName(
+    void do_Class_forName_1p(
             lir::Method *f_Class_forName,
             lir::CodeIr *code_ir,
-            dex::u2 reg1, dex::u2 reg_tmp_return,
+            dex::u2 reg1_tmp, dex::u2 reg_return,
             std::string &name_class,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point
     );
@@ -34,7 +28,7 @@ namespace fir_funs_do {
             lir::Method *f_THook_onExit,
             lir::CodeIr *code_ir,
             int reg1_arg,  // onExit object 的参数寄存器（如 v4）
-            int reg_tmp_return, // onExit 返回值 object 可以相同
+            int reg_return, // onExit 返回值 object 可以相同
             int reg2_tmp_long, // 宽寄存器
             uint64_t method_id, // uint64_t
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
@@ -52,9 +46,9 @@ namespace fir_funs_do {
     void do_class_getDeclaredMethod(
             lir::Method *f_class_getDeclaredMethod,
             lir::CodeIr *code_ir,
-            dex::u2 reg1, // class对象
-            dex::u2 reg2, // 方法名
-            dex::u2 reg3, // 方法参数
+            dex::u2 reg_class, // class对象
+            dex::u2 reg1_tmp, // 方法名
+            dex::u2 reg_class_arr, // 方法参数
             dex::u2 reg_return,
             std::string &name_fun,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
@@ -62,40 +56,28 @@ namespace fir_funs_do {
     bool do_THook_onEnter(
             lir::Method *f_THook_onEnter,
             lir::CodeIr *code_ir,
-            dex::u2 reg1_arg, // Object[]
-            dex::u2 reg2_tmp_long, // long 必须宽寄存器
+            dex::u2 reg_arg, // Object[]
+            dex::u2 reg_tmp_long, // long 必须宽寄存器
             dex::u2 reg_return,
             uint64_t method_id, // uint64_t
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point
     );
 
-    void do_HookBridge_replace_fun(
-            lir::Method *f_HookBridge_replace_fun,
-            lir::CodeIr *code_ir,
-            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point
-    );
 
-    void do_Class_forName4loader(
+    void do_Class_forName_3p(
             lir::Method *f_Class_forName4loader,
             lir::CodeIr *code_ir,
-            dex::u2 reg1, dex::u2 reg2, dex::u2 reg3,
+            dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_classloader,
             dex::u2 reg_return,
             std::string &name_class,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
-    void do_ClassLoader_loadClass(
-            lir::Method *f_classloader_loadClass,
-            lir::CodeIr *code_ir,
-            dex::u2 reg1, dex::u2 reg2,
-            dex::u2 reg_return,
-            std::string &name_class,
-            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
     /** ----------------- 对象函数区 ------------------- */
     void do_classloader_loadClass(
             lir::Method *f_classloader_loadClass,
             lir::CodeIr *code_ir,
-            dex::u2 reg1, dex::u2 reg2,
+            dex::u2 reg_class, dex::u2 reg2_tmp,
             dex::u2 reg_return,
             std::string name_class,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
@@ -103,16 +85,16 @@ namespace fir_funs_do {
     void do_thread_getContextClassLoader(
             lir::Method *f_thread_getContextClassLoader,
             lir::CodeIr *code_ir,
-            dex::u2 reg1,
+            dex::u2 reg_thread,
             dex::u2 reg_return,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
     void do_class_getDeclaredMethod(
             lir::Method *f_class_getDeclaredMethod,
             lir::CodeIr *code_ir,
-            dex::u2 reg1, // class对象
-            dex::u2 reg2, // 方法名
-            dex::u2 reg3, // 方法参数
+            dex::u2 reg_class, // class对象
+            dex::u2 reg1_tmp, // 方法名
+            dex::u2 reg_class_arr, // 方法参数
             dex::u2 reg_return,
             std::string &name_fun,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
@@ -120,7 +102,7 @@ namespace fir_funs_do {
     bool do_apploader_static_fun(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp,//额外临时寄存器
-            int reg_method_arg, // 可以为null 用于存储方法参数类型数组（Class[]）
+            int reg_method_args, // 可以为null 用于存储方法参数类型数组（Class[]）
             int reg_do_args,// 可以为null 原始参数数组（Object[]）
             dex::u2 reg_return, // 可重复
             std::string &name_class,

@@ -44,33 +44,6 @@ namespace finject {
     }
 
 
-    /**
-     Thread thread = Thread.currentThread();
-    ClassLoader contextClassLoader = thread.getContextClassLoader();
-     * @param m
-     * @return
-     */
-    static bool is_bridge_critical_ir(const ir::EncodedMethod *m) {
-        if (!m || !m->decl || !m->decl->parent || !m->decl->prototype) return false;
-        const std::string cls = m->decl->parent->Decl();
-        const std::string mn = m->decl->name->c_str();
-        const std::string sig = m->decl->prototype->Signature();
-
-        // Thread.currentThread()
-        if (cls == "Ljava/lang/Thread;" && mn == "currentThread"
-            && sig == "()Ljava/lang/Thread;")
-            return true;
-
-        // Thread.getContextClassLoader()
-        if (cls == "Ljava/lang/Thread;" && mn == "getContextClassLoader"
-            && sig == "()Ljava/lang/ClassLoader;")
-            return true;
-
-
-        return false;
-    }
-
-
     static bool do_HEnter(const deploy::Transform *transform,
                           const deploy::MethodHooks hook_info,
                           lir::CodeIr *code_ir,
@@ -153,20 +126,24 @@ namespace finject {
                     code_ir, regs6[0], regs6[1], regs6[2], insert_point);
 
             // --------------------- 3
-            count = 3;
-            forbidden_v.push_back(regs6[2]);
-            auto regs7 = FRegManager::AllocV(code_ir, forbidden_v, count);
+            if (is_run_backup_plan) {
+                count = 3;
+                forbidden_v.push_back(regs6[2]);
+                auto regs7 = FRegManager::AllocV(code_ir, forbidden_v, count);
 
-            // 执行结果返回到 v0`
-            bool res = fir_funs_do::do_apploader_static_fun(
-                    code_ir, regs7[0], regs7[1], regs7[2],
-                    regs6[2], regs5[2],
-                    regs7[0],
-                    g_name_class_THook, g_name_fun_onEnter,
-                    insert_point);
-            if (!res)return false;
+                // 执行结果返回到 v0`
+                bool res = fir_funs_do::do_apploader_static_fun(
+                        code_ir, regs7[0], regs7[1], regs7[2],
+                        regs6[2], regs5[2],
+                        regs7[0],
+                        g_name_class_THook, g_name_fun_onEnter,
+                        insert_point);
+                if (!res)return false;
 
-            reg_do_return = regs7[0];
+                reg_do_return = regs7[0];
+            } else {
+
+            }
         }
 
 
@@ -304,7 +281,7 @@ namespace finject {
             reg_return_dst = reg_do_arg;
 
         } else {
-            // 系统侧 搞用
+            // 系统侧 调用用
             LOGD("[doHExit] 系统侧 调用 isHExit ...")
 
             // --------------------- 2 反射 Class 要再包一层
@@ -334,19 +311,24 @@ namespace finject {
 
 
             // --------------------- 4
-            count = 3;
-            forbidden_v.push_back(regs10[2]);
-            auto regs11 = FRegManager::AllocV(
-                    code_ir, forbidden_v, count, "regs11");
-            CHECK_ALLOC_OR_RET(regs11, count, -1, "[doHExit] regs11 申请寄存器失败 ...");
+            if (is_run_backup_plan) {
+                count = 3;
+                forbidden_v.push_back(regs10[2]);
+                auto regs11 = FRegManager::AllocV(
+                        code_ir, forbidden_v, count, "regs11");
+                CHECK_ALLOC_OR_RET(regs11, count, -1, "[doHExit] regs11 申请寄存器失败 ...");
 
-            bool res = fir_funs_do::do_apploader_static_fun(
-                    code_ir, regs11[0], regs11[1], regs11[2],
-                    regs10[2], regs9[1], regs11[2],
-                    g_name_class_THook, g_name_fun_onExit,
-                    insert_point);
-            if (!res) return -1;
-            reg_return_dst = regs11[2];
+                bool res = fir_funs_do::do_apploader_static_fun(
+                        code_ir, regs11[0], regs11[1], regs11[2],
+                        regs10[2], regs9[1], regs11[2],
+                        g_name_class_THook, g_name_fun_onExit,
+                        insert_point);
+                if (!res) return -1;
+                reg_return_dst = regs11[2];
+            } else {
+                // do_apploader_static_fun_B
+            }
+
         }
 
         return reg_return_dst;
