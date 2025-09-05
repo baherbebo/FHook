@@ -548,11 +548,11 @@ namespace fir_funs_do {
     }
 
 
-    /// 支持 各种参数反射执行
     /**
      * 插桩绕开 loadClass，直接拿 Class<?> 或走 findClass
      * 重入/递归保护（ThreadLocal）
-     *
+     * 原理 Thread → ContextClassLoader → loadClass → getDeclaredMethod → Method.invoke
+     * ClassLoader#loadClass、Class#getDeclaredMethod、Method#invoke
      *
      * @param code_ir
      * @param reg1_tmp

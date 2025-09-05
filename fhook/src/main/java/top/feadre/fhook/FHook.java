@@ -331,15 +331,33 @@ public class FHook {
         }
     }
 
-    ///  接口/抽象/native/<clinit> 等不支持的；
+    ///  接口/抽象/native/<clinit> 等不支持的；  桥接方法
     public static boolean canHook(Method method) {
-        if (method == null) return false;
+        if (method == null) {
+            FLog.e(TAG, "[canHook] method == null");
+            return false;
+        }
         Class<?> declaring = method.getDeclaringClass();
         int mods = method.getModifiers();
-        if (declaring.isInterface() || declaring.isAnnotation()) return false;
-        if (Modifier.isAbstract(mods)) return false;
-        if (Modifier.isNative(mods)) return false;
-        if ("<clinit>".equals(method.getName())) return false;
+        if (declaring.isInterface() || declaring.isAnnotation()) {
+            FLog.e(TAG, "[canHook] interface/annotation/abstract/native/<clinit> 不支持: " + method);
+            return false;
+        }
+        if (Modifier.isAbstract(mods)) {
+            FLog.e(TAG, "[canHook] abstract 不支持: " + method);
+            return false;
+        }
+        if (Modifier.isNative(mods)) {
+            FLog.e(TAG, "[canHook] native 不支持: " + method);
+            return false;
+        }
+        if ("<clinit>".equals(method.getName())) {
+            FLog.e(TAG, "[canHook] <clinit> 不支持: " + method);
+            return false;
+        }
+
+        if (isBridgeCritical(method)) return false;
+
         return true;
     }
 
@@ -412,6 +430,7 @@ public class FHook {
 
     /**
      * !canHook(m)：接口/抽象/native/<clinit> 等不支持的；
+     *
      * @param cls
      * @return
      */
@@ -576,5 +595,68 @@ public class FHook {
 
         return new HookHandle(-1, method);
     }
+
+
+    /**
+     * 桥接方法（JVMTI 不支持）
+     *
+     * @param m
+     * @return
+     */
+    private static boolean isBridgeCritical(Method m) {
+        if (m == null) return false;
+        final String cn = m.getDeclaringClass().getName();
+        final String mn = m.getName();
+        final Class<?>[] ps = m.getParameterTypes();
+
+        // Thread.currentThread()
+        if (cn.equals("java.lang.Thread") && mn.equals("currentThread") && ps.length == 0) {
+            FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn);
+            return true;
+        }
+
+        // Thread.getContextClassLoader()
+        if (cn.equals("java.lang.Thread") && mn.equals("getContextClassLoader") && ps.length == 0) {
+            FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn);
+            return true;
+        }
+
+        // ClassLoader.loadClass(String)  —— 我们桥接里用的是这个重载
+        if (cn.equals("java.lang.ClassLoader") && mn.equals("loadClass")
+                && ps.length == 1 && ps[0] == String.class) {
+            FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn + "(String)");
+            return true;
+        }
+        // （如你未来改成用 forName，可把下面这一条放开）
+        // Class.forName(String, boolean, ClassLoader)
+        if (cn.equals("java.lang.Class") && mn.equals("forName")
+                && ps.length == 3 && ps[0] == String.class && ps[1] == boolean.class
+                && ClassLoader.class.isAssignableFrom(ps[2])) {
+            FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn + "(String,boolean,ClassLoader)");
+            return true;
+        }
+
+        // Class.getDeclaredMethod(String, Class[])
+        if (cn.equals("java.lang.Class") && mn.equals("getDeclaredMethod")
+                && ps.length == 2 && ps[0] == String.class && ps[1] == Class[].class) {
+            FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn + "(String,Class[])");
+            return true;
+        }
+
+        // Method.invoke(Object, Object[])
+        if (cn.equals("java.lang.reflect.Method") && mn.equals("invoke")
+                && ps.length == 2 && ps[1] == Object[].class) {
+            FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn + "(Object,Object[])");
+            return true;
+        }
+
+        if (cn.startsWith("top.feadre.fhook.")) {
+            FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn);
+            return true;
+        }
+
+        return false;
+    }
+
 
 }
