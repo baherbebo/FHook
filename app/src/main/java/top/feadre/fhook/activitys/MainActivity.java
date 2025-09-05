@@ -117,7 +117,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         Button bt_main_06 = findViewById(R.id.bt_main_06);
-        bt_main_06.setText("06 查看类的实例");
+        bt_main_06.setText("06 查看类的实例hook实例");
         bt_main_06.setOnClickListener(v -> {
             TObject o1 = new TObject("o1", 1);
             TObject o2 = new TObject("o2", 1);
@@ -130,8 +130,19 @@ public class MainActivity extends AppCompatActivity {
                 FLog.d(TAG, "TObject instance: " + o);
             }
 
+
             Class<?>[] classes1 = CLinker.jcJvmtiFindImpl(SharedPreferences.Editor.class);
             for (Class<?> clazz : classes1) {
+                FHook.hook(clazz)
+                        .setHookEnter((thiz, args, types, hh) -> {
+                            FLog.d(TAG, "SharedPreferences.Editor.class.getName()=" + clazz.getName());
+                            showLog("SharedPreferences.Editor.class.getName()", thiz, args, types);
+                        })
+                        .setHookExit((thiz, ret, hh) -> {
+                            showLog("SharedPreferences.Editor.class.getName()", thiz, ret, ret.getClass());
+                            return ret;
+                        })
+                        .commit();
                 FLog.d(TAG, "SharedPreferences.Editor: " + clazz.getName());
             }
         });
@@ -144,7 +155,12 @@ public class MainActivity extends AppCompatActivity {
                     .setOrigFunRun(false)
                     .setHookEnter((thiz, args, types, hh) -> {
                         FLog.d(TAG, "TObject.class.getName()=" + TObject.class.getName());
-                    }).commit();
+                    })
+                    .setHookExit((thiz, ret, hh) -> {
+                        FLog.d(TAG, "TObject.class.getName()=" + TObject.class.getName());
+                        return ret;
+                    })
+                    .commit();
 
         });
 
@@ -240,7 +256,7 @@ public class MainActivity extends AppCompatActivity {
         bt_main_25.setOnClickListener(v -> {
             try {
                 SharedPreferences sp = getSharedPreferences("demo", MODE_PRIVATE);
-                boolean ok = sp.edit().putString("k", "v@" + System.currentTimeMillis()).commit();
+                boolean ok = sp.edit().putString("k", "时间" + System.currentTimeMillis()).commit();
                 String v2 = sp.getString("k", "");
                 Toast.makeText(this, "commit=" + ok + ", v=" + v2, Toast.LENGTH_SHORT).show();
             } catch (Throwable e) {
@@ -345,27 +361,27 @@ public class MainActivity extends AppCompatActivity {
 //        }
 
 // ============ 24) Settings.Secure.getString(ContentResolver, String) ============
-//        {
-//            java.lang.reflect.Method mGetString =
-//                    android.provider.Settings.Secure.class.getMethod(
-//                            "getString", android.content.ContentResolver.class, String.class);
-//
-//            FHook.hook(mGetString)
-//                    .setOrigFunRun(true)
-//                    .setHookEnter((thiz, args, types, hh) -> {
-//                        // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
-//                        showLog("Settings.Secure.getString", thiz, args, types);
-//                    })
-//                    .setHookExit((ret, type, hh) -> {
-//                        showLog("Settings.Secure.getString", hh.thisObject, ret, type);
-//                        // 演示：在返回值后面加标记，肉眼可见 hook 生效
-//                        if (ret instanceof String) {
-//                            ret = ret + "_HOOK";
-//                        }
-//                        return ret;
-//                    })
-//                    .commit();
-//        }
+        {
+            java.lang.reflect.Method mGetString =
+                    android.provider.Settings.Secure.class.getMethod(
+                            "getString", android.content.ContentResolver.class, String.class);
+
+            FHook.hook(mGetString)
+                    .setOrigFunRun(true)
+                    .setHookEnter((thiz, args, types, hh) -> {
+                        // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
+                        showLog("Settings.Secure.getString", thiz, args, types);
+                    })
+                    .setHookExit((ret, type, hh) -> {
+                        showLog("Settings.Secure.getString", hh.thisObject, ret, type);
+                        // 演示：在返回值后面加标记，肉眼可见 hook 生效
+                        if (ret instanceof String) {
+                            ret = ret + "_HOOK";
+                        }
+                        return ret;
+                    })
+                    .commit();
+        }
 
 // ============ 25) SharedPreferences.Editor.commit() ============
         {
