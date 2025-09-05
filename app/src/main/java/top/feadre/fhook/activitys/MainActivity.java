@@ -13,6 +13,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 
+import top.feadre.fhook.CLinker;
 import top.feadre.fhook.FCFG;
 import top.feadre.fhook.FHook;
 import top.feadre.fhook.FHookTool;
@@ -113,6 +114,24 @@ public class MainActivity extends AppCompatActivity {
         bt_main_05.setText("05 查看已hook的情况");
         bt_main_05.setOnClickListener(v -> {
             FHook.showHookInfo();
+        });
+
+        Button bt_main_06 = findViewById(R.id.bt_main_06);
+        bt_main_06.setText("05 查看类的实例");
+        bt_main_06.setOnClickListener(v -> {
+            TObject o1 = new TObject("o1", 1);
+            TObject o2 = new TObject("o2", 1);
+            TObject o3 = new TObject("o3", 1);
+
+            Object[] instances = CLinker.jcJvmtiFindInstances(TObject.class, true);
+            for (Object o : instances) {
+                FLog.d(TAG, "TObject instance: " + o);
+            }
+
+            Class<?>[] classes1 = CLinker.jcJvmtiFindImpl(SharedPreferences.Editor.class);
+            for (Class<?> clazz : classes1) {
+                FLog.d(TAG, "SharedPreferences.Editor: " + clazz.getName());
+            }
         });
 
 

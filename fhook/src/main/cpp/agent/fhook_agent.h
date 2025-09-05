@@ -22,6 +22,16 @@ const std::string AgentDoUnHookTransformFnName = "agent_do_unHook_transform";
 
 typedef jboolean (*AgentDoUnHookTransformFn)(JNIEnv *env, jlong jTargetMethod);
 
+const std::string agent_do_find_impl4name = "agent_do_find_impl";
+
+typedef jobjectArray (*agent_do_find_impl4type)(JNIEnv *env, jclass clazz);
+
+const std::string agent_do_find_instances4name = "agent_do_find_instances";
+
+typedef jobjectArray (*agent_do_find_instances4type)(JNIEnv *env,
+                                                     jclass targetClass,
+                                                     jboolean onlyLive);
+
 class LocalJvmCharPtr {
 public:
     explicit LocalJvmCharPtr(jvmtiEnv *jvmtiEnv) : mJvmtiEnv(jvmtiEnv), mPtr(nullptr) {}

@@ -16,8 +16,12 @@
 #include "../dexter/slicer/writer.h"
 
 static jvmtiEnv *fAgentJvmtiEnv = nullptr; // 全局JVMTI环境
+static JavaVM *f_vm;
+
 static std::map<std::string, std::unique_ptr<deploy::Transform>> fClassTransforms;// 当前已hook的所有配置
 thread_local deploy::Transform *current_transform = nullptr; // 当前hook配置，用于缓存和隔离其它类
+
+
 
 /**
  * loader 通过 loader 拿到类加载器的类型显示
@@ -124,14 +128,27 @@ static int SetNeedCapabilities(jvmtiEnv *jvmti) {
     jvmtiCapabilities caps = {0};
     jvmtiError error;
     error = jvmti->GetPotentialCapabilities(&caps);
-    LOGD("[SetNeedCapabilities] %d, %d, %d, %d", caps.can_redefine_classes,
-         caps.can_retransform_any_class, caps.can_set_native_method_prefix, error);
+
+    LOGD("[SetNeedCapabilities] %d, %d, %d, %d",
+         caps.can_redefine_classes,
+         caps.can_retransform_any_class,
+         caps.can_set_native_method_prefix,
+         error);
+
     jvmtiCapabilities newCaps = {0};
     newCaps.can_retransform_classes = 1;
     if (caps.can_set_native_method_prefix) {
         newCaps.can_set_native_method_prefix = 1;
+
     }
-    return jvmti->AddCapabilities(&newCaps);
+
+    if (caps.can_tag_objects) {
+        newCaps.can_tag_objects = 1; // 开启类实例侦测
+    }
+
+    jvmtiError addErr = jvmti->AddCapabilities(&newCaps);
+    LOGD("[AddCapabilities] err=%d (0=OK, 99=MUST_POSSESS_CAPABILITY)", addErr);
+    return addErr;
 }
 
 /**
@@ -540,7 +557,7 @@ extern "C" JNIEXPORT jint JNICALL Agent_OnAttach(JavaVM *vm, char *options,
         LOGE("[Agent_OnAttach] vm is null")
         return false;
     }
-
+    f_vm = vm; // 缓存全局
 
     jvmtiEnv *jvmti_env;
     // 全局ENV 缓存
@@ -550,7 +567,7 @@ extern "C" JNIEXPORT jint JNICALL Agent_OnAttach(JavaVM *vm, char *options,
         return false;
     }
 
-    fAgentJvmtiEnv = jvmti_env;
+    fAgentJvmtiEnv = jvmti_env; // 缓存全局
 
     // 检查 JVMTI 能力（如 can_retransform_classes 支持类重转换），这是修改类字节码的前提
     int setRet = SetNeedCapabilities(jvmti_env);
@@ -573,4 +590,177 @@ extern "C" JNIEXPORT jint JNICALL Agent_OnAttach(JavaVM *vm, char *options,
     LOGD("[Agent_OnAttach] 完成")
     return error;
 }
+
+// ---------------------------------------------------  查找内存实例 或实现
+static bool CheckAndClear(JNIEnv *env) {
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return true;
+    }
+    return false;
+}
+
+static bool IsConcreteClass(JNIEnv *env, jclass cls) {
+    if (cls == nullptr) return false;
+
+    jclass classCls = env->FindClass("java/lang/Class");
+    if (CheckAndClear(env) || !classCls) return false;
+
+    jmethodID midGetModifiers = env->GetMethodID(classCls, "getModifiers", "()I");
+    jmethodID midIsInterface = env->GetMethodID(classCls, "isInterface", "()Z");
+    jmethodID midIsSynthetic = env->GetMethodID(classCls, "isSynthetic", "()Z");
+    if (CheckAndClear(env) || !midGetModifiers || !midIsInterface || !midIsSynthetic) return false;
+
+    // interface?
+    jboolean isInterface = env->CallBooleanMethod(cls, midIsInterface);
+    if (CheckAndClear(env)) return false;
+    if (isInterface) return false;
+
+    // abstract?
+    jint mods = env->CallIntMethod(cls, midGetModifiers);
+    if (CheckAndClear(env)) return false;
+
+    jclass modifierCls = env->FindClass("java/lang/reflect/Modifier");
+    if (CheckAndClear(env) || !modifierCls) return false;
+    jmethodID midIsAbstract = env->GetStaticMethodID(modifierCls, "isAbstract", "(I)Z");
+    if (CheckAndClear(env) || !midIsAbstract) return false;
+
+    jvalue arg{};
+    arg.i = mods; // 用 A 版本显式传参，避免可变参数问题
+    jboolean isAbs = env->CallStaticBooleanMethodA(modifierCls, midIsAbstract, &arg);
+    if (CheckAndClear(env)) return false;
+    if (isAbs) return false;
+
+    // synthetic?
+    jboolean isSyn = env->CallBooleanMethod(cls, midIsSynthetic);
+    if (CheckAndClear(env)) return false;
+    if (isSyn) return false;
+
+    // （可选）排除数组/原始类型
+    jmethodID midIsArray = env->GetMethodID(classCls, "isArray", "()Z");
+    jmethodID midIsPrimitive = env->GetMethodID(classCls, "isPrimitive", "()Z");
+    if (midIsArray && env->CallBooleanMethod(cls, midIsArray)) return false;
+    if (midIsPrimitive && env->CallBooleanMethod(cls, midIsPrimitive)) return false;
+
+    return true;
+}
+
+
+extern "C" JNIEXPORT jobjectArray JNICALL agent_do_find_impl(JNIEnv *env,
+                                                             jclass ifaceOrAbstract) {
+
+    LOGD("[agent_do_find_impl] start ...")
+    if (!fAgentJvmtiEnv || ifaceOrAbstract == nullptr) return nullptr;
+
+    jint count = 0;
+    jclass *classes = nullptr;
+    jvmtiError err = fAgentJvmtiEnv->GetLoadedClasses(&count, &classes);
+    if (err != JVMTI_ERROR_NONE || count <= 0 || !classes) return nullptr;
+
+    std::vector<jclass> results;
+    results.reserve(128);
+
+    jclass classCls = env->FindClass("java/lang/Class");
+    if (CheckAndClear(env) || !classCls) {
+        fAgentJvmtiEnv->Deallocate(reinterpret_cast<unsigned char *>(classes));
+        return nullptr;
+    }
+    jmethodID midIsAssignableFrom = env->GetMethodID(classCls, "isAssignableFrom",
+                                                     "(Ljava/lang/Class;)Z");
+    jmethodID midGetName = env->GetMethodID(classCls, "getName", "()Ljava/lang/String;");
+    if (CheckAndClear(env) || !midIsAssignableFrom || !midGetName) {
+        fAgentJvmtiEnv->Deallocate(reinterpret_cast<unsigned char *>(classes));
+        LOGE("[agent_do_find_impl] GetMethodID failed")
+        return nullptr;
+    }
+
+    for (int i = 0; i < count; ++i) {
+        jclass c = classes[i];
+        if (!c) continue;
+
+        // ifaceOrAbstract.isAssignableFrom(c)
+        jboolean ok = env->CallBooleanMethod(ifaceOrAbstract, midIsAssignableFrom, c);
+        if (CheckAndClear(env) || !ok) continue;
+
+        if (!IsConcreteClass(env, c)) continue;
+
+        // （可选）过滤反射/代理类
+        jstring jname = (jstring) env->CallObjectMethod(c, midGetName);
+        if (CheckAndClear(env) || !jname) continue;
+        const char *name = env->GetStringUTFChars(jname, nullptr);
+        bool skip = name && (
+                strncmp(name, "java.lang.reflect.", 18) == 0 ||
+                strncmp(name, "sun.reflect.", 12) == 0
+        );
+        env->ReleaseStringUTFChars(jname, name);
+        if (skip) continue;
+
+        results.push_back((jclass) env->NewGlobalRef(c));
+    }
+
+    fAgentJvmtiEnv->Deallocate(reinterpret_cast<unsigned char *>(classes));
+
+    // 打包返回：数组元素类型是 java/lang/Class
+    jobjectArray arr = env->NewObjectArray((jsize) results.size(), classCls, nullptr);
+    if (CheckAndClear(env) || !arr) {
+        for (jclass gc: results) env->DeleteGlobalRef(gc);
+        LOGE("[agent_do_find_impl] NewObjectArray failed")
+        return nullptr;
+    }
+    for (jsize i = 0; i < (jsize) results.size(); ++i) {
+        env->SetObjectArrayElement(arr, i, results[i]);
+        env->DeleteGlobalRef(results[i]);
+    }
+    return arr;
+}
+
+
+static jint JNICALL TagInstanceCb(jlong /*class_tag*/,
+                                  jlong /*size*/,
+                                  jlong *tag_ptr,
+                                  void *user_data) {
+    // 仅打 tag，不做 JNI 操作
+    *tag_ptr = (jlong) (uintptr_t) user_data;  // 非 0
+    return JVMTI_ITERATION_CONTINUE;
+}
+
+extern "C"
+JNIEXPORT jobjectArray JNICALL agent_do_find_instances(JNIEnv *env,
+                                                       jclass klass,
+                                                       jboolean only_live) {
+
+    LOGD("[agent_do_find_instances] start ...")
+    if (!fAgentJvmtiEnv || !klass) {
+        jclass obj = env->FindClass("java/lang/Object");
+        return env->NewObjectArray(0, obj, nullptr);
+    }
+
+    if (only_live) (void) fAgentJvmtiEnv->ForceGarbageCollection();
+
+    jlong tag = ((((jlong) (uintptr_t) klass) ^ ((jlong) clock())) | 1);
+    jvmtiError e = fAgentJvmtiEnv->IterateOverInstancesOfClass(
+            klass, JVMTI_HEAP_OBJECT_EITHER, (jvmtiHeapObjectCallback) TagInstanceCb,
+            (void *) (uintptr_t) tag);
+    LOGD("IterateOverInstancesOfClass -> %d", e);
+
+    jint count = 0;
+    jobject *objects = nullptr;
+    jlong *tags = nullptr;
+    e = fAgentJvmtiEnv->GetObjectsWithTags(1, &tag, &count, &objects, &tags);
+    LOGD("GetObjectsWithTags -> %d, count=%d", e, count);
+
+    jclass objCls = env->FindClass("java/lang/Object");
+    jobjectArray arr = env->NewObjectArray(count > 0 ? count : 0, objCls, nullptr);
+
+    if (e == JVMTI_ERROR_NONE && count > 0 && objects) {
+        for (jint i = 0; i < count; ++i) {
+            env->SetObjectArrayElement(arr, i, objects[i]);
+            (void) fAgentJvmtiEnv->SetTag(objects[i], 0);
+        }
+        fAgentJvmtiEnv->Deallocate((unsigned char *) objects);
+        if (tags) fAgentJvmtiEnv->Deallocate((unsigned char *) tags);
+    }
+    return arr;
+}
+
 

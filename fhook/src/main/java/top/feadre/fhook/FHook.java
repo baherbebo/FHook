@@ -115,7 +115,7 @@ public class FHook {
             Debug.attachJvmtiAgent(name_so_fhook_agent, null, context.getClassLoader());
 
             // c++ 加载 name_so_fhook_agent
-            boolean res = CLinker.dcJvmtiSuccess(name_so_fhook_agent);
+            boolean res = CLinker.jcJvmtiSuccess(name_so_fhook_agent);
             if (res) {
                 r.note = "attach success Jvmti 第一次就初始化成功";
                 r.attachOk = true;
@@ -145,7 +145,7 @@ public class FHook {
                 Debug.attachJvmtiAgent("libfhook_agent.so", null, context.getClassLoader());
 
                 // c++ 加载 name_so_fhook_agent
-                boolean res = CLinker.dcJvmtiSuccess(name_so_fhook_agent);
+                boolean res = CLinker.jcJvmtiSuccess(name_so_fhook_agent);
                 if (res) {
                     r.attachOk = true;
                     r.note = "attach success after enabling Runtime debuggable";
@@ -222,6 +222,10 @@ public class FHook {
 
         return new HookHandle(-1, method);
     }
+
+
+
+
 
     static synchronized void installOnce(HookHandle h) {
         if (h == null || h.method == null) return;

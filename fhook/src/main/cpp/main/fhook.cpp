@@ -275,7 +275,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_top_feadre_fhook_CLinker_dcJvmtiSuccess(JNIEnv *env, jclass clazz,
+Java_top_feadre_fhook_CLinker_jcJvmtiSuccess(JNIEnv *env, jclass clazz,
                                              jstring name_so_fhook_agent) {
     LOGD("[dcJvmtiSuccess] start...")
     if (!name_so_fhook_agent) {
@@ -295,4 +295,36 @@ Java_top_feadre_fhook_CLinker_dcJvmtiSuccess(JNIEnv *env, jclass clazz,
 
     return true;
 
+}
+extern "C"
+JNIEXPORT jobjectArray JNICALL
+Java_top_feadre_fhook_CLinker_jcJvmtiFindImpl(JNIEnv *env, jclass clazz, jclass ifaceOrAbstract) {
+    LOGD("[jcJvmtiFindImpl] start...")
+    auto transformFn = getAgentFn<agent_do_find_impl4type>(
+            agent_do_find_impl4name.c_str());
+
+    if (transformFn == nullptr) {
+        LOGE("[jcJvmtiFindImpl] 没有找到符号 %s", agent_do_find_impl4name.c_str())
+        return nullptr;
+    }
+
+    return transformFn(env, ifaceOrAbstract);
+}
+
+
+extern "C"
+JNIEXPORT jobjectArray JNICALL
+Java_top_feadre_fhook_CLinker_jcJvmtiFindInstances(JNIEnv *env, jclass clazz, jclass klass,
+                                                   jboolean only_live) {
+
+    LOGD("[jcJvmtiFindInstances] start...")
+    auto transformFn = getAgentFn<agent_do_find_instances4type>(
+            agent_do_find_instances4name.c_str());
+
+    if (transformFn == nullptr) {
+        LOGE("[jcJvmtiFindInstances] 没有找到符号 %s", agent_do_find_instances4name.c_str())
+        return nullptr;
+    }
+
+    return transformFn(env, klass,only_live);
 }
