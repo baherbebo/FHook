@@ -9,6 +9,9 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -71,6 +74,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initCtr() {
+        Button bt_main_37 = findViewById(R.id.bt_main_37);
+        bt_main_37.setText("37 方法2测试");
+        bt_main_37.setOnClickListener(v -> {
+
+
+            FFunsUI.toast(this, "方法2测试 点击");
+        });
+
+        // --------------------------------------
         Button bt_main_01 = findViewById(R.id.bt_main_01);
         bt_main_01.setText("01 hook普通方法");
         bt_main_01.setOnClickListener(v -> {
@@ -241,12 +253,25 @@ public class MainActivity extends AppCompatActivity {
             try {
                 Thread thread = Thread.currentThread();
                 ClassLoader contextClassLoader = thread.getContextClassLoader();
+
+                // 方案A
                 Class<?> clazz = contextClassLoader.loadClass("top.feadre.fhook.FHookTool");
                 method = clazz.getDeclaredMethod("printStackTrace", int.class);
-                method.invoke(null, 5);
+                Object res = method.invoke(null, 5);
 
-                FLog.d(TAG, "clazz=" + clazz);
-                FLog.d(TAG, "method=" + method);
+                // 方案B
+//                Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool", true, contextClassLoader);
+//                MethodHandles.Lookup lk = MethodHandles.publicLookup();
+//                MethodType mt = MethodType.methodType(void.class, int.class);
+//                MethodHandle mh = lk.findStatic(clazz, "printStackTrace", mt);
+//                Object res = mh.invokeWithArguments(5);
+
+
+//                FLog.d(TAG, "clazz= " + clazz);
+//                FLog.d(TAG, "method= " + method);
+//                FLog.d(TAG, "method.invoke(null, 5)= " + res);
+//                FLog.d(TAG, "mh.invokeWithArguments(5)= " + res);
+
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
             } catch (NoSuchMethodException e) {
@@ -254,6 +279,8 @@ public class MainActivity extends AppCompatActivity {
             } catch (InvocationTargetException e) {
                 throw new RuntimeException(e);
             } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+            } catch (Throwable e) {
                 throw new RuntimeException(e);
             }
             Toast.makeText(this, "method -> " + method, Toast.LENGTH_SHORT).show();
@@ -357,6 +384,8 @@ public class MainActivity extends AppCompatActivity {
                     return ret;
                 })
                 .commit();
+
+
 //
 //        // Class<?> clazz = classLoader.loadClass("java.lang.String");
 //        Method classLoader_loadClass_Class_S = FHookTool.findMethod4First(ClassLoader.class, "loadClass");

@@ -14,45 +14,58 @@
 
 namespace finject {
 
-    // 判断是否为我们定义的“桥接关键方法”
-    static inline bool SigEq(const std::string &a, const char *b) {
-        return a == b;
-    }
-
-    // 6 个桥接关键方法 的判断
-    static bool is_bridge_critical_ir(const ir::EncodedMethod *m) {
+    // 仅判断三种“框架关键方法”
+    static bool is_frame_method(const ir::EncodedMethod *m) {
         if (!m || !m->decl || !m->decl->parent || !m->decl->prototype) return false;
 
-        const std::string cls = m->decl->parent->Decl();                  // 形如 "Ljava/lang/ClassLoader;"
-        const std::string mn = m->decl->name->c_str();                   // 方法名
-        const std::string sig = m->decl->prototype->Signature();          // 形如 "(Ljava/lang/String;)Ljava/lang/Class;"
+        const std::string cls = m->decl->parent->Decl();           // 例：Ljava/lang/ClassLoader;
+        const std::string mn = m->decl->name->c_str();            // 方法名
+        const std::string sig = m->decl->prototype->Signature();   // 例：(Ljava/lang/String;)Ljava/lang/Class;
 
-        // Thread.currentThread() / Thread.getContextClassLoader()
-        if (cls == "Ljava/lang/Thread;") {
-            if (mn == "currentThread" && SigEq(sig, "()Ljava/lang/Thread;")) return true;
-            if (mn == "getContextClassLoader" && SigEq(sig, "()Ljava/lang/ClassLoader;"))
-                return true;
+        // 1) ClassLoader.loadClass(String): (Ljava/lang/String;)Ljava/lang/Class;
+        if (cls == "Ljava/lang/ClassLoader;" && mn == "loadClass"
+            && SigEq(sig, "(Ljava/lang/String;)Ljava/lang/Class;")) {
+            return true;
         }
 
-        // ClassLoader.loadClass(String)
-        if (cls == "Ljava/lang/ClassLoader;" && mn == "loadClass"
-            && SigEq(sig, "(Ljava/lang/String;)Ljava/lang/Class;"))
-            return true;
-
-        // Class.forName(String, boolean, ClassLoader)
-        if (cls == "Ljava/lang/Class;" && mn == "forName"
-            && SigEq(sig, "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;"))
-            return true;
-
-        // Class.getDeclaredMethod(String, Class[])
+        // 2) Class.getDeclaredMethod(String, Class[]): (Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;
         if (cls == "Ljava/lang/Class;" && mn == "getDeclaredMethod"
-            && SigEq(sig, "(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;"))
+            && SigEq(sig, "(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;")) {
+            return true;
+        }
+
+        // 3) Method.invoke(Object, Object[]): (Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
+        if (cls == "Ljava/lang/reflect/Method;" && mn == "invoke"
+            && SigEq(sig, "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;")) {
+            return true;
+        }
+
+        return false;
+    }
+
+
+    /**
+     Thread thread = Thread.currentThread();
+    ClassLoader contextClassLoader = thread.getContextClassLoader();
+     * @param m
+     * @return
+     */
+    static bool is_bridge_critical_ir(const ir::EncodedMethod *m) {
+        if (!m || !m->decl || !m->decl->parent || !m->decl->prototype) return false;
+        const std::string cls = m->decl->parent->Decl();
+        const std::string mn = m->decl->name->c_str();
+        const std::string sig = m->decl->prototype->Signature();
+
+        // Thread.currentThread()
+        if (cls == "Ljava/lang/Thread;" && mn == "currentThread"
+            && sig == "()Ljava/lang/Thread;")
             return true;
 
-        // Method.invoke(Object, Object[])
-        if (cls == "Ljava/lang/reflect/Method;" && mn == "invoke"
-            && SigEq(sig, "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;"))
+        // Thread.getContextClassLoader()
+        if (cls == "Ljava/lang/Thread;" && mn == "getContextClassLoader"
+            && sig == "()Ljava/lang/ClassLoader;")
             return true;
+
 
         return false;
     }
@@ -62,8 +75,9 @@ namespace finject {
                           const deploy::MethodHooks hook_info,
                           lir::CodeIr *code_ir,
                           slicer::IntrusiveList<lir::Instruction>::Iterator insert_point,
-                          unsigned short num_add_reg,
-                          unsigned short num_reg_non_param_new) {
+                          unsigned short &num_add_reg,
+                          unsigned short &num_reg_non_param_new,
+                          bool &is_run_backup_plan) {
 
         LOGD("[do_HEnter] 运行 isHEnter ......")
 
@@ -192,8 +206,9 @@ namespace finject {
                 const deploy::MethodHooks &hook_info,
                 lir::CodeIr *code_ir,
                 slicer::IntrusiveList<lir::Instruction>::Iterator insert_point,
-                int reg_return_orig, // 原方法返回值所在寄存器 清空了这里是 -1
-                bool is_wide_reg_return) {
+                int &reg_return_orig, // 原方法返回值所在寄存器 清空了这里是 -1
+                bool &is_wide_reg_return,
+                bool &is_run_backup_plan) {
 
         LOGD("[doHExit] 运行 isHExit ......")
         int reg_return_dst = -1;  // 最终返回值
@@ -349,6 +364,8 @@ namespace finject {
                     const deploy::MethodHooks &hook_info,
                     lir::CodeIr *code_ir) {
 
+
+
         /// 这里是用于调试反向 使用时注释
 //        transform->set_app_loader(!transform->is_app_loader());
 //        LOGE("[do_finject]  ------ 开启了反向调试  ------ transform->set_app_loader(!transform->is_app_loader())  -----------")
@@ -360,6 +377,11 @@ namespace finject {
              ir_method->decl->name->c_str(),
              ir_method->decl->prototype->Signature().c_str())
 
+        // 如果是系统侧 需要根据方法信息需要框架是否走备用方案
+        bool is_run_backup_plan;
+        if (!transform->is_app_loader()) {
+            is_run_backup_plan = is_frame_method(ir_method);
+        }
 
         auto orig_return_type = ir_method->decl->prototype->return_type;
         ir::Builder builder(code_ir->dex_ir);
@@ -407,7 +429,9 @@ namespace finject {
         if (hook_info.isHEnter) {
             bool res = do_HEnter(
                     transform, hook_info, code_ir,
-                    insert_point, num_add_reg, num_reg_non_param_new);
+                    insert_point, num_add_reg, num_reg_non_param_new,
+                    is_run_backup_plan);
+
             if (!res)return false;
         }
 
@@ -420,7 +444,8 @@ namespace finject {
                     transform, hook_info, code_ir,
                     insert_point,
                     reg_return_orig,
-                    is_wide_reg_return);
+                    is_wide_reg_return,
+                    is_run_backup_plan);
             if (reg_return_dst < 0)return false;
         }
 

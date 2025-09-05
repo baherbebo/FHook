@@ -11,7 +11,7 @@
 #include <vector>
 
 
-static inline std::string RegVecToString(const std::vector<int>& v) {
+static inline std::string RegVecToString(const std::vector<int> &v) {
     if (v.empty()) return "{}";
     std::string s;
     s.reserve(v.size() * 4 + 2);
@@ -43,5 +43,12 @@ extern std::string g_name_class_THook;
 extern std::string g_name_fun_onEnter;
 extern std::string g_name_fun_onExit;
 
+// 用于string 和 char* 比较
+inline bool SigEq(const std::string &a, const char *b) noexcept {
+    return b && a == b;
+}
+
+// char 比较
+inline bool StrEq(const char *a, const char *b) noexcept { return std::strcmp(a, b) == 0; }
 
 #endif //PJ02_FGLOBAL_FLIB_H

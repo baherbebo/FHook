@@ -601,7 +601,19 @@ public class FHook {
 
 
     /**
-     * 桥接方法（JVMTI 不支持）
+     * A组  不能做任何操作
+     *     Thread thread = Thread.currentThread();
+     *     ClassLoader contextClassLoader = thread.getContextClassLoader();
+     * B组  能hook，强制不能清除方法
+     *     Class<?> clazz = contextClassLoader.loadClass("top.feadre.fhook.FHookTool");
+     *     method = clazz.getDeclaredMethod("printStackTrace", int.class);
+     *     Object res = method.invoke(null, 5);
+     * C组  能hook，可清除（但不能同时hookB组） -
+     *     Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool", true, contextClassLoader);
+     *     MethodHandles.Lookup lk = MethodHandles.publicLookup();
+     *     MethodType mt = MethodType.methodType(void.class, int.class);
+     *     MethodHandle mh = lk.findStatic(clazz, "printStackTrace", mt);
+     *     Object res = mh.invokeWithArguments(5);
      *
      * @param m
      * @return
@@ -613,43 +625,42 @@ public class FHook {
         final Class<?>[] ps = m.getParameterTypes();
         FLog.d(TAG, "[isBridgeCritical] " + cn + "#" + mn + "(" + ps.length + ")");
 
-        if (!FCFG_fhook.ENABLE_HOOK_CRUX) {
-            // Thread.currentThread()
-            if (cn.equals("java.lang.Thread") && mn.equals("currentThread") && ps.length == 0) {
-                FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn);
-                return true;
-            }
-
-            // Thread.getContextClassLoader()
-            if (cn.equals("java.lang.Thread") && mn.equals("getContextClassLoader") && ps.length == 0) {
-                FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn);
-                return true;
-            }
-
-            // ClassLoader.loadClass(String)  —— 我们桥接里用的是这个重载
-            if (cn.equals("java.lang.ClassLoader") && mn.equals("loadClass")
-                    && ps.length == 1 && ps[0] == String.class) {
-                FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn + "(String)");
-                return true;
-            }
-
-            // Class.getDeclaredMethod(String, Class[])
-            if (cn.equals("java.lang.Class") && mn.equals("getDeclaredMethod")
-                    && ps.length == 2 && ps[0] == String.class && ps[1] == Class[].class) {
-                FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn + "(String,Class[])");
-                return true;
-            }
-
-            // Method.invoke(Object, Object[])  native 方法，不支持 JVMTI
-            if (cn.equals("java.lang.reflect.Method") && mn.equals("invoke")
-                    && ps.length == 2 && ps[1] == Object[].class) {
-                FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn + "(Object,Object[])");
-                return true;
-            }
+        ///  这两个方法全局禁止使用
+        // Thread.currentThread()
+        if (cn.equals("java.lang.Thread") && mn.equals("currentThread") && ps.length == 0) {
+            FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn);
+            return true;
         }
 
+        // Thread.getContextClassLoader()
+        if (cn.equals("java.lang.Thread") && mn.equals("getContextClassLoader") && ps.length == 0) {
+            FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn);
+            return true;
+        }
 
-        if (cn.startsWith("top.feadre.fhook.")) {
+//        // ClassLoader.loadClass(String)  —— 我们桥接里用的是这个重载
+//        if (cn.equals("java.lang.ClassLoader") && mn.equals("loadClass")
+//                && ps.length == 1 && ps[0] == String.class) {
+//            FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn + "(String)");
+//            return true;
+//        }
+//
+//        // Class.getDeclaredMethod(String, Class[])
+//        if (cn.equals("java.lang.Class") && mn.equals("getDeclaredMethod")
+//                && ps.length == 2 && ps[0] == String.class && ps[1] == Class[].class) {
+//            FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn + "(String,Class[])");
+//            return true;
+//        }
+//
+//        // Method.invoke(Object, Object[])  native 方法，不支持 JVMTI
+//        if (cn.equals("java.lang.reflect.Method") && mn.equals("invoke")
+//                && ps.length == 2 && ps[1] == Object[].class) {
+//            FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn + "(Object,Object[])");
+//            return true;
+//        }
+
+
+        if (cn.startsWith("top.feadre.fhook.FHook")) {
             FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn);
             return true;
         }

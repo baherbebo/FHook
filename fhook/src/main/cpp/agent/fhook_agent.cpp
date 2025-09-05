@@ -23,6 +23,62 @@ thread_local deploy::Transform *current_transform = nullptr; // 当前hook配置
 
 
 
+
+/**
+ * 命中 A组 → 返回 -1（调用方直接 return -1）
+ * 命中 B/C组 → 把 isRunOrigFun 设为 true 并返回 1
+ * 其它 → 返回 0（不处理）
+ */
+static int simple_guard_bridge_methods(const std::string& targetClassName,
+                                       const std::string& targetMethodName,
+                                       const std::string& targetMethodSignature,
+                                       jboolean& isRunOrigFun) {
+    // ---- A组：禁止一切（直接拦截）----
+    if (SigEq(targetClassName, "Ljava/lang/Thread;")
+        && targetMethodName == "currentThread"
+        && SigEq(targetMethodSignature, "()Ljava/lang/Thread;")) {
+        return -1;
+    }
+    if (SigEq(targetClassName, "Ljava/lang/Thread;")
+        && targetMethodName == "getContextClassLoader"
+        && SigEq(targetMethodSignature, "()Ljava/lang/ClassLoader;")) {
+        return -1;
+    }
+
+    // ---- B/C组：允许 hook，但强制保留原实现（不可清空）----
+    // ClassLoader.loadClass(String)
+    if (SigEq(targetClassName, "Ljava/lang/ClassLoader;")
+        && targetMethodName == "loadClass"
+        && SigEq(targetMethodSignature, "(Ljava/lang/String;)Ljava/lang/Class;")) {
+        isRunOrigFun = JNI_TRUE;
+        return 1;
+    }
+    // Class.getDeclaredMethod(String, Class[])
+    if (SigEq(targetClassName, "Ljava/lang/Class;")
+        && targetMethodName == "getDeclaredMethod"
+        && SigEq(targetMethodSignature, "(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;")) {
+        isRunOrigFun = JNI_TRUE;
+        return 1;
+    }
+    // Method.invoke(Object, Object[])
+    if (SigEq(targetClassName, "Ljava/lang/reflect/Method;")
+        && targetMethodName == "invoke"
+        && SigEq(targetMethodSignature, "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;")) {
+        isRunOrigFun = JNI_TRUE;
+        return 1;
+    }
+    // Class.forName(String, boolean, ClassLoader)
+    if (SigEq(targetClassName, "Ljava/lang/Class;")
+        && targetMethodName == "forName"
+        && SigEq(targetMethodSignature, "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;")) {
+        isRunOrigFun = JNI_TRUE;
+        return 1;
+    }
+
+    return 0; // 不命中，啥也不做
+}
+
+
 /**
  * loader 通过 loader 拿到类加载器的类型显示
  * @param jni
@@ -316,6 +372,21 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
     }
     targetClassName = jniClassName.getValue();
     /** ---------------------- 拿到方法信息 结束 ----------------------- */
+
+    // 框架方法的强制处理
+    int sg = simple_guard_bridge_methods(targetClassName, targetMethodName, targetMethodSignature,
+                                         isRunOrigFun);
+    if (sg < 0) {
+        LOGW("[agent_do_transform] BLOCK by simple_guard: %s#%s %s",
+             targetClassName.c_str(), targetMethodName.c_str(), targetMethodSignature.c_str());
+        if (nativeClass) env->DeleteLocalRef(nativeClass);
+        return -1; // 按你的要求：直接返回失败
+    }
+    if (sg > 0) {
+        LOGI("[agent_do_transform] FORCE keep original: %s#%s %s",
+             targetClassName.c_str(), targetMethodName.c_str(), targetMethodSignature.c_str());
+    }
+
 
     // 接口不支持 拦截
     {
