@@ -10,7 +10,7 @@ public class FCFG_fhook {
         ClassLoader contextClassLoader = thread.getContextClassLoader();
         Class<?> clazz = contextClassLoader.loadClass("top.feadre.fhook.FHookTool");
         method = clazz.getDeclaredMethod("printStackTrace", int.class);
-        method.invoke(null, 5);
+        method.invoke(null, 5); // 这个是native
      */
-    public static final boolean ENABLE_HOOK_CRUX = false; // 开启 hook 框架关键函数
+    public static final boolean ENABLE_HOOK_CRUX = true; // 开启 hook 框架关键函数
 }

@@ -330,7 +330,7 @@ public class FHook {
 
     ///  接口/抽象/native/<clinit> 等不支持的；  桥接方法
     public static boolean canHook(Method method) {
-        FLog.d(TAG, "[canHook] start ... method=" + method);
+//        FLog.d(TAG, "[canHook] start ... method=" + method);
         if (method == null) {
             FLog.e(TAG, "[canHook] method == null");
             return false;

@@ -216,23 +216,25 @@ public class MainActivity extends AppCompatActivity {
 //        method.invoke(new THook(), 11, 12, 34);
 //        method.invoke(null, 11, 12, 34);
         Button bt_main_22 = findViewById(R.id.bt_main_22);
-        bt_main_22.setText("22 method.invoke(THook.fun_I_III)");
+        bt_main_22.setText("22 method_invoke_O_OArr");
         bt_main_22.setOnClickListener(v -> {
             try {
                 Method method = THook.class.getMethod("fun_I_III",
                         int.class, int.class, int.class);
                 Object ret = method.invoke(new THook(), 11, 12, 34);
 
-                Toast.makeText(this, "ret=" + ret, Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "method_invoke_O_OArr ret=" + ret, Toast.LENGTH_SHORT).show();
+                FLog.d(TAG, "method_invoke_O_OArr ret=" + ret);
             } catch (Throwable e) {
-                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "method_invoke_O_OArr err: " + e, Toast.LENGTH_SHORT).show();
+                FLog.e(TAG, "method_invoke_O_OArr err: " + e);
             }
         });
 
 //        Thread thread = Thread.currentThread();
 //        thread.getContextClassLoader();
         Button bt_main_23 = findViewById(R.id.bt_main_23);
-        bt_main_23.setText("23 method.invoke 多个方法");
+        bt_main_23.setText("23 class_getDeclaredMethod_M_S_C 多个方法");
         bt_main_23.setOnClickListener(v -> {
             Method method = null;
 
@@ -309,6 +311,35 @@ public class MainActivity extends AppCompatActivity {
 
     private void doSysHook01() throws Throwable {
 
+        /*
+         [canHook] native 不支持: public native java.lang.Object java.lang.reflect.Method.invoke
+         */
+//        Method method_invoke_O_OArr = FHookTool.findMethod4First(Method.class, "invoke");
+//        FHook.hook(method_invoke_O_OArr)
+//                .setOrigFunRun(false)
+//                .setHookEnter((thiz, args, types, hh) -> {
+//                    FLog.d(TAG, "[method_invoke_O_OArr] start ....");
+//                    args.set(0, "java.lang.Integer");
+//                })
+//                .setHookExit((ret, type, hh) -> {
+//                    FLog.d(TAG, "[method_invoke_O_OArr] start ....");
+//                    return ret;
+//                });
+
+        // method = clazz.getDeclaredMethod("printStackTrace", int.class);
+        Method class_getDeclaredMethod_M_S_C = FHookTool.findMethod4First(
+                Class.class, "getDeclaredMethod");
+        FHook.hook(class_getDeclaredMethod_M_S_C)
+                .setOrigFunRun(false)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    FLog.d(TAG, "[class_getDeclaredMethod_M_S_C] start ....");
+                })
+                .setHookExit((ret, type, hh) -> {
+                    FLog.d(TAG, "[class_getDeclaredMethod_M_S_C] start ....");
+                    return ret;
+                });
+
+
 //        // Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool");
 //        Method Class_forName = FHookTool.findMethod4First(Class.class, "forName");
 //        FHook.hook(Class_forName)
@@ -326,18 +357,18 @@ public class MainActivity extends AppCompatActivity {
 //                })
 //                .commit();
 //
-        // Class<?> clazz = classLoader.loadClass("java.lang.String");
-        Method classLoader_loadClass_Class_S = FHookTool.findMethod4First(ClassLoader.class, "loadClass");
-        FHook.hook(classLoader_loadClass_Class_S)
-                .setOrigFunRun(true)
-                .setHookEnter((thiz, args, types, hh) -> {
-                    FLog.d(TAG, "[classLoader_loadClass_Class_S] start ....");
-                })
-                .setHookExit((ret, type, hh) -> {
-                    FLog.d(TAG, "[classLoader_loadClass_Class_S] end .... ");
-                    return ret;
-                })
-                .commit();
+//        // Class<?> clazz = classLoader.loadClass("java.lang.String");
+//        Method classLoader_loadClass_Class_S = FHookTool.findMethod4First(ClassLoader.class, "loadClass");
+//        FHook.hook(classLoader_loadClass_Class_S)
+//                .setOrigFunRun(true)
+//                .setHookEnter((thiz, args, types, hh) -> {
+//                    FLog.d(TAG, "[classLoader_loadClass_Class_S] start ....");
+//                })
+//                .setHookExit((ret, type, hh) -> {
+//                    FLog.d(TAG, "[classLoader_loadClass_Class_S] end .... ");
+//                    return ret;
+//                })
+//                .commit();
 //
 //
 //        // String res = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
