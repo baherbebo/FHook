@@ -3,6 +3,7 @@ package top.feadre.fhook;
 import static top.feadre.fhook.FCFG.TAG_PREFIX;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 
 import top.feadre.fhook.flibs.fsys.FLog;
@@ -51,11 +52,12 @@ public class FHookTool {
 
 
     /**
+     * 查找实例的方法 对像
      * 若 method 来自接口/注解接口，则尝试用 instance 的真实类解析实现方法。
      * 解析成功返回实现类 Method；失败返回 null（内部已打日志）。
      * 对非接口方法，原样返回 method。
      */
-    public static Method resolveImplementationFromInstance(Object instance, Method method) {
+    public static Method findMethod4Impl(Object instance, Method method) {
         if (method == null) return null;
 
         final Class<?> decl = method.getDeclaringClass();
@@ -67,7 +69,7 @@ public class FHookTool {
 
         // 接口方法但没给实例，无法解析实现
         if (instance == null) {
-            FLog.e(TAG, "[resolveImpl] instance == null for interface method: "
+            FLog.e(TAG, "[findMethod4Impl] instance == null for interface method: "
                     + decl.getName() + "#" + method.getName());
             return null;
         }
@@ -94,7 +96,10 @@ public class FHookTool {
                 if (a.length == b.length) {
                     boolean same = true;
                     for (int i = 0; i < a.length; i++) {
-                        if (a[i] != b[i]) { same = false; break; }
+                        if (a[i] != b[i]) {
+                            same = false;
+                            break;
+                        }
                     }
                     if (same && !m.getDeclaringClass().isInterface()) {
                         return m;
@@ -104,11 +109,20 @@ public class FHookTool {
         }
 
         // 失败：打日志并返回 null
-        FLog.e(TAG, "[resolveImpl] 无法解析实现类方法："
+        FLog.e(TAG, "[findMethod4Impl] 无法解析实现类方法："
                 + decl.getName() + "#" + method.getName()
                 + " on impl=" + impl.getName());
         return null;
     }
 
+
+    /// 判断这个类是否可被重写（与 canHook(Method) 配套）—
+    public static boolean isHookableClass(Class<?> c) {
+        if (c == null) return false;
+        if (c.isInterface() || c.isAnnotation()) return false;
+        int m = c.getModifiers();
+        // 抽象类不能直接重写其方法体（需要对具体子类 hook）
+        return !Modifier.isAbstract(m);
+    }
 
 }

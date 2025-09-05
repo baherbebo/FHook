@@ -117,11 +117,13 @@ public class MainActivity extends AppCompatActivity {
         });
 
         Button bt_main_06 = findViewById(R.id.bt_main_06);
-        bt_main_06.setText("05 查看类的实例");
+        bt_main_06.setText("06 查看类的实例");
         bt_main_06.setOnClickListener(v -> {
             TObject o1 = new TObject("o1", 1);
             TObject o2 = new TObject("o2", 1);
             TObject o3 = new TObject("o3", 1);
+
+            FHook.hook(o1).setOrigFunRun(false).commit();
 
             Object[] instances = CLinker.jcJvmtiFindInstances(TObject.class, true);
             for (Object o : instances) {
@@ -134,6 +136,24 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+
+        Button bt_main_07 = findViewById(R.id.bt_main_07);
+        bt_main_07.setText("07 hook类所有方法");
+        bt_main_07.setOnClickListener(v -> {
+            FHook.hook(TObject.class)
+                    .setOrigFunRun(false)
+                    .setHookEnter((thiz, args, types, hh) -> {
+                        FLog.d(TAG, "TObject.class.getName()=" + TObject.class.getName());
+                    }).commit();
+
+        });
+
+        Button bt_main_08 = findViewById(R.id.bt_main_08);
+        bt_main_08.setText("08 取消hook类所有方法");
+        bt_main_08.setOnClickListener(v -> {
+            FHook.unHook(TObject.class);
+
+        });
 
     }
 
@@ -353,7 +373,7 @@ public class MainActivity extends AppCompatActivity {
             //  boolean commit();
             Method mCommitIface = SharedPreferences.Editor.class.getMethod("commit");
             SharedPreferences.Editor editor = this.getSharedPreferences("demo", MODE_PRIVATE).edit();
-            Method mCommitImpl = FHookTool.resolveImplementationFromInstance(editor, mCommitIface);
+            Method mCommitImpl = FHookTool.findMethod4Impl(editor, mCommitIface);
 
             FHook.hook(mCommitImpl)
                     .setOrigFunRun(true)
@@ -370,6 +390,7 @@ public class MainActivity extends AppCompatActivity {
                     })
                     .commit();
         }
+
 
     }
 

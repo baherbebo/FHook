@@ -287,7 +287,7 @@ namespace finject {
         return reg_return_dst;
     }
 
-/**
+    /**
             void Transform::Apply(std::shared_ptr<ir::DexFile> dex_ir)
                 bool ret = finject::do_finject(this, hook, &code_ir);
      * @param transform 类的hook配置
@@ -339,6 +339,11 @@ namespace finject {
                 num_add_reg = FRegManager::RequestLocals(code_ir, 5); // 系统侧5个
                 num_reg_non_param_new = FRegManager::Locals(code_ir);
             }
+        }
+        // 如果单清除掉原始方法，也需要申请一个寄存器 cre_return_code 需要1个
+        if (!hook_info.isRunOrigFun) {
+            num_add_reg = FRegManager::RequestLocals(code_ir, 1);
+            num_reg_non_param_new = FRegManager::Locals(code_ir);
         }
 
         // *********************************************************************
