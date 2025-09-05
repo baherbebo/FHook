@@ -1,6 +1,6 @@
 package top.feadre.fhook;
 
-import static top.feadre.fhook.FCFG.TAG_PREFIX;
+import static top.feadre.fhook.FCFG_fhook.TAG_PREFIX;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;

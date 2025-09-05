@@ -15,7 +15,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import top.feadre.fhook.CLinker;
-import top.feadre.fhook.FCFG;
+import top.feadre.fhook.FCFG_fhook;
 import top.feadre.fhook.FHook;
 import top.feadre.fhook.FHookTool;
 import top.feadre.fhook.R;
@@ -25,7 +25,7 @@ import top.feadre.fhook.flibs.fsys.FLog;
 import top.feadre.fhook.tools.FFunsUI;
 
 public class MainActivity extends AppCompatActivity {
-    private static final String TAG = FCFG.TAG_PREFIX + "MainActivity";
+    private static final String TAG = FCFG_fhook.TAG_PREFIX + "MainActivity";
 
 
     static {
@@ -191,7 +191,10 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+
+    // ---------------------------------------------------
     private void initSysBt01() {
+//        Class<?> aClass1 = Class.forName("java.lang.String");
         Button bt_main_21 = findViewById(R.id.bt_main_21);
         bt_main_21.setText("21 Class.forName");
         bt_main_21.setOnClickListener(v -> {
@@ -202,43 +205,53 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
 
-                FFunsUI.toast(this, "got: " + aClass.getName());
+                FFunsUI.toast(this, "Class.forName " + aClass.getName());
 
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
             }
         });
 
-        // 49) Method.invoke(Object, Object...) —— 变参 + 返回 Object（反射调用）
+//        method.invoke(new THook(), 11, 12, 34);
+//        method.invoke(null, 11, 12, 34);
         Button bt_main_22 = findViewById(R.id.bt_main_22);
-        bt_main_22.setText("22 Method.invoke(THook.fun_I_II)");
+        bt_main_22.setText("22 method.invoke(THook.fun_I_III)");
         bt_main_22.setOnClickListener(v -> {
             try {
-                Method m =
-                        THook.class.getMethod("fun_I_II", int.class, int.class);
-                Object ret = m.invoke(new THook(), 12, 34);
+                Method method = THook.class.getMethod("fun_I_III",
+                        int.class, int.class, int.class);
+                Object ret = method.invoke(new THook(), 11, 12, 34);
+
                 Toast.makeText(this, "ret=" + ret, Toast.LENGTH_SHORT).show();
             } catch (Throwable e) {
                 Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
             }
         });
 
-        // 50) Constructor.newInstance(Object...) —— 变参 + 返回实例
+//        Thread thread = Thread.currentThread();
+//        thread.getContextClassLoader();
         Button bt_main_23 = findViewById(R.id.bt_main_23);
-        bt_main_23.setText("23 Ctor.newInstance(String(bytes,charset))");
+        bt_main_23.setText("23 Thread.currentThread");
         bt_main_23.setOnClickListener(v -> {
+            Method method = null;
+
+            Thread thread = Thread.currentThread();
+            ClassLoader contextClassLoader = thread.getContextClassLoader();
             try {
-                java.lang.reflect.Constructor<String> c =
-                        String.class.getConstructor(byte[].class, java.nio.charset.Charset.class);
-                String s = c.newInstance("hi".getBytes(java.nio.charset.StandardCharsets.UTF_8),
-                        java.nio.charset.StandardCharsets.UTF_8);
-                Toast.makeText(this, "new String -> " + s, Toast.LENGTH_SHORT).show();
-            } catch (Throwable e) {
-                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+                Class<?> aClass = contextClassLoader.loadClass("top.feadre.fhook.FHookTool");
+                FLog.d(TAG, "aClass=" + aClass);
+
+                method = aClass.getDeclaredMethod("printStackTrace", int.class);
+                FLog.d(TAG, "method=" + method);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            } catch (NoSuchMethodException e) {
+                throw new RuntimeException(e);
             }
+            Toast.makeText(this, "method -> " + method, Toast.LENGTH_SHORT).show();
         });
 
-        // 51) Settings.Secure.getString(ContentResolver, String) —— 2参 + 返回 String（常被审计）
+
         Button bt_main_24 = findViewById(R.id.bt_main_24);
         bt_main_24.setText("24 Settings.Secure.getString(ANDROID_ID)");
         bt_main_24.setOnClickListener(v -> {
@@ -274,28 +287,28 @@ public class MainActivity extends AppCompatActivity {
     private void doSysHook01() throws Throwable {
 
         // ============ 21) ClassLoader.loadClass(String) ============
-//        {
-//            java.lang.reflect.Method mLoadClass =
-//                    ClassLoader.class.getMethod("loadClass", String.class);
-//
-//            FHook.hook(mLoadClass)
-//                    .setOrigFunRun(false)
-//                    .setHookEnter((thiz, args, types, hh) -> {
-//                        // thiz 是 ClassLoader 实例；args[0] 是 name
-//                        String name = (String) args.get(0);
-//                        showLog("ClassLoader.loadClass", thiz, args, types);
-//                        // 你也可以试着替换类名验证 hook 生效：
-//                        // if ("java.lang.String".equals(name)) args.set(0, "java.lang.Integer");
-//                    })
-//                    .setHookExit((ret, type, hh) -> {
-//                        // ret 是 Class<?>，打印类名
-//                        Class<?> c = (Class<?>) ret;
-//                        showLog("ClassLoader.loadClass", hh.thisObject, ret, type);
-//                        FFunsUI.toast(this, "[hook] loadClass -> " + (c != null ? c.getName() : "null"));
-//                        return ret;
-//                    })
-//                    .commit();
-//        }
+        {
+            java.lang.reflect.Method mLoadClass =
+                    ClassLoader.class.getMethod("loadClass", String.class);
+
+            FHook.hook(mLoadClass)
+                    .setOrigFunRun(false)
+                    .setHookEnter((thiz, args, types, hh) -> {
+                        // thiz 是 ClassLoader 实例；args[0] 是 name
+                        String name = (String) args.get(0);
+                        showLog("ClassLoader.loadClass", thiz, args, types);
+                        // 你也可以试着替换类名验证 hook 生效：
+                        // if ("java.lang.String".equals(name)) args.set(0, "java.lang.Integer");
+                    })
+                    .setHookExit((ret, type, hh) -> {
+                        // ret 是 Class<?>，打印类名
+                        Class<?> c = (Class<?>) ret;
+                        showLog("ClassLoader.loadClass", hh.thisObject, ret, type);
+                        FFunsUI.toast(this, "[hook] loadClass -> " + (c != null ? c.getName() : "null"));
+                        return ret;
+                    })
+                    .commit();
+        }
 
         // ============ 22) Method.invoke(Object, Object...) ============
 //        {
@@ -366,7 +379,7 @@ public class MainActivity extends AppCompatActivity {
 //                    .commit();
 //        }
 
-// ============ 24) Settings.Secure.getString(ContentResolver, String) ============
+        // ============ 24) Settings.Secure.getString(ContentResolver, String) ============
         {
             java.lang.reflect.Method mGetString =
                     android.provider.Settings.Secure.class.getMethod(
@@ -391,7 +404,7 @@ public class MainActivity extends AppCompatActivity {
                     .commit();
         }
 
-// ============ 25) SharedPreferences.Editor.commit() ============
+        // ============ 25) SharedPreferences.Editor.commit() ============
         {
             // 从实现类上取真实的 commit()（不是接口上的）
             //  boolean commit();

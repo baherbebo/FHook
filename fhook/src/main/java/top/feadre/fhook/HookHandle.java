@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import top.feadre.fhook.flibs.fsys.FLog;
 
 public class HookHandle {
-    private static final String TAG = FCFG.TAG_PREFIX + "HookHandle";
+    private static final String TAG = FCFG_fhook.TAG_PREFIX + "HookHandle";
 
     public Object thisObject; // 这个由框架自动设置
     boolean isHooked = false; // native 已安装

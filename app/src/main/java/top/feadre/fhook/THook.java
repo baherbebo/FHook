@@ -3,7 +3,7 @@ package top.feadre.fhook;
 import top.feadre.fhook.flibs.fsys.FLog;
 
 public class THook {
-    private static final String TAG = FCFG.TAG_PREFIX + "THook";
+    private static final String TAG = FCFG_fhook.TAG_PREFIX + "THook";
 
     // ----------------------------  initAppBt01 ---------------------------------
 

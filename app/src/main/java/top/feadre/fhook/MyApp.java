@@ -3,10 +3,9 @@ package top.feadre.fhook;
 import android.app.Application;
 import android.content.Context;
 import android.util.Log;
-import android.widget.Toast;
 
 public class MyApp extends Application {
-    private static final String TAG = FCFG.TAG_PREFIX + "MyApp";
+    private static final String TAG = FCFG_fhook.TAG_PREFIX + "MyApp";
 
     @Override
     protected void attachBaseContext(Context base) {
