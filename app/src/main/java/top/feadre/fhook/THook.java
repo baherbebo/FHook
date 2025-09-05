@@ -33,8 +33,8 @@ public class THook {
         FLog.d(TAG, "原方法输出 fun_V_V ...");
     }
 
-    public static void jcFun_V_V() {
-        FLog.d(TAG, "原方法输出 jcFun_V_V ...");
+    public static void jtFun_V_V() {
+        FLog.d(TAG, "原方法输出 jtFun_V_V ...");
     }
 
     // ----------------------------  initAppBt03 ---------------------------------
@@ -82,9 +82,9 @@ public class THook {
         return sum;
     }
 
-    public static long[] jcFun_JArr_JArr(long[] arr) {
+    public static long[] jtFun_JArr_JArr(long[] arr) {
         int sum = 0;
-        if (arr != null) for (long v : arr) FLog.d(TAG, "jcFun_JArr_JArr ... v=" + v);
+        if (arr != null) for (long v : arr) FLog.d(TAG, "jtFun_JArr_JArr ... v=" + v);
         arr[0] = sum;
         return arr;
     }

@@ -11,6 +11,15 @@ import top.feadre.fhook.flibs.fsys.FLog;
 public class FHookTool {
     private static final String TAG = TAG_PREFIX + "FHookTool";
 
+    /// 判断这个类是否可被重写（与 canHook(Method) 配套）—  canHook 可扩展方法
+    public static boolean isHookableClass(Class<?> c) {
+        if (c == null) return false;
+        if (c.isInterface() || c.isAnnotation()) return false;
+        int m = c.getModifiers();
+        // 抽象类不能直接重写其方法体（需要对具体子类 hook）
+        return !Modifier.isAbstract(m);
+    }
+
     public static ArrayList<Method> findMethodAll(Class<?> cls, String methodName) {
         Method[] methods = cls.getDeclaredMethods(); // 拿到类的 所有方法
         ArrayList<Method> res_methods = new ArrayList<>();
@@ -115,14 +124,88 @@ public class FHookTool {
         return null;
     }
 
+    public static void showMethodInfo(Method method) {
+        String methodNameStr = method.getName(); // 方法名称
+        Class<?> returnType = method.getReturnType();// 返回类型
+        // Method modifiers: public static
+        FLog.d(TAG, "[showMethod] Method modifiers: " + Modifier.toString(method.getModifiers()));
 
-    /// 判断这个类是否可被重写（与 canHook(Method) 配套）—
-    public static boolean isHookableClass(Class<?> c) {
-        if (c == null) return false;
-        if (c.isInterface() || c.isAnnotation()) return false;
-        int m = c.getModifiers();
-        // 抽象类不能直接重写其方法体（需要对具体子类 hook）
-        return !Modifier.isAbstract(m);
+        // 参数类型 int, int
+        Class<?>[] paramTypes = method.getParameterTypes(); // 参数类型
+        StringBuilder paramTypesStr = new StringBuilder();
+        for (int i = 0; i < paramTypes.length; i++) {
+            if (i > 0) paramTypesStr.append(", ");
+            paramTypesStr.append(paramTypes[i].getName());
+        }
+        FLog.d(TAG, "[showMethod] Parameter types: " + paramTypesStr.toString());
+
+        // 没有错误类型
+        Class<?>[] exceptionTypes = method.getExceptionTypes();
+        if (exceptionTypes.length > 0) {
+            StringBuilder exceptionTypesStr = new StringBuilder();
+            for (int i = 0; i < exceptionTypes.length; i++) {
+                if (i > 0) exceptionTypesStr.append(", ");
+                exceptionTypesStr.append(exceptionTypes[i].getName());
+            }
+            FLog.d(TAG, "[showMethod] Exception types: " + exceptionTypesStr.toString());
+        }
+
+        // 完整签名 public static int top.feadre.finject.FInjectHelpUI.add(int,int)
+        String methodSignature = method.toGenericString();
+        FLog.d(TAG, "[showMethod] 全签名: " + methodSignature);
+
+        // 简单的签名组装 int add(int, int)
+        String simpleSignature = returnType.getSimpleName() + " " + methodNameStr + "(" + paramTypesStr + ")";
+        FLog.d(TAG, "[showMethod] 简单签名: " + simpleSignature);
+    }
+
+    public static String getSimpleSignature(Method method) {
+        String methodNameStr = method.getName(); // 方法名称
+
+        Class<?>[] paramTypes = method.getParameterTypes(); // 参数类型
+        StringBuilder paramTypesStr = new StringBuilder();
+        for (int i = 0; i < paramTypes.length; i++) {
+            if (i > 0) paramTypesStr.append(", ");
+            paramTypesStr.append(paramTypes[i].getName());
+        }
+
+        Class<?> returnType = method.getReturnType();// 返回类型
+
+        String simpleSignature = returnType.getSimpleName() + " " + methodNameStr + "(" + paramTypesStr + ")";
+
+        return simpleSignature;
+    }
+
+
+    public static void printStackTrace() {
+        printStackTrace("", 15);
+    }
+
+    public static void printStackTrace(int maxDepth) {
+        printStackTrace("", maxDepth);
+    }
+
+    public static void printStackTrace(String tag, int maxDepth) {
+        // 获取当前线程的调用栈
+        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+
+        FLog.d(TAG, "===== " + tag + " 方法调用栈开始 =====");
+
+        // 计算实际需要打印的深度
+        int printDepth = (maxDepth > 0 && maxDepth < stackTrace.length) ? maxDepth : stackTrace.length;
+
+        // 遍历并打印栈信息，从索引2开始（前两层是系统方法）
+        for (int i = 2; i < printDepth; i++) {
+            StackTraceElement element = stackTrace[i];
+            FLog.d(TAG, String.format("    第%d层: %s.%s(%s:%d)",
+                    i - 1,  // 调整索引，从1开始计数
+                    element.getClassName(),    // 类名
+                    element.getMethodName(),   // 方法名
+                    element.getFileName(),     // 文件名
+                    element.getLineNumber())); // 行号
+        }
+
+        FLog.d(TAG, "===== 方法调用栈结束 =====");
     }
 
 }

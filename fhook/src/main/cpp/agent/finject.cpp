@@ -300,7 +300,8 @@ namespace finject {
                     lir::CodeIr *code_ir) {
 
         /// 这里是用于调试反向 使用时注释
-        transform->set_app_loader(!transform->is_app_loader());
+//        transform->set_app_loader(!transform->is_app_loader());
+//        LOGE("[do_finject]  ------ 开启了反向调试  ------ transform->set_app_loader(!transform->is_app_loader())  -----------")
 
         auto ir_method = code_ir->ir_method;
         // 方法信息

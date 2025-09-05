@@ -663,7 +663,7 @@ public class MainActivity extends AppCompatActivity {
         bt_main_19.setText("19 fun_TObjectArr_IArr");
         bt_main_19.setOnClickListener(v -> {
             FFunsUI.toast(this, Arrays.toString(
-                    THook.jcFun_JArr_JArr(new long[]{1, 2, 3})));
+                    THook.jtFun_JArr_JArr(new long[]{1, 2, 3})));
         });
     }
 
