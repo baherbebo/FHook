@@ -271,7 +271,7 @@ namespace fir_funs_do {
         code_ir->instructions.insert(insert_point, mres);
 
         {
-            // 恢复宽寄存器
+            // long 临时必须恢复宽寄存器
             // 先清高半 v+1
             fir_tools::EmitConstToReg(code_ir, insert_point, reg2_tmp_long + 1, 0);
             // 再清低半 v
@@ -883,7 +883,7 @@ namespace fir_funs_do {
         return;
     }
 
-    /// 把方法的参数强转object 放在 object[] 数组中
+    /// 自动找到参数寄存器 把方法的参数强转object 放在 object[] 数组中
     void cre_arr_object0(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp_idx, // array_size 也是索引
@@ -932,7 +932,7 @@ namespace fir_funs_do {
         // parameters
         types.insert(types.end(), param_types.begin(), param_types.end());
 
-        // 这个是参数寄存器初始
+        // 这个是参数寄存器初始 *****
         dex::u4 reg_arg = ir_method->code->registers - ir_method->code->ins_count;
         int i = 0;
         // 构建参数数组赋值 --------------

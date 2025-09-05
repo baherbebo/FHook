@@ -77,13 +77,19 @@ public class THook {
     }
 
     public double fun_double_DArr(double[] arr) {
-        int sum = 5;
+        double sum = 0.0;
+        for (int i = 0; i < arr.length; i++) {
+            sum += arr[i];
+        }
         if (arr != null) for (double v : arr) FLog.d(TAG, "fun_double_DArr ... v=" + v);
         return sum;
     }
 
     public static long[] jtFun_JArr_JArr(long[] arr) {
         int sum = 0;
+        for (int i = 0; i < arr.length; i++) {
+            sum+= arr[i];
+        }
         if (arr != null) for (long v : arr) FLog.d(TAG, "jtFun_JArr_JArr ... v=" + v);
         arr[0] = sum;
         return arr;

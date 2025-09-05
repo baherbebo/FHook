@@ -1,13 +1,14 @@
 package top.feadre.fhook;
 
 import java.lang.reflect.Method;
+import java.util.concurrent.ConcurrentHashMap;
 
 import top.feadre.fhook.flibs.fsys.FLog;
 
 public class HookHandle {
     private static final String TAG = FCFG.TAG_PREFIX + "HookHandle";
 
-    public Object thisObject;
+    public Object thisObject; // 这个由框架自动设置
     boolean isHooked = false; // native 已安装
     long nativeHandle;              // 由 native 返回的句柄
     Method method;
@@ -16,9 +17,8 @@ public class HookHandle {
     volatile FHook.HookExitCallback exitCb;
     volatile boolean runOriginalByDefault = true; // 默认是是
 
-    // 用于带各种数据
-    public final java.util.concurrent.ConcurrentHashMap<String, Object> extras =
-            new java.util.concurrent.ConcurrentHashMap<>();
+    // 用于带各种数据 *****
+    public final ConcurrentHashMap<String, Object> extras = new ConcurrentHashMap<>();
 
     HookHandle(long h, Method m) {
         this.nativeHandle = h;

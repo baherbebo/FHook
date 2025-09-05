@@ -13,7 +13,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 
 import top.feadre.fhook.flibs.fsys.FLog;
-import top.feadre.fhook.flibs.fsys.TypeUtils;
 
 public class FHook {
     private static final String TAG = FCFG.TAG_PREFIX + "FHook";
@@ -192,7 +191,8 @@ public class FHook {
 
 
     public final static Object[] onEnter4fhook(Object[] rawArgs, long methodId) {
-        FLog.i(TAG, "[onEnter4fhook] start ...");
+        FLog.d(TAG, "");
+        FLog.d(TAG, "[onEnter4fhook] start ...");
 
         HookHandle hh = sHandles.get(methodId);
         if (hh == null) return rawArgs;
@@ -207,10 +207,7 @@ public class FHook {
         final Class<?>[] paramTypes = hh.method.getParameterTypes();
 
         // 调试
-        try {
-            FLog.d(TAG, "[onEnter4fhook] 开始 ---minfo " + hh.method.getDeclaringClass().getName() + "." + hh.method.getName() + " " + TypeUtils.dumpArgs(hh.method, rawArgs));
-        } catch (Throwable ignore) {
-        }
+        FHookTool.showOnEnterArgs(TAG, "onEnter4fhook", hh.method, rawArgs);
 
         try {
             hh.enterCb.onEnter(rawArgs[0], argsView, paramTypes, hh); // 允许直接修改 args[i]
@@ -218,23 +215,23 @@ public class FHook {
             FLog.e(TAG, "[onEnter4fhook] callback error", t);
         }
 
-        FLog.d(TAG, "[onEnter4fhook] 完成 --- 改后数据= " + TypeUtils.dumpArgs(hh.method, rawArgs));
+        FLog.i(TAG, "[onEnter4fhook] 完成 --- 改后数据= " + FHookTool.showOnEnterArgs4line(hh.method, rawArgs));
         return rawArgs;
     }
 
     public final static Object onExit4fhook(Object ret, long methodId) {
-        FLog.i(TAG, "[onExit4fhook] start ...");
+        FLog.d(TAG, "");
+        FLog.d(TAG, "[onExit4fhook] start ...");
         HookHandle hh = sHandles.get(methodId);
         if (hh == null || hh.exitCb == null) return ret;
 
         final Class<?> returnType = hh.method.getReturnType();
         try {
-            FLog.d(TAG, "[onExit4fhook] 开始 ---minfo " + hh.method.getDeclaringClass().getName() + "." + hh.method.getName());
-            FLog.d(TAG, "[onExit4fhook] 开始 --- 原返回值= " + ret + " 原类型= " + returnType);
+            FLog.i(TAG, "[onExit4fhook] 开始 ---minfo " + hh.method.getDeclaringClass().getName() + "." + hh.method.getName());
+            FLog.i(TAG, "[onExit4fhook] 开始 --- 原返回值= " + ret + ", 原类型= " + returnType);
 
             Object res = hh.exitCb.onExit(ret, returnType, hh);
-            FLog.d(TAG, "[onExit4fhook] 完成 --- 改后返回值= " + res + " 原类型= " + returnType);
-
+            FLog.i(TAG, "[onExit4fhook] 完成 --- 改后返回值= " + res + ", 原类型= " + returnType);
             return res;
         } catch (Throwable t) {
             FLog.e(TAG, "[onExit4fhook] callback error", t);

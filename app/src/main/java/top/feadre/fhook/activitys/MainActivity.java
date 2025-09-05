@@ -10,6 +10,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -186,11 +187,11 @@ public class MainActivity extends AppCompatActivity {
 
     private void initSysBt() {
 
-        initSysHook01();
+        initSysBt01();
 
     }
 
-    private void initSysHook01() {
+    private void initSysBt01() {
         Button bt_main_21 = findViewById(R.id.bt_main_21);
         bt_main_21.setText("21 Class.forName");
         bt_main_21.setOnClickListener(v -> {
@@ -244,6 +245,10 @@ public class MainActivity extends AppCompatActivity {
             try {
                 String res = Settings.Secure.getString(
                         getContentResolver(), Settings.Secure.ANDROID_ID);
+
+//                String res2 = Settings.Secure.getString(
+//                        getContentResolver(), Settings.Secure.INPUT_METHOD_SELECTOR_VISIBILITY);
+//                FLog.d(TAG, "BACKGROUND_DATA=" + res2);
                 Toast.makeText(this, "ANDROID_ID=" + res, Toast.LENGTH_SHORT).show();
                 FLog.d(TAG, "ANDROID_ID=" + res);
             } catch (Throwable e) {
@@ -372,6 +377,8 @@ public class MainActivity extends AppCompatActivity {
                     .setHookEnter((thiz, args, types, hh) -> {
                         // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
                         showLog("Settings.Secure.getString", thiz, args, types);
+                        args.set(1, "input_method_selector_visibility");
+
                     })
                     .setHookExit((ret, type, hh) -> {
                         showLog("Settings.Secure.getString", hh.thisObject, ret, type);
@@ -414,7 +421,7 @@ public class MainActivity extends AppCompatActivity {
     private void doAppHook03() {
         Method fun_TObject_TObject = FHookTool.findMethod4First(THook.class, "fun_TObject_TObject");
         FHook.hook(fun_TObject_TObject)
-                .setOrigFunRun(false)
+                .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
                     showLog("fun_TObject_TObject", thiz, args, types);
                     TObject o1 = (TObject) args.get(0);
@@ -492,7 +499,7 @@ public class MainActivity extends AppCompatActivity {
 
         Method fun_double_DArr = FHookTool.findMethod4First(THook.class, "fun_double_DArr");
         FHook.hook(fun_double_DArr)
-                .setOrigFunRun(false)
+                .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
                     showLog("fun_double_DArr", thiz, args, types);
                     double[] o = (double[]) args.get(0);
@@ -510,21 +517,26 @@ public class MainActivity extends AppCompatActivity {
                 })
                 .commit();
 
-        Method jcFun_JArr_JArr = FHookTool.findMethod4First(THook.class, "jcFun_JArr_JArr");
-        FHook.hook(jcFun_JArr_JArr)
+        Method jtFun_JArr_JArr = FHookTool.findMethod4First(THook.class, "jtFun_JArr_JArr");
+        FHook.hook(jtFun_JArr_JArr)
                 .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
-                    showLog("jcFun_JArr_JArr", thiz, args, types);
+                    showLog("jtFun_JArr_JArr", thiz, args, types);
                     long[] o = (long[]) args.get(0);
-                    o[0] = 666;
-
+                    o[0] = 999;
+                    hh.extras.put("args", new java.util.ArrayList<>(args));// 这里要再包一层
                 })
+
                 .setHookExit((ret, type, hh) -> {
-                    showLog("jcFun_JArr_JArr", hh.thisObject, ret, type);
+                    showLog("jtFun_JArr_JArr", hh.thisObject, ret, type);
                     if (ret == null) {
                         long[] out = new long[2];
                         out[0] = 6666;
                         return out;
+                    }
+                    ArrayList<long[]> args = (ArrayList<long[]>) hh.extras.get("args");
+                    for (int i = 0; i < args.size(); i++) {
+                        FLog.d(TAG, "jtFun_JArr_JArr ... args[" + i + "]=" + Arrays.toString(args.get(i)));
                     }
                     long[] r = (long[]) ret;
                     r[1] = 99;

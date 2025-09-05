@@ -208,4 +208,75 @@ public class FHookTool {
         FLog.d(TAG, "===== 方法调用栈结束 =====");
     }
 
+
+    private static String pretty(Object a) {
+        if (a == null) return "null";
+        if (a instanceof String) {
+            String s = (String) a;
+            return '"' + (s.length() > 120 ? s.substring(0, 120) + "…" : s) + '"';
+        }
+        if (a instanceof CharSequence || a instanceof Number || a instanceof Boolean) {
+            return String.valueOf(a);
+        }
+        Class<?> c = a.getClass();
+        if (c.isArray()) {
+            if (a instanceof Object[]) return java.util.Arrays.deepToString((Object[]) a);
+            int len = java.lang.reflect.Array.getLength(a), n = Math.min(len, 8);
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < n; i++) {
+                if (i > 0) sb.append(", ");
+                sb.append(pretty(java.lang.reflect.Array.get(a, i)));
+            }
+            if (len > n) sb.append(", …").append(len - n).append(" more");
+            return sb.append(']').toString();
+        }
+        return c.getName() + '@' + Integer.toHexString(System.identityHashCode(a));
+    }
+
+    private static String gotType(Object a) {
+        return a == null ? "null" : a.getClass().getName();
+    }
+
+    /**
+     * 逐行打印：方法签名、this、每个参数（期望类型=值 | 实际类型）
+     */
+    public static void showOnEnterArgs(String tag, String name_fun,
+                                       java.lang.reflect.Method m, Object[] rawArgs) {
+
+        final boolean isStatic = java.lang.reflect.Modifier.isStatic(m.getModifiers());
+        final Class<?>[] ps = m.getParameterTypes();
+        final int len = rawArgs == null ? 0 : rawArgs.length;
+
+        // Header
+        FLog.i(tag, "[" + name_fun + "] 开始 " + m.getDeclaringClass().getName() + "." + m.getName()
+                + " (" + ps.length + " params, static=" + isStatic + "), rawLen=" + len);
+
+        // this（按你的协议：rawArgs[0] 是 this；静态为 null）
+        Object thisObj = (len > 0) ? rawArgs[0] : null;
+        FLog.i(tag, "   --- this = " + (isStatic ? "<static>" : pretty(thisObj))
+                + "  | got=" + gotType(thisObj));
+
+        // 每个参数：期望类型=值 | 实际类型
+        for (int i = 0; i < ps.length; i++) {
+            Object a = (len > 1 + i) ? rawArgs[1 + i] : null;
+            FLog.i(tag, "   --- #" + i + "  " + ps[i].getName() + " = " + pretty(a)
+                    + "  | got=" + gotType(a));
+        }
+    }
+
+    /**
+     * 单行精简版：只输出“类型=值”，不带 gotType，可直接拼到一条日志里
+     */
+    public static String showOnEnterArgs4line(Method m, Object[] rawArgs) {
+        Class<?>[] ps = m.getParameterTypes();
+        int len = rawArgs == null ? 0 : rawArgs.length;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < ps.length; i++) {
+            if (i > 0) sb.append(",  ");
+            Object a = (len > 1 + i) ? rawArgs[1 + i] : null;
+            sb.append(ps[i].getSimpleName()).append('=').append(' ').append(pretty(a));
+        }
+        return sb.toString();
+    }
+
 }
