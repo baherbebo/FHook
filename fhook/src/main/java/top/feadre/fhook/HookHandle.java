@@ -78,10 +78,10 @@ public class HookHandle {
 
     public synchronized HookHandle commit() {
         if (disabledByPrecheck) {
-            FLog.e(TAG, "[commit] skip: precheck failed, not installing -> " + method);
+            FLog.e(TAG, "[commit] 失败不能提交 -> " + method);
             return this;
         }
-        FHook.installOnce(this);          // 只安装一次
+        FHook.installOnce(this);  // 只安装一次
         return this;
     }
 

@@ -9,6 +9,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -196,16 +197,16 @@ public class MainActivity extends AppCompatActivity {
     private void initSysBt01() {
 //        Class<?> aClass1 = Class.forName("java.lang.String");
         Button bt_main_21 = findViewById(R.id.bt_main_21);
-        bt_main_21.setText("21 Class.forName");
+        bt_main_21.setText("21 classLoader_loadClass_Class_S");
         bt_main_21.setOnClickListener(v -> {
             try {
                 ClassLoader classLoader = getClassLoader();
-                Class<?> aClass = classLoader.loadClass("java.lang.String");
-                if (aClass == null) {
+                Class<?> clazz = classLoader.loadClass("java.lang.String");
+                if (clazz == null) {
                     return;
                 }
 
-                FFunsUI.toast(this, "Class.forName " + aClass.getName());
+                FFunsUI.toast(this, "classLoader.loadClass " + clazz.getName());
 
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
@@ -231,21 +232,26 @@ public class MainActivity extends AppCompatActivity {
 //        Thread thread = Thread.currentThread();
 //        thread.getContextClassLoader();
         Button bt_main_23 = findViewById(R.id.bt_main_23);
-        bt_main_23.setText("23 Thread.currentThread");
+        bt_main_23.setText("23 method.invoke 多个方法");
         bt_main_23.setOnClickListener(v -> {
             Method method = null;
 
-            Thread thread = Thread.currentThread();
-            ClassLoader contextClassLoader = thread.getContextClassLoader();
             try {
-                Class<?> aClass = contextClassLoader.loadClass("top.feadre.fhook.FHookTool");
-                FLog.d(TAG, "aClass=" + aClass);
+                Thread thread = Thread.currentThread();
+                ClassLoader contextClassLoader = thread.getContextClassLoader();
+                Class<?> clazz = contextClassLoader.loadClass("top.feadre.fhook.FHookTool");
+                method = clazz.getDeclaredMethod("printStackTrace", int.class);
+                method.invoke(null, 5);
 
-                method = aClass.getDeclaredMethod("printStackTrace", int.class);
+                FLog.d(TAG, "clazz=" + clazz);
                 FLog.d(TAG, "method=" + method);
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
             } catch (NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            } catch (InvocationTargetException e) {
+                throw new RuntimeException(e);
+            } catch (IllegalAccessException e) {
                 throw new RuntimeException(e);
             }
             Toast.makeText(this, "method -> " + method, Toast.LENGTH_SHORT).show();
@@ -253,17 +259,17 @@ public class MainActivity extends AppCompatActivity {
 
 
         Button bt_main_24 = findViewById(R.id.bt_main_24);
-        bt_main_24.setText("24 Settings.Secure.getString(ANDROID_ID)");
+        bt_main_24.setText("24 Settings_Secure_getString_S_OS");
         bt_main_24.setOnClickListener(v -> {
             try {
-                String res = Settings.Secure.getString(
-                        getContentResolver(), Settings.Secure.ANDROID_ID);
+                String res = Settings.Secure.getString(getContentResolver(),
+                        Settings.Secure.ANDROID_ID);
 
 //                String res2 = Settings.Secure.getString(
 //                        getContentResolver(), Settings.Secure.INPUT_METHOD_SELECTOR_VISIBILITY);
 //                FLog.d(TAG, "BACKGROUND_DATA=" + res2);
                 Toast.makeText(this, "ANDROID_ID=" + res, Toast.LENGTH_SHORT).show();
-                FLog.d(TAG, "ANDROID_ID=" + res);
+                FLog.d(TAG, "Settings_Secure_getString_S_OS res= " + res);
             } catch (Throwable e) {
                 Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
             }
@@ -271,162 +277,115 @@ public class MainActivity extends AppCompatActivity {
 
         // 52) SharedPreferences 写入 + 提交 —— putString(String,String) + commit() 返回 boolean
         Button bt_main_25 = findViewById(R.id.bt_main_25);
-        bt_main_25.setText("25 SharedPreferences.put/commit");
+        bt_main_25.setText("25 sp_putString_S_SS");
         bt_main_25.setOnClickListener(v -> {
             try {
                 SharedPreferences sp = getSharedPreferences("demo", MODE_PRIVATE);
-                boolean ok = sp.edit().putString("k", "时间" + System.currentTimeMillis()).commit();
-                String v2 = sp.getString("k", "");
-                Toast.makeText(this, "commit=" + ok + ", v=" + v2, Toast.LENGTH_SHORT).show();
+                String key = "k";
+                boolean ok = sp.edit().putString(key, "时间" + System.currentTimeMillis()).commit();
+                String v2 = sp.getString(key, "");
+                Toast.makeText(this, "sp_putString_S_SS=" + ok + ", v2=" + v2, Toast.LENGTH_SHORT).show();
             } catch (Throwable e) {
                 Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        Button bt_main_26 = findViewById(R.id.bt_main_26);
+        bt_main_26.setText("26 Class_forName_Class_S");
+        bt_main_26.setOnClickListener(v -> {
+            try {
+                Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool");
+                if (clazz != null) {
+                    FFunsUI.toast(this, "Class_forName_Class_S 成功 " + clazz.getName());
+                } else {
+                    FFunsUI.toast(this, "Class_forName_Class_S 失败 ");
+                }
+
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
             }
         });
     }
 
     private void doSysHook01() throws Throwable {
 
-        // ============ 21) ClassLoader.loadClass(String) ============
-        {
-            java.lang.reflect.Method mLoadClass =
-                    ClassLoader.class.getMethod("loadClass", String.class);
-
-            FHook.hook(mLoadClass)
-                    .setOrigFunRun(false)
-                    .setHookEnter((thiz, args, types, hh) -> {
-                        // thiz 是 ClassLoader 实例；args[0] 是 name
-                        String name = (String) args.get(0);
-                        showLog("ClassLoader.loadClass", thiz, args, types);
-                        // 你也可以试着替换类名验证 hook 生效：
-                        // if ("java.lang.String".equals(name)) args.set(0, "java.lang.Integer");
-                    })
-                    .setHookExit((ret, type, hh) -> {
-                        // ret 是 Class<?>，打印类名
-                        Class<?> c = (Class<?>) ret;
-                        showLog("ClassLoader.loadClass", hh.thisObject, ret, type);
-                        FFunsUI.toast(this, "[hook] loadClass -> " + (c != null ? c.getName() : "null"));
-                        return ret;
-                    })
-                    .commit();
-        }
-
-        // ============ 22) Method.invoke(Object, Object...) ============
-//        {
-//            java.lang.reflect.Method mInvoke =
-//                    java.lang.reflect.Method.class.getMethod("invoke", Object.class, Object[].class);
+//        // Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool");
+//        Method Class_forName = FHookTool.findMethod4First(Class.class, "forName");
+//        FHook.hook(Class_forName)
+//                .setOrigFunRun(false)
+//                .setHookEnter((thiz, args, types, hh) -> {
+//                    FLog.d(TAG, "[Class_forName_Class_S] start ....");
+//                    args.set(0, "java.lang.Integer");
+//                })
+//                .setHookExit((ret, type, hh) -> {
+//                    if (ret != null) {
+//                        Class<?> _ret = (Class<?>) ret;
+//                        FLog.d(TAG, "[Class_forName_Class_S] end ....ret= " + _ret.getName());
+//                    }
+//                    return ret;
+//                })
+//                .commit();
 //
-//            FHook.hook(mInvoke)
+        // Class<?> clazz = classLoader.loadClass("java.lang.String");
+        Method classLoader_loadClass_Class_S = FHookTool.findMethod4First(ClassLoader.class, "loadClass");
+        FHook.hook(classLoader_loadClass_Class_S)
+                .setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    FLog.d(TAG, "[classLoader_loadClass_Class_S] start ....");
+                })
+                .setHookExit((ret, type, hh) -> {
+                    FLog.d(TAG, "[classLoader_loadClass_Class_S] end .... ");
+                    return ret;
+                })
+                .commit();
+//
+//
+//        // String res = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+//        {
+//            Method Settings_Secure_getString_S_OS =
+//                    android.provider.Settings.Secure.class.getMethod(
+//                            "getString", android.content.ContentResolver.class, String.class);
+//
+//            FHook.hook(Settings_Secure_getString_S_OS)
 //                    .setOrigFunRun(true)
 //                    .setHookEnter((thiz, args, types, hh) -> {
-//                        // thiz 是 java.lang.reflect.Method
-//                        java.lang.reflect.Method target = (java.lang.reflect.Method) thiz;
-//                        Object targetObj = args.get(0);          // 目标实例（static 时为 null）
-//                        Object[] invokeArgs = (Object[]) args.get(1); // 实参数组
+//                        // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
+//                        showLog("Settings_Secure_getString_S_OS", thiz, args, types);
+//                        args.set(1, "input_method_selector_visibility");
 //
-//                        showLog("Method.invoke", thiz, args, types);
-//
-//                        // 演示：如果是调用 THook.fun_I_II(int,int)，把第一个参数+100，看是否影响结果
-//                        if (target.getDeclaringClass() == top.feadre.fhook.THook.class
-//                                && "fun_I_II".equals(target.getName())
-//                                && invokeArgs != null && invokeArgs.length >= 2
-//                                && invokeArgs[0] instanceof Integer) {
-//                            int old0 = (Integer) invokeArgs[0];
-//                            invokeArgs[0] = old0 + 100;
-//                        }
 //                    })
 //                    .setHookExit((ret, type, hh) -> {
-//                        // ret 是被调用方法的返回值（Object）
-//                        showLog("Method.invoke", hh.thisObject, ret, type);
-//                        FFunsUI.toast(this, "[hook] Method.invoke ret=" + ret);
-//                        return ret;
-//                    })
-//                    .commit();
-//        }
-
-//// ============ 23) Constructor.newInstance(Object...) ============
-//        {
-//            java.lang.reflect.Method mCtorNewInstance =
-//                    java.lang.reflect.Constructor.class.getMethod("newInstance", Object[].class);
-//
-//            FHook.hook(mCtorNewInstance)
-//                    .setOrigFunRun(true)
-//                    .setHookEnter((thiz, args, types, hh) -> {
-//                        // thiz 是 Constructor<?>；args[0] 是 Object[] initargs
-//                        java.lang.reflect.Constructor<?> ctor = (java.lang.reflect.Constructor<?>) thiz;
-//                        Object[] initargs = (Object[]) args.get(0);
-//                        showLog("Constructor.newInstance", thiz, args, types);
-//
-//                        // demo：若是 String(byte[], Charset) 构造，替换第一个参数内容
-//                        if (ctor.getDeclaringClass() == String.class && initargs != null && initargs.length == 2) {
-//                            if (initargs[0] instanceof byte[]) {
-//                                byte[] b = (byte[]) initargs[0];
-//                                // 简单演示：把前两个字节改掉
-//                                if (b.length >= 2) {
-//                                    b[0] = 'H';
-//                                    b[1] = 'K';
-//                                }
-//                            }
-//                        }
-//                    })
-//                    .setHookExit((ret, type, hh) -> {
-//                        // ret 是新建的实例
-//                        showLog("Constructor.newInstance", hh.thisObject, ret, type);
+//                        showLog("Settings_Secure_getString_S_OS", hh.thisObject, ret, type);
+//                        // 演示：在返回值后面加标记，肉眼可见 hook 生效
 //                        if (ret instanceof String) {
-//                            ret = ((String) ret) + " [hooked]";
+//                            ret = ret + "_HOOK";
 //                        }
 //                        return ret;
 //                    })
 //                    .commit();
 //        }
-
-        // ============ 24) Settings.Secure.getString(ContentResolver, String) ============
-        {
-            java.lang.reflect.Method mGetString =
-                    android.provider.Settings.Secure.class.getMethod(
-                            "getString", android.content.ContentResolver.class, String.class);
-
-            FHook.hook(mGetString)
-                    .setOrigFunRun(true)
-                    .setHookEnter((thiz, args, types, hh) -> {
-                        // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
-                        showLog("Settings.Secure.getString", thiz, args, types);
-                        args.set(1, "input_method_selector_visibility");
-
-                    })
-                    .setHookExit((ret, type, hh) -> {
-                        showLog("Settings.Secure.getString", hh.thisObject, ret, type);
-                        // 演示：在返回值后面加标记，肉眼可见 hook 生效
-                        if (ret instanceof String) {
-                            ret = ret + "_HOOK";
-                        }
-                        return ret;
-                    })
-                    .commit();
-        }
-
-        // ============ 25) SharedPreferences.Editor.commit() ============
-        {
-            // 从实现类上取真实的 commit()（不是接口上的）
-            //  boolean commit();
-            Method mCommitIface = SharedPreferences.Editor.class.getMethod("commit");
-            SharedPreferences.Editor editor = this.getSharedPreferences("demo", MODE_PRIVATE).edit();
-            Method mCommitImpl = FHookTool.findMethod4Impl(editor, mCommitIface);
-
-            FHook.hook(mCommitImpl)
-                    .setOrigFunRun(true)
-                    .setHookEnter((thiz, args, types, hh) -> {
-                        // thiz 是具体 Editor 实例；无参数
-                        showLog("SharedPreferences.Editor.commit", thiz, args, types);
-                    })
-                    .setHookExit((ret, type, hh) -> {
-                        // ret 是 Boolean（primitive boolean 会被装箱）
-                        showLog("SharedPreferences.Editor.commit", hh.thisObject, ret, type);
-                        // 你也可以强制返回 true 观测效果：
-                        ret = false;
-                        return ret;
-                    })
-                    .commit();
-        }
+//
+//        // boolean ok = sp.edit().putString(key, "时间" + System.currentTimeMillis()).commit();
+//        // 从实现类上取真实的 commit()（不是接口上的）
+//        //  boolean commit();
+//        Method sp_putString_S_SS = SharedPreferences.Editor.class.getMethod("putString");
+//        SharedPreferences.Editor editor = this.getSharedPreferences("demo", MODE_PRIVATE).edit();
+//        Method mCommitImpl = FHookTool.findMethod4Impl(editor, sp_putString_S_SS);
+//
+//        FHook.hook(mCommitImpl)
+//                .setOrigFunRun(true)
+//                .setHookEnter((thiz, args, types, hh) -> {
+//                    // thiz 是具体 Editor 实例；无参数
+//                    showLog("SharedPreferences.Editor.commit", thiz, args, types);
+//                })
+//                .setHookExit((ret, type, hh) -> {
+//                    // ret 是 Boolean（primitive boolean 会被装箱）
+//                    showLog("SharedPreferences.Editor.commit", hh.thisObject, ret, type);
+//                    // 你也可以强制返回 true 观测效果：
+//                    ret = false;
+//                    return ret;
+//                })
+//                .commit();
 
 
     }

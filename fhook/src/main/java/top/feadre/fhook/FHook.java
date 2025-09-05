@@ -228,10 +228,10 @@ public class FHook {
         final Class<?> returnType = hh.method.getReturnType();
         try {
             FLog.i(TAG, "[onExit4fhook] 开始 ---minfo " + hh.method.getDeclaringClass().getName() + "." + hh.method.getName());
-            FLog.i(TAG, "[onExit4fhook] 开始 --- 原返回值= " + ret + ", 原类型= " + returnType);
+            FLog.i(TAG, "[onExit4fhook] 开始 --- 原返回值= " + ret + ", 类型= " + returnType);
 
             Object res = hh.exitCb.onExit(ret, returnType, hh);
-            FLog.i(TAG, "[onExit4fhook] 完成 --- 改后返回值= " + res + ", 原类型= " + returnType);
+            FLog.i(TAG, "[onExit4fhook] 完成 --- 改后返回值= " + res + ", 类型= " + returnType);
             return res;
         } catch (Throwable t) {
             FLog.e(TAG, "[onExit4fhook] callback error", t);
@@ -330,6 +330,7 @@ public class FHook {
 
     ///  接口/抽象/native/<clinit> 等不支持的；  桥接方法
     public static boolean canHook(Method method) {
+        FLog.d(TAG, "[canHook] start ... method=" + method);
         if (method == null) {
             FLog.e(TAG, "[canHook] method == null");
             return false;
@@ -557,6 +558,11 @@ public class FHook {
             return new HookHandle(-1, method).markNotHooked();
         }
 
+        if (!canHook(method)) {
+            FLog.e(TAG, "[hook] 不支持的 hook 方法：" + method);
+            return new HookHandle(-1, method).markNotHooked();
+        }
+
         // 判断 JVMTI  是否支持 Retransform
         final Class<?> declaring = method.getDeclaringClass();
         final int mods = method.getModifiers();
@@ -605,6 +611,7 @@ public class FHook {
         final String cn = m.getDeclaringClass().getName();
         final String mn = m.getName();
         final Class<?>[] ps = m.getParameterTypes();
+        FLog.d(TAG, "[isBridgeCritical] " + cn + "#" + mn + "(" + ps.length + ")");
 
         if (!FCFG_fhook.ENABLE_HOOK_CRUX) {
             // Thread.currentThread()
