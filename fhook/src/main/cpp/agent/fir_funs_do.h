@@ -62,7 +62,7 @@ namespace fir_funs_do {
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
 
-    bool do_THook_onEnter(
+    bool do_frame_hfun(
             lir::Method *f_THook_onEnter,
             lir::CodeIr *code_ir,
             dex::u2 reg_arg, // Object[]
@@ -72,15 +72,6 @@ namespace fir_funs_do {
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point
     );
 
-
-    bool do_THook_onExit(
-            lir::Method *f_THook_onExit,
-            lir::CodeIr *code_ir,
-            int reg1_arg,  // onExit object 的参数寄存器（如 v4）
-            int reg_return, // onExit 返回值 object 可以相同
-            int reg2_tmp_long, // 宽寄存器
-            uint64_t method_id, // uint64_t
-            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
 
     void do_Class_forName_3p(

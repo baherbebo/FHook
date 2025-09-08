@@ -19,22 +19,16 @@ namespace fir_impl {
             std::string &name_fun,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
-    bool do_sysloader_hook_funs_B_Exit(
-            lir::CodeIr *code_ir,
-            dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp, dex::u2 reg4_tmp,
-            int reg_do_args,// Object[Object[arg0,arg1...],Long]
-            dex::u2 reg_return, // 可重复
-            std::string &name_class,
-            std::string &name_fun,
-            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
-    bool do_sysloader_hook_funs_B_Enter(
+    bool do_sysloader_hook_funs_B(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp, dex::u2 reg4_tmp,
             int reg_do_args,// Object[Object[arg0,arg1...],Long]
             dex::u2 reg_return, // 可重复
             std::string &name_class,
             std::string &name_fun,
+            std::string name_class_arg, //"[Ljava/lang/Object;"
+            std::string rtype_name,  //"[Ljava/lang/Object;"
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
     bool do_sysloader_hook_funs_C(
@@ -48,18 +42,13 @@ namespace fir_impl {
 
 
     /** ----------------- 参数区 ------------------- */
-    void cre_arr_class_args4onEnter(
-            lir::CodeIr *code_ir,
-            dex::u2 reg1_tmp, // array_size 也是索引
-            dex::u2 reg2_tmp, // value
-            dex::u2 reg3_arr, // array 这个 object[] 对象
-            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
-    void cre_arr_class_args4onExit(
+    void cre_arr_class_args4frame(
             lir::CodeIr *code_ir,
             dex::u2 reg1, // index 与 array_size 复用
             dex::u2 reg2, // value 临时（存放 Class 对象）
             dex::u2 reg3_arr, // array 目标寄存器（Class[]）
+            std::string &name_class_arg,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
     void cre_arr_do_args4onEnter(

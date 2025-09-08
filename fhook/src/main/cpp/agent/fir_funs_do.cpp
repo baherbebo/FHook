@@ -228,12 +228,12 @@ namespace fir_funs_do {
      * @param method_id
      * @param insert_point
      */
-    bool do_THook_onEnter(
+    bool do_frame_hfun(
             lir::Method *f_THook_onEnter,
             lir::CodeIr *code_ir,
             dex::u2 reg_arg, // Object[]
             dex::u2 reg_tmp_long, // long 必须宽寄存器
-            dex::u2 reg_return, // 不能重叠 原因是没有tmp 寄存器（reg2_tmp_long 这个是宽）
+            dex::u2 reg_return, // 可以和reg_arg重复， 注意重叠（reg2_tmp_long 这个是宽）
             uint64_t method_id, // uint64_t
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point
     ) {
@@ -276,57 +276,6 @@ namespace fir_funs_do {
         return true;
     }
 
-
-    bool do_THook_onExit(
-            lir::Method *f_THook_onExit,
-            lir::CodeIr *code_ir,
-            int reg1_arg,  // onExit object 的参数寄存器（如 v4）
-            int reg_return, // 可以相同 onExit 返回值 object
-            int reg2_tmp_long, // 宽寄存器
-            uint64_t method_id, // uint64_t
-            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
-
-        ir::Builder builder(code_ir->dex_ir);
-        auto *ir_method = code_ir->ir_method;
-
-        // 写入 method_id 到 {reg2_tmp_long, reg2_tmp_long+1}  const-wide v<reg_id_lo>, 123456L
-
-        auto cst = code_ir->Alloc<lir::Bytecode>();
-        cst->opcode = dex::OP_CONST_WIDE; // 写入 v<reg_id_lo> 与 v<reg_id_lo+1>
-        cst->operands.push_back(code_ir->Alloc<lir::VRegPair>(reg2_tmp_long));
-        cst->operands.push_back(code_ir->Alloc<lir::Const64>(static_cast<uint64_t>(method_id)));
-        code_ir->instructions.insert(insert_point, cst);
-
-
-        // 构建 invoke-static 指令：操作数顺序必须是 [VRegList, Method]
-        auto invoke = code_ir->Alloc<lir::Bytecode>();
-        invoke->opcode = dex::OP_INVOKE_STATIC;
-        auto *regs = code_ir->Alloc<lir::VRegList>();
-        regs->registers.clear();
-        regs->registers.push_back(reg1_arg);  // 将单个寄存器 reg1_arg 加入列表
-        regs->registers.push_back(reg2_tmp_long);
-        regs->registers.push_back(reg2_tmp_long + 1);
-
-        invoke->operands.push_back(regs);  // 第一个操作数：VRegList（参数列表）
-        invoke->operands.push_back(f_THook_onExit);  // 第二个操作数：方法引用（THook.onExit）
-        code_ir->instructions.insert(insert_point, invoke);
-
-        // 3. 处理返回值：move-result-object 指令（接收 onExit 的返回值，存入 reg1_arg）
-        auto move_res = code_ir->Alloc<lir::Bytecode>();
-        move_res->opcode = dex::OP_MOVE_RESULT_OBJECT;
-        move_res->operands.push_back(code_ir->Alloc<lir::VReg>(reg_return));  // 接收返回值到 reg1_arg
-        code_ir->instructions.insert(insert_point, move_res);
-
-        {
-            // 恢复避免后续恢复 这个完了直接返回了，但还有有可能被使用
-            // 先清高半 v+1
-            fir_tools::emitValToReg(code_ir, insert_point, reg2_tmp_long + 1, 0);
-            // 再清低半 v
-            fir_tools::emitValToReg(code_ir, insert_point, reg2_tmp_long, 0);
-        }
-
-        return true;
-    }
 
 
     /// Class.forName("xxxxx", true, ClassLoader.getSystemClassLoader)
