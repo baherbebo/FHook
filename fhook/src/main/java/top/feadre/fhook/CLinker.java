@@ -3,8 +3,7 @@ package top.feadre.fhook;
 import java.lang.reflect.Method;
 
 public class CLinker {
-
-    protected static native boolean dcEnableJdwp(boolean enable); // 常规初始
+    protected static native boolean dcEnableJdwp(boolean enable); // 常规初始 初始化入口
 
     protected static native boolean jcJvmtiSuccess(String nameSoFhookAgent,boolean is_safe_mode); // 后处理
 
@@ -13,7 +12,6 @@ public class CLinker {
     protected static native long dcHook(Method method, boolean isHEnter, boolean isHExit,
                                         boolean isRunOrigFun);
 
-    // 初始化入口
 
     protected static native boolean dcIsJdwpAllowed();
 

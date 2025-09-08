@@ -194,6 +194,13 @@ public class FLog {
         }
     }
 
+    public static void w(String tag, String msg, Throwable tr) {
+        if (sLoggable && sLogLevel <= ERROR) {
+            Log.w(tag, msg, tr);
+            writeToFile("W", tag, msg + "\n" + Log.getStackTraceString(tr));
+        }
+    }
+
     public static void e(String msg) {
         if (sLoggable && sLogLevel <= ERROR) {
             String tag = generateTag();

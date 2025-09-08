@@ -58,126 +58,114 @@ public class FHook {
     private static boolean isInit = false;
 
 
-    public static final class InitReport {
-        public boolean jdwpEnabledTried;   // 尝试过开 JDWP
-        public boolean jdwpEnabledNow;     // 当前是否允许 JDWP（native 读取）
-        public boolean rtDebugTried;       // 尝试过置 Runtime debuggable
-        public Boolean rtDebugNow;         // 当前 Runtime debuggable（可能为 null：符号不可得）
-        public boolean attachOk;           // attach 成功
-        public String firstError;         // 第一次 attach 失败的报错
-        public String secondError;        // 第二次 attach 失败的报错
-        public String note;               // 说明/提示
-
-        @Override
-        public String toString() {
-            return "InitReport{" +
-                    "jdwpEnabledNow=" + jdwpEnabledNow +
-                    ", rtDebugNow=" + rtDebugNow +
-                    ", attachOk=" + attachOk +
-                    ", firstError='" + firstError + '\'' +
-                    ", secondError='" + secondError + '\'' +
-                    ", note='" + note + '\'' +
-                    '}';
-        }
-    }
-
-
     /**
      * 这个必须在  Application attachBaseContext 中调用
      *
      * @param context
      * @return
      */
-    public static synchronized InitReport init(Context context) {
+    public static synchronized boolean init(Context context) {
         FLog.init(context, false);
         FLog.i(TAG, "FCFG.IS_DEBUG= " + FCFG_fhook.IS_DEBUG);
-
-        if (FCFG_fhook.IS_DEBUG) {
-            FLog.i(TAG, "debug mode");
-            FLog.setLogLevel(FLog.VERBOSE);
-        } else {
-            FLog.i(TAG, "INFO mode");
-            FLog.setLogLevel(FLog.INFO);
-        }
+        FLog.setLogLevel(FCFG_fhook.IS_DEBUG ? FLog.VERBOSE : FLog.INFO);
         FLog.d(TAG, "[init] start ...");
 
-        InitReport r = new InitReport();
-
-        // 安卓9.0（ART） 28 以下不支持  Android 8.0+ 才有 JVMTI
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
             FLog.e(TAG, "Android 9.0 28 以下不支持");
-            r.note = "API<28 not supported";
-            return r;
+            return false;
         }
-
         if (isInit) {
             FLog.w(TAG, "已经初始化过了");
-            r.note = "already inited";
-            r.attachOk = true; // 如果你想表达“已完成初始化”
-            return r;
+            return true;
         }
 
-        // 1) 只开 JDWP（最小改动）
-        r.jdwpEnabledTried = true;
-        // 恢复初始化
-//        CLinker.dcEnableJdwp(false);
-//        CLinker.dcSetRuntimeJavaDebuggable(0);
+        // （可选）受配置保护是否允许开启 JDWP/RuntimeDebuggable
         boolean jdwpToggleOk = CLinker.dcEnableJdwp(true);
-        r.jdwpEnabledNow = CLinker.dcIsJdwpAllowed();
-        FLog.i(TAG, "JDWP enable tried=" + jdwpToggleOk + ", now=" + r.jdwpEnabledNow);
+        boolean jdwpNow = CLinker.dcIsJdwpAllowed();
+        FLog.i(TAG, "JDWP enable tried=" + jdwpToggleOk + ", now=" + jdwpNow);
 
         try {
-            // 注册代理
-            Debug.attachJvmtiAgent(name_so_fhook_agent, null, context.getClassLoader());
-
-            // c++ 加载 name_so_fhook_agent
-            boolean res = CLinker.jcJvmtiSuccess(name_so_fhook_agent, FCFG_fhook.IS_SAFE_MODE);
-            if (res) {
-                r.note = "attach success Jvmti 第一次就初始化成功";
-                r.attachOk = true;
-                FLog.i(TAG, "[init] " + r.note);
+            Debug.attachJvmtiAgent("libfhook_agent.so", null, context.getClassLoader());
+            boolean ok = CLinker.jcJvmtiSuccess("libfhook_agent.so", FCFG_fhook.IS_SAFE_MODE);
+            if (ok) {
                 isInit = true;
+                FLog.i(TAG, "[init] attach success (first try)");
+                return true;
             } else {
-                r.note = "dcJvmtiSuccess 第一次就初始化成功 加载lib失败 failed Jvmti 第1次就初始化失败";
+                FLog.w(TAG, "[init] first attach ok but agent check failed");
             }
-            return r;
-
         } catch (IOException e1) {
-            // 第二次尝试 attach
-            String msg = String.valueOf(e1.getMessage());
-            FLog.w(TAG, "[init] attachJvmtiAgent 第一次加载失败: " + msg + "\n" + e1);
-
-            // 如果像“非 debuggable 不允许”这类拒绝，再把 Runtime 设为 debuggable
-            r.rtDebugTried = true;
+            FLog.w(TAG, "[init] first attach failed: " + e1.getMessage() + e1);
             int rtState = CLinker.dcSetRuntimeJavaDebuggable(1); // 1=强制开
-
-            r.rtDebugNow = (rtState == 1) ? Boolean.TRUE
-                    : (rtState == 0 ? Boolean.FALSE : null);
-            FLog.d(TAG, "[init] Runtime.setJavaDebuggable(true) -> " + rtState + " (1=T,0=F,-1=no symbol,-2=libart fail)");
-
-            // 第二次尝试 attach
-            FLog.w(TAG, "[init] attachJvmtiAgent 尝试第二次加载");
+            FLog.d(TAG, "[init] setJavaDebuggable(true) -> " + rtState + " (1=T,0=F,-1=no symbol,-2=libart fail)");
             try {
                 Debug.attachJvmtiAgent("libfhook_agent.so", null, context.getClassLoader());
-
-                // c++ 加载 name_so_fhook_agent
-                boolean res = CLinker.jcJvmtiSuccess(name_so_fhook_agent, FCFG_fhook.IS_SAFE_MODE);
-                if (res) {
-                    r.attachOk = true;
-                    r.note = "attach success after enabling Runtime debuggable";
-                    FLog.i(TAG, "[init] 第二次 attachJvmtiAgent success after enabling Runtime debuggable");
+                boolean ok2 = CLinker.jcJvmtiSuccess("libfhook_agent.so", FCFG_fhook.IS_SAFE_MODE);
+                if (ok2) {
                     isInit = true;
+                    FLog.i(TAG, "[init] attach success after enabling Runtime debuggable");
+                    return true;
                 } else {
-                    r.note = "[init] 第二次初始化成功 dcJvmtiSuccess 加载lib失败 failed Jvmti 第1次就初始化失败";
+                    FLog.w(TAG, "[init] second attach ok but agent check failed");
                 }
-
-                return r;
             } catch (IOException e2) {
-                r.note = "attach failed again (check ROM policy / symbols / agent)";
-                FLog.e(TAG, "[init] attachJvmtiAgent 第二次加载失败 " + e2.getMessage(), e2);
+                FLog.e(TAG, "[init] second attach failed: " + e2.getMessage(), e2);
             }
-            return r;
         }
+        return false;
+    }
+
+    /**
+     * 关闭 FHook：卸载全部 hook，并（可选）关闭调试桥接能力（JDWP / Runtime JavaDebuggable）。
+     *
+     * @param disableDebugBridge true=尝试关闭 JDWP，并把 Runtime JavaDebuggable 复位为 0；false=保留当前调试状态
+     */
+    public static synchronized void unInit(boolean disableDebugBridge) {
+        FLog.d(TAG, "[unInit] start ... disableDebugBridge=" + disableDebugBridge);
+
+        // 1) 卸载所有 hook（内部已做快照遍历）
+        try {
+            unHookAll();
+        } catch (Throwable t) {
+            FLog.e(TAG, "[unInit] unHookAll exception", t);
+        }
+
+        // 2) 清理句柄表（unHookAll 会逐个移除，这里再次确保）
+        try {
+            sHandles.clear();
+        } catch (Throwable ignore) { }
+
+        // 3) 可选：关闭调试桥接（注意不同 ROM 可能无效或被策略拦截）
+        if (disableDebugBridge) {
+            try {
+                int rt = CLinker.dcSetRuntimeJavaDebuggable(0); // 0=关；-1/-2 见你之前的约定
+                FLog.i(TAG, "[unInit] setJavaDebuggable(false) -> " + rt);
+            } catch (Throwable t) {
+                FLog.w(TAG, "[unInit] setJavaDebuggable(false) failed", t);
+            }
+            try {
+                boolean ok = CLinker.dcEnableJdwp(false);
+                boolean now = CLinker.dcIsJdwpAllowed();
+                FLog.i(TAG, "[unInit] disable JDWP tried=" + ok + ", now=" + now);
+            } catch (Throwable t) {
+                FLog.w(TAG, "[unInit] disable JDWP failed", t);
+            }
+        }
+
+        // 4) 置初始化标志
+        isInit = false;
+
+        FLog.i(TAG, "[unInit] done. isInit=" + isInit + ", handles=" + sHandles.size());
+    }
+
+    /** 无参便捷版：默认关闭调试桥接能力 */
+    public static synchronized void unInit() {
+        unInit(true);
+    }
+
+    /** 可选：对外暴露当前初始化状态 */
+    public static boolean isInited() {
+        return isInit;
     }
 
 
@@ -206,7 +194,6 @@ public class FHook {
         FLog.i(TAG, "[installOnce] success: mid=" + mid +
                 " enter=" + hasEnter + " exit=" + hasExit + " runOrig=" + runOrig);
     }
-
 
     public final static Object[] onEnter4fhook(Object[] rawArgs, long methodId) {
         FLog.d(TAG, "");
@@ -329,7 +316,9 @@ public class FHook {
 
     public static void unHookAll() {
         FLog.d(TAG, "[unHookAll] start ...");
-        for (long mid : sHandles.keySet()) {
+        //使用快照处理
+        java.util.ArrayList<Long> ids = new java.util.ArrayList<>(sHandles.keySet());
+        for (long mid : ids) {
             unHook(mid);
         }
     }
@@ -424,18 +413,28 @@ public class FHook {
         // 安装本组所有 hook
         public GroupHandle commit() {
             if (committed) return this;
+
+            // 去重
+            java.util.LinkedHashMap<Method, HookHandle> uniq = new java.util.LinkedHashMap<>();
+            for (HookHandle h : handles) {
+                if (h != null && h.method != null) uniq.put(h.method, h);
+            }
+            handles.clear();
+            handles.addAll(uniq.values());
+
             for (HookHandle h : handles) {
                 try {
                     FHook.installOnce(h);
                 } catch (Throwable t) {
-                    top.feadre.fhook.flibs.fsys.FLog.e(TAG, "[GroupHandle.commit] install failed: " + h, t);
+                    FLog.e(TAG, "[GroupHandle.commit] install failed: " + h, t);
                 }
             }
             committed = true;
-            top.feadre.fhook.flibs.fsys.FLog.i(TAG, "[GroupHandle.commit] done. class=" + targetClass.getName()
-                    + " total=" + handles.size());
+            final String cname = (targetClass == null ? "null" : targetClass.getName());
+            FLog.i(TAG, "[GroupHandle.commit] done. class=" + cname + " total=" + handles.size());
             return this;
         }
+
 
         // 可选：返回本组的每个 HookHandle
         public java.util.List<HookHandle> getHandles() {
@@ -602,10 +601,6 @@ public class FHook {
             FLog.e(TAG, "[hook(Method)] 不支持的 hook 方法：" + method);
             return new HookHandle(-1, method).markNotHooked();
         }
-        if (isBridgeCritical(method)) {
-            FLog.e(TAG, "[hook(Method)] 桥接关键方法（禁止）： " + method);
-            return new HookHandle(-1, method).markNotHooked();
-        }
 
         // 只做轻提示，不再重复业务判断
         final Class<?> declaring = method.getDeclaringClass();
@@ -625,7 +620,7 @@ public class FHook {
     /**
      * 指定类与方法名：hook 其所有重载（先本类声明，未命中再回退到继承的 public）
      */
-    public static synchronized GroupHandle hook(Class<?> clazz, String name_fun) {
+    public static synchronized GroupHandle hookOverloads(Class<?> clazz, String name_fun) {
         FLog.d(TAG, "[hook(Class,String)] start ... class=" + (clazz == null ? "null" : clazz.getName())
                 + " name=" + name_fun);
         if (name_fun == null || name_fun.length() == 0) {
@@ -659,7 +654,7 @@ public class FHook {
         final String cn = m.getDeclaringClass().getName();
         final String mn = m.getName();
         final Class<?>[] ps = m.getParameterTypes();
-        FLog.d(TAG, "[isBridgeCritical] " + cn + "#" + mn + "(" + ps.length + ")");
+//        FLog.d(TAG, "[isBridgeCritical] " + cn + "#" + mn + "(" + ps.length + ")");
 
         ///  这两个方法全局禁止使用
         // Thread.currentThread()

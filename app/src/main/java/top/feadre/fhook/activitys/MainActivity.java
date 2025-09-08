@@ -97,8 +97,20 @@ public class MainActivity extends AppCompatActivity {
         Button bt_main_02 = findViewById(R.id.bt_main_02);
         bt_main_02.setText("02 初始化");
         bt_main_02.setOnClickListener(v -> {
-            FHook.InitReport rep = FHook.init(this);
-            Toast.makeText(this, rep.toString(), Toast.LENGTH_LONG).show();
+            if (FHook.isInited()) {
+                FHook.unInit();
+            } else {
+                if (!FHook.init(this)) {
+                    Toast.makeText(this, "初始化失败", Toast.LENGTH_LONG).show();
+                    FLog.e(TAG, "初始化失败");
+                } else {
+                    Toast.makeText(this, "初始化成功", Toast.LENGTH_LONG).show();
+                    FLog.e(TAG, "初始化成功");
+
+                }
+            }
+
+
         });
 
 
@@ -386,10 +398,10 @@ public class MainActivity extends AppCompatActivity {
 
         // Class<?> clazz = classLoader.loadClass("java.lang.String");
         /// 支持 hook  这个能用 ************
-        FHook.hook(ClassLoader.class, "loadClass");
+//        FHook.hookOverloads(ClassLoader.class, "loadClass");
 //        Method classLoader_loadClass_Class_S = FHookTool.findMethod4First(ClassLoader.class, "loadClass");
 //        FHook.hook(classLoader_loadClass_Class_S)
-        FHook.hook(ClassLoader.class, "loadClass")
+        FHook.hookOverloads(ClassLoader.class, "loadClass")
                 .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
                     FLog.d(TAG, "[classLoader_loadClass_Class_S] start ....");
