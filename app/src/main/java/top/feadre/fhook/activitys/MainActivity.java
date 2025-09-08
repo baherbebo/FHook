@@ -317,7 +317,8 @@ public class MainActivity extends AppCompatActivity {
                 String v2 = sp.getString(key, "");
                 Toast.makeText(this, "sp_putString_S_SS=" + ok + ", v2=" + v2, Toast.LENGTH_SHORT).show();
             } catch (Throwable e) {
-                Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
+                FLog.e(TAG, "运行出错: " + e);
+                Toast.makeText(this, "运行出错: " + e, Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -411,44 +412,48 @@ public class MainActivity extends AppCompatActivity {
 
             FHook.hook(Settings_Secure_getString_S_OS)
                     .setOrigFunRun(true)
-                    .setHookEnter((thiz, args, types, hh) -> {
-                        // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
-                        showLog("Settings_Secure_getString_S_OS", thiz, args, types);
-                        args.set(1, "input_method_selector_visibility");
-
-                    })
-//                    .setHookExit((ret, type, hh) -> {
-//                        showLog("Settings_Secure_getString_S_OS", hh.thisObject, ret, type);
-//                        // 演示：在返回值后面加标记，肉眼可见 hook 生效
-//                        if (ret instanceof String) {
-//                            ret = ret + "_HOOK";
-//                        }
-//                        return ret;
+//                    .setHookEnter((thiz, args, types, hh) -> {
+//                        // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
+//                        showLog("Settings_Secure_getString_S_OS", thiz, args, types);
+//                        args.set(1, "input_method_selector_visibility");
+//
 //                    })
+                    .setHookExit((ret, type, hh) -> {
+                        showLog("Settings_Secure_getString_S_OS", hh.thisObject, ret, type);
+                        // 演示：在返回值后面加标记，肉眼可见 hook 生效
+                        if (ret instanceof String) {
+                            ret = ret + "_HOOK";
+                        }else{
+                            ret = "null_null_";
+                        }
+                        return ret;
+                    })
                     .commit();
         }
-//
-//        // boolean ok = sp.edit().putString(key, "时间" + System.currentTimeMillis()).commit();
-//        // 从实现类上取真实的 commit()（不是接口上的）
-//        //  boolean commit();
-//        Method sp_putString_S_SS = SharedPreferences.Editor.class.getMethod("putString", String.class, String.class);
-//        SharedPreferences.Editor editor = this.getSharedPreferences("demo", MODE_PRIVATE).edit();
-//        Method mCommitImpl = FHookTool.findMethod4Impl(editor, sp_putString_S_SS);
-//
-//        FHook.hook(mCommitImpl)
-//                .setOrigFunRun(true)
-//                .setHookEnter((thiz, args, types, hh) -> {
-//                    // thiz 是具体 Editor 实例；无参数
-//                    showLog("SharedPreferences.Editor.commit", thiz, args, types);
-//                })
-//                .setHookExit((ret, type, hh) -> {
-//                    // ret 是 Boolean（primitive boolean 会被装箱）
-//                    showLog("SharedPreferences.Editor.commit", hh.thisObject, ret, type);
-//                    // 你也可以强制返回 true 观测效果：
-//                    ret = false;
-//                    return ret;
-//                })
-//                .commit();
+
+        // boolean ok = sp.edit().putString(key, "时间" + System.currentTimeMillis()).commit();
+        // 从实现类上取真实的 commit()（不是接口上的）
+        //  boolean commit();
+        Method sp_putString_S_SS = SharedPreferences.Editor.class.getMethod("putString", String.class, String.class);
+        SharedPreferences.Editor editor = this.getSharedPreferences("demo", MODE_PRIVATE).edit();
+        // 这里 hook的是 sp_putString_S_SS
+        Method mCommitImpl = FHookTool.findMethod4Impl(editor, sp_putString_S_SS);
+
+        FHook.hook(mCommitImpl)
+                .setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    // thiz 是具体 Editor 实例；无参数
+                    showLog("SharedPreferences.Editor.commit", thiz, args, types);
+                })
+                .setHookExit((ret, type, hh) -> {
+                    // ret 是 Boolean（primitive boolean 会被装箱）
+                    showLog("SharedPreferences.Editor.commit", hh.thisObject, ret, type);
+                    // 你也可以强制返回 true 观测效果：
+                    // 运行出错: java.lang.ClassCastException: java.lang.Boolean cannot be cast to android.content.SharedPreferences$Editor
+                    ret = false;
+                    return ret;
+                })
+                .commit();
 
 
     }

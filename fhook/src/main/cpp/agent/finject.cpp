@@ -195,13 +195,6 @@ namespace finject {
                     insert_point);
         }
 
-        // 如果添加了寄存器 同时需要运行原始方法 则需要把参数移回原位
-        if (num_add_reg > 0 && hook_info.isRunOrigFun) {
-            LOGD("[do_HEnter] 恢复寄存器位置 ...")
-            //扩展了几个寄存器 = 需要多少本地寄存器 - 原有多少个本地寄存器
-            fir_tools::restore_reg_params4shift(code_ir, insert_point, num_add_reg);
-        }
-
         return true;
     }
 
@@ -288,7 +281,7 @@ namespace finject {
         // --- 完成：reg_do_arg 是把返回值转成了 Object对象
 
         /// 开发调试  -------------------
-        debug_log_2p(code_ir, forbidden_v, insert_point);
+//        debug_log_2p(code_ir, forbidden_v, insert_point);
 
 
 //            if (!transform->is_app_loader()) { //  调试使用
@@ -328,7 +321,7 @@ namespace finject {
                     code_ir, regs9[0], reg_do_arg, regs9[1],
                     hook_info.j_method_id, insert_point);
 
-            auto reg_do_args=regs9[1]; //  reg_do_arg -》 reg_do_args
+            auto reg_do_args = regs9[1]; //  reg_do_arg -》 reg_do_args
 
             // --------------------- 3
             count = 3;// 前面只有最后的封装参数需要保留
@@ -394,9 +387,9 @@ namespace finject {
              ir_method->decl->prototype->Signature().c_str())
 
         // ---- 如果是系统侧 需要根据方法信息需要框架是否走备用方案
-        bool is_run_backup_plan;
+        bool is_run_backup_plan = false; // 默认是普通方法，
         if (!transform->is_app_loader()) {
-            is_run_backup_plan = is_frame_method(ir_method);
+            is_run_backup_plan = is_frame_method(ir_method); // 是系统函数 是框架函数走 B方法
             /// 开发调试
             is_run_backup_plan = false;
             LOGE("[do_finject] 开发调试 is_run_backup_plan= %d", is_run_backup_plan)
@@ -454,6 +447,13 @@ namespace finject {
                     is_run_backup_plan);
 
             if (!res)return false;
+        }
+
+        // --- 只要申请了寄存器，同时要运行原方法，必须需要把参数移回原位
+        if (num_add_reg > 0 && hook_info.isRunOrigFun ) {
+            LOGD("[do_HEnter] 恢复寄存器位置 ...")
+            //扩展了几个寄存器 = 需要多少本地寄存器 - 原有多少个本地寄存器
+            fir_tools::restore_reg_params4shift(code_ir, insert_point, num_add_reg);
         }
 
         // ...... do RunOrigFun ......
