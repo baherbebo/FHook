@@ -10,7 +10,9 @@
 #include "fir_tools.h"
 #include "fir_funs_def.h"
 #include "fir_funs_do.h"
+#include "fir_funs_do_impl.h"
 #include "freg_manager.h"
+
 
 namespace finject {
     // 把类名统一成 "java/lang/xxx" 形式
@@ -101,7 +103,7 @@ namespace finject {
                 code_ir, forbidden_v, count, "regs1");
         CHECK_ALLOC_OR_RET(regs1, count, false, "[do_HEnter] regs1 申请寄存器失败 ...");
         // 这里参数来源 自动读 p指针 object[arg0,arg1...]
-        fir_funs_do::cre_arr_do_args4onEnter(
+        fir_impl::cre_arr_do_args4onEnter(
                 code_ir,
                 regs1[0], regs1[1], regs1[2],
                 insert_point);
@@ -166,7 +168,7 @@ namespace finject {
                 CHECK_ALLOC_OR_RET(regs6, count, false, "[do_HEnter] regs6 申请寄存器失败 ...");
                 // 调用 onEnter 函数
                 // 创建参数 Class[] 在 v2 （Class[]{Object[].class,Long.class}）
-                fir_funs_do::cre_arr_class_args4onEnter(
+                fir_impl::cre_arr_class_args4onEnter(
                         code_ir, regs6[0], regs6[1], regs6[2], insert_point);
                 auto reg_method_args = regs6[2];
                 forbidden_v.push_back(reg_method_args);
@@ -176,7 +178,7 @@ namespace finject {
                 CHECK_ALLOC_OR_RET(regs7, count, false, "[do_HEnter] regs7 申请寄存器失败 ...");
 
                 // 执行结果返回到 v0`
-                bool res = fir_funs_do::do_sysloader_hook_funs_A(
+                bool res = fir_impl::do_sysloader_hook_funs_A(
                         code_ir, regs7[0], regs7[1], regs7[2],
                         reg_method_args, reg_do_args,
                         regs7[0],
@@ -198,7 +200,7 @@ namespace finject {
 //                        reg_do_args, regs8[0],
 //                        g_name_class_THook, g_name_fun_onEnter, insert_point);
 
-                bool res = fir_funs_do::do_sysloader_hook_funs_C(
+                bool res = fir_impl::do_sysloader_hook_funs_C(
                         code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
                         reg_do_args, regs8[0],
                         g_name_class_THook, g_name_fun_MH_ENTER, insert_point);
@@ -301,7 +303,7 @@ namespace finject {
         insert_point = code_ir->instructions.end(); // 参数等会用到这个指针
         // --------------------- 1
         // 确保不与宽冲突 创建参数 这个函数不会报错
-        fir_funs_do::cre_arr_do_args4onExit(
+        fir_impl::cre_arr_do_args4onExit(
                 code_ir,
                 reg_return_orig,
                 reg_do_arg,
@@ -372,7 +374,7 @@ namespace finject {
                 CHECK_ALLOC_OR_RET(regs10, count, -1, "[doHExit] regs10 申请寄存器失败 ...");
 
                 // Class[]{Object.class,Long.class}
-                fir_funs_do::cre_arr_class_args4onExit(
+                fir_impl::cre_arr_class_args4onExit(
                         code_ir, regs10[0], regs10[1], regs10[2],
                         insert_point);
                 auto reg_method_args = regs10[2];
@@ -384,7 +386,7 @@ namespace finject {
                         code_ir, forbidden_v, count, "regs11");
                 CHECK_ALLOC_OR_RET(regs11, count, -1, "[doHExit] regs11 申请寄存器失败 ...");
 
-                bool res = fir_funs_do::do_sysloader_hook_funs_A(
+                bool res = fir_impl::do_sysloader_hook_funs_A(
                         code_ir, regs11[0], regs11[1], regs11[2],
                         reg_method_args, reg_do_args, regs11[2],
                         g_name_class_THook, g_name_fun_onExit,
@@ -404,7 +406,7 @@ namespace finject {
 //                        reg_do_args, regs8[0],
 //                        g_name_class_THook, g_name_fun_onExit, insert_point);
 
-                bool res = fir_funs_do::do_sysloader_hook_funs_C(
+                bool res = fir_impl::do_sysloader_hook_funs_C(
                         code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
                         reg_do_args, regs8[0],
                         g_name_class_THook, g_name_fun_MH_EXIT, insert_point);
