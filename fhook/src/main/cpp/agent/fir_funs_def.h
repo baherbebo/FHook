@@ -46,7 +46,7 @@ namespace fir_funs_def {
 
     lir::Method *get_MethodHandles_publicLookup(lir::CodeIr *code_ir);
 
-    lir::Method *get_MethodType_methodType_3p(lir::CodeIr *code_ir);
+    lir::Method *get_MethodType_methodType_2p(lir::CodeIr *code_ir);
 
     lir::Method *get_THook_onEnter(lir::CodeIr *code_ir);
 

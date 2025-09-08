@@ -247,7 +247,7 @@ public class MainActivity extends AppCompatActivity {
 //        Thread thread = Thread.currentThread();
 //        thread.getContextClassLoader();
         Button bt_main_23 = findViewById(R.id.bt_main_23);
-        bt_main_23.setText("23 class_getDeclaredMethod_M_S_C 多个方法");
+        bt_main_23.setText("23 class_getDeclaredMethod_M_SC 多个方法");
         bt_main_23.setOnClickListener(v -> {
             Method method = null;
 
@@ -263,7 +263,7 @@ public class MainActivity extends AppCompatActivity {
                 // 方案B
 //                Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool", true, contextClassLoader);
 //                MethodHandles.Lookup lk = MethodHandles.publicLookup();
-//                MethodType mt = MethodType.methodType(void.class, int.class);
+                MethodType mt = MethodType.methodType(void.class, int.class);
 //                MethodHandle mh = lk.findStatic(clazz, "printStackTrace", mt);
 //                Object res = mh.invokeWithArguments(5);
 
@@ -351,33 +351,36 @@ public class MainActivity extends AppCompatActivity {
 //                    FLog.d(TAG, "[method_invoke_O_OArr] start ....");
 //                    args.set(0, "java.lang.Integer");
 //                })
-//                .setHookExit((ret, type, hh) -> {
-//                    FLog.d(TAG, "[method_invoke_O_OArr] start ....");
-//                    return ret;
-//                });
+////                .setHookExit((ret, type, hh) -> {
+////                    FLog.d(TAG, "[method_invoke_O_OArr] start ....");
+////                    return ret;
+////                })
+//                .commit();
 
-        // method = clazz.getDeclaredMethod("printStackTrace", int.class);
-//        Method class_getDeclaredMethod_M_S_C = FHookTool.findMethod4First(
+//         method = clazz.getDeclaredMethod("printStackTrace", int.class);
+//        Method class_getDeclaredMethod_M_SC = FHookTool.findMethod4First(
 //                Class.class, "getDeclaredMethod");
-//        FHook.hook(class_getDeclaredMethod_M_S_C)
+//        FHook.hook(class_getDeclaredMethod_M_SC)
 //                .setOrigFunRun(false)
 //                .setHookEnter((thiz, args, types, hh) -> {
-//                    FLog.d(TAG, "[class_getDeclaredMethod_M_S_C] start ....");
+//                    FLog.d(TAG, "[class_getDeclaredMethod_M_SC] start ....");
 //                })
-//                .setHookExit((ret, type, hh) -> {
-//                    FLog.d(TAG, "[class_getDeclaredMethod_M_S_C] start ....");
-//                    return ret;
-//                })
+////                .setHookExit((ret, type, hh) -> {
+////                    FLog.d(TAG, "[class_getDeclaredMethod_M_SC] start ....");
+////                    return ret;
+////                })
 //                .commit();
 
 
+        // 这个能用
         // Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool");
 //        Method Class_forName = FHookTool.findMethod4First(Class.class, "forName");
+//        Method Class_forName = FHookTool.findMethod4Index(Class.class, "forName", 1);
 //        FHook.hook(Class_forName)
 //                .setOrigFunRun(true)
 //                .setHookEnter((thiz, args, types, hh) -> {
 //                    FLog.d(TAG, "[Class_forName_Class_S] start ....");
-//                    args.set(0, "java.lang.Integer");
+////                    args.set(0, "java.lang.Integer");
 //                })
 //                .setHookExit((ret, type, hh) -> {
 //                    if (ret != null) {
@@ -389,71 +392,72 @@ public class MainActivity extends AppCompatActivity {
 //                .commit();
 
 
-//
-//        // Class<?> clazz = classLoader.loadClass("java.lang.String");
-//        Method classLoader_loadClass_Class_S = FHookTool.findMethod4First(ClassLoader.class, "loadClass");
-//        FHook.hook(classLoader_loadClass_Class_S)
-//                .setOrigFunRun(true)
-//                .setHookEnter((thiz, args, types, hh) -> {
-//                    FLog.d(TAG, "[classLoader_loadClass_Class_S] start ....");
-//                })
+        // Class<?> clazz = classLoader.loadClass("java.lang.String");
+        // 框架方法 hook
+        Method classLoader_loadClass_Class_S = FHookTool.findMethod4First(ClassLoader.class, "loadClass");
+        FHook.hook(classLoader_loadClass_Class_S)
+                .setOrigFunRun(false)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    FLog.d(TAG, "[classLoader_loadClass_Class_S] start ....");
+                    args.set(0, "java.lang.Integer");
+                })
 //                .setHookExit((ret, type, hh) -> {
 //                    FLog.d(TAG, "[classLoader_loadClass_Class_S] end .... ");
 //                    return ret;
 //                })
-//                .commit();
+                .commit();
 //
 //
 //        // String res = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
-        {
-            Method Settings_Secure_getString_S_OS =
-                    android.provider.Settings.Secure.class.getMethod(
-                            "getString", android.content.ContentResolver.class, String.class);
-
-            FHook.hook(Settings_Secure_getString_S_OS)
-                    .setOrigFunRun(true)
-//                    .setHookEnter((thiz, args, types, hh) -> {
-//                        // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
-//                        showLog("Settings_Secure_getString_S_OS", thiz, args, types);
-//                        args.set(1, "input_method_selector_visibility");
+//        {
+//            Method Settings_Secure_getString_S_OS =
+//                    android.provider.Settings.Secure.class.getMethod(
+//                            "getString", android.content.ContentResolver.class, String.class);
 //
+//            FHook.hook(Settings_Secure_getString_S_OS)
+//                    .setOrigFunRun(true)
+////                    .setHookEnter((thiz, args, types, hh) -> {
+////                        // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
+////                        showLog("Settings_Secure_getString_S_OS", thiz, args, types);
+////                        args.set(1, "input_method_selector_visibility");
+////
+////                    })
+//                    .setHookExit((ret, type, hh) -> {
+//                        showLog("Settings_Secure_getString_S_OS", hh.thisObject, ret, type);
+//                        // 演示：在返回值后面加标记，肉眼可见 hook 生效
+//                        if (ret instanceof String) {
+//                            ret = ret + "_HOOK";
+//                        }else{
+//                            ret = "null_null_";
+//                        }
+//                        return ret;
 //                    })
-                    .setHookExit((ret, type, hh) -> {
-                        showLog("Settings_Secure_getString_S_OS", hh.thisObject, ret, type);
-                        // 演示：在返回值后面加标记，肉眼可见 hook 生效
-                        if (ret instanceof String) {
-                            ret = ret + "_HOOK";
-                        }else{
-                            ret = "null_null_";
-                        }
-                        return ret;
-                    })
-                    .commit();
-        }
+//                    .commit();
+//        }
 
         // boolean ok = sp.edit().putString(key, "时间" + System.currentTimeMillis()).commit();
         // 从实现类上取真实的 commit()（不是接口上的）
         //  boolean commit();
-        Method sp_putString_S_SS = SharedPreferences.Editor.class.getMethod("putString", String.class, String.class);
-        SharedPreferences.Editor editor = this.getSharedPreferences("demo", MODE_PRIVATE).edit();
-        // 这里 hook的是 sp_putString_S_SS
-        Method mCommitImpl = FHookTool.findMethod4Impl(editor, sp_putString_S_SS);
-
-        FHook.hook(mCommitImpl)
-                .setOrigFunRun(true)
-                .setHookEnter((thiz, args, types, hh) -> {
-                    // thiz 是具体 Editor 实例；无参数
-                    showLog("SharedPreferences.Editor.commit", thiz, args, types);
-                })
-                .setHookExit((ret, type, hh) -> {
-                    // ret 是 Boolean（primitive boolean 会被装箱）
-                    showLog("SharedPreferences.Editor.commit", hh.thisObject, ret, type);
-                    // 你也可以强制返回 true 观测效果：
-                    // 运行出错: java.lang.ClassCastException: java.lang.Boolean cannot be cast to android.content.SharedPreferences$Editor
-                    ret = false;
-                    return ret;
-                })
-                .commit();
+//        Method sp_putString_S_SS = SharedPreferences.Editor.class.getMethod("putString", String.class, String.class);
+//        SharedPreferences.Editor editor = this.getSharedPreferences("demo", MODE_PRIVATE).edit();
+//        // 这里 hook的是 sp_putString_S_SS
+//        Method mCommitImpl = FHookTool.findMethod4Impl(editor, sp_putString_S_SS);
+//
+//        FHook.hook(mCommitImpl)
+//                .setOrigFunRun(true)
+//                .setHookEnter((thiz, args, types, hh) -> {
+//                    // thiz 是具体 Editor 实例；无参数
+//                    showLog("SharedPreferences.Editor.commit", thiz, args, types);
+//                })
+//                .setHookExit((ret, type, hh) -> {
+//                    // ret 是 Boolean（primitive boolean 会被装箱）
+//                    showLog("SharedPreferences.Editor.commit", hh.thisObject, ret, type);
+//                    // 你也可以强制返回 true 观测效果：
+//                    // 运行出错: java.lang.ClassCastException: java.lang.Boolean cannot be cast to android.content.SharedPreferences$Editor
+//                    ret = false;
+//                    return ret;
+//                })
+//                .commit();
 
 
     }

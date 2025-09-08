@@ -11,7 +11,7 @@
 
 namespace finject {
     bool do_finject(deploy::Transform *transform,
-                    const deploy::MethodHooks &hook_info,
+                    deploy::MethodHooks &hook_info,
                     lir::CodeIr *code_ir);
 
 };

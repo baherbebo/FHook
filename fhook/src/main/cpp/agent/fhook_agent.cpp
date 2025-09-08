@@ -22,17 +22,15 @@ static std::map<std::string, std::unique_ptr<deploy::Transform>> fClassTransform
 thread_local deploy::Transform *current_transform = nullptr; // 当前hook配置，用于缓存和隔离其它类
 
 
-
-
 /**
  * 命中 A组 → 返回 -1（调用方直接 return -1）
  * 命中 B/C组 → 把 isRunOrigFun 设为 true 并返回 1
  * 其它 → 返回 0（不处理）
  */
-static int simple_guard_bridge_methods(const std::string& targetClassName,
-                                       const std::string& targetMethodName,
-                                       const std::string& targetMethodSignature,
-                                       jboolean& isRunOrigFun) {
+static int is_frame_methods(const std::string &targetClassName,
+                            const std::string &targetMethodName,
+                            const std::string &targetMethodSignature,
+                            jboolean &isRunOrigFun) {
     // ---- A组：禁止一切（直接拦截）----
     if (SigEq(targetClassName, "Ljava/lang/Thread;")
         && targetMethodName == "currentThread"
@@ -50,28 +48,33 @@ static int simple_guard_bridge_methods(const std::string& targetClassName,
     if (SigEq(targetClassName, "Ljava/lang/ClassLoader;")
         && targetMethodName == "loadClass"
         && SigEq(targetMethodSignature, "(Ljava/lang/String;)Ljava/lang/Class;")) {
-        isRunOrigFun = JNI_TRUE;
+//        isRunOrigFun = JNI_TRUE;
         return 1;
     }
     // Class.getDeclaredMethod(String, Class[])
     if (SigEq(targetClassName, "Ljava/lang/Class;")
         && targetMethodName == "getDeclaredMethod"
-        && SigEq(targetMethodSignature, "(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;")) {
-        isRunOrigFun = JNI_TRUE;
+        && SigEq(targetMethodSignature,
+                 "(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;")) {
+//        isRunOrigFun = JNI_TRUE;
         return 1;
     }
-    // Method.invoke(Object, Object[])
-    if (SigEq(targetClassName, "Ljava/lang/reflect/Method;")
-        && targetMethodName == "invoke"
-        && SigEq(targetMethodSignature, "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;")) {
-        isRunOrigFun = JNI_TRUE;
-        return 1;
-    }
+
+    // Method.invoke(Object, Object[])  这个是native 方法  其它已处理
+//    if (SigEq(targetClassName, "Ljava/lang/reflect/Method;")
+//        && targetMethodName == "invoke"
+//        &&
+//        SigEq(targetMethodSignature, "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;")) {
+////        isRunOrigFun = JNI_TRUE;
+//        return 1;
+//    }
+
     // Class.forName(String, boolean, ClassLoader)
     if (SigEq(targetClassName, "Ljava/lang/Class;")
         && targetMethodName == "forName"
-        && SigEq(targetMethodSignature, "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;")) {
-        isRunOrigFun = JNI_TRUE;
+        && SigEq(targetMethodSignature,
+                 "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;")) {
+//        isRunOrigFun = JNI_TRUE;
         return 1;
     }
 
@@ -374,35 +377,80 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
     /** ---------------------- 拿到方法信息 结束 ----------------------- */
 
     // 框架方法的强制处理
-    int sg = simple_guard_bridge_methods(targetClassName, targetMethodName, targetMethodSignature,
-                                         isRunOrigFun);
-    if (sg < 0) {
+    int sg = is_frame_methods(targetClassName, targetMethodName, targetMethodSignature,
+                              isRunOrigFun);
+
+    if (sg == -1) {
         LOGW("[agent_do_transform] BLOCK by simple_guard: %s#%s %s",
              targetClassName.c_str(), targetMethodName.c_str(), targetMethodSignature.c_str());
         if (nativeClass) env->DeleteLocalRef(nativeClass);
         return -1; // 按你的要求：直接返回失败
-    }
-    if (sg > 0) {
+    } else if (sg == 1) {
         LOGI("[agent_do_transform] FORCE keep original: %s#%s %s",
              targetClassName.c_str(), targetMethodName.c_str(), targetMethodSignature.c_str());
+        isRunOrigFun = true;
     }
 
-
-    // 接口不支持 拦截
+    /** ---------------------- 检测方法可行性 ----------------------- */
     {
+        jboolean modifiable = JNI_FALSE;
+        if (!fsys::CheckJvmti(
+                fAgentJvmtiEnv->IsModifiableClass(nativeClass, &modifiable),
+                "[agent_do_transform] IsModifiableClass fail")) {
+            env->DeleteLocalRef(nativeClass);
+            return -1;
+        }
+        if (!modifiable) {
+            LOGE("[agent_do_transform] %s 不可重定义（IsModifiableClass=false）", targetClassName.c_str());
+            env->DeleteLocalRef(nativeClass);
+            return -1;
+        }
+
         jint cls_mod = 0;
         if (!fsys::CheckJvmti(
                 fAgentJvmtiEnv->GetClassModifiers(nativeClass, &cls_mod),
                 "[agent_do_transform] GetClassModifiers(class) fail")) {
-            if (nativeClass) env->DeleteLocalRef(nativeClass);
+            env->DeleteLocalRef(nativeClass);
             return -1;
         }
-        if ((cls_mod & 0x0200) != 0) { // ACC_INTERFACE
-            LOGE("[agent_do_transform] %s#%s 是接口，JVMTI 不支持 Retransform。",
+
+        // 仅在类级别判断是否为接口
+        if (cls_mod & fsys::kAccInterface) { // 0x0200
+            LOGE("[agent_do_transform] %s 是接口（类级别），保守策略：跳过 Retransform。", targetClassName.c_str());
+            env->DeleteLocalRef(nativeClass);
+            return -1;
+        }
+
+        // --- 方法级别 ---
+        jint mmods = 0;
+        if (!fsys::CheckJvmti(
+                fAgentJvmtiEnv->GetMethodModifiers(methodID4jmethodID, &mmods),
+                "[agent_do_transform] GetMethodModifiers(method) fail")) {
+            env->DeleteLocalRef(nativeClass);
+            return -1;
+        }
+
+        if (mmods & fsys::kAccNative) {       // 0x0100
+            LOGE("[agent_do_transform] %s#%s 是 native，JVMTI Retransform 不支持。",
                  targetClassName.c_str(), targetMethodName.c_str());
-            if (nativeClass) env->DeleteLocalRef(nativeClass);
+            env->DeleteLocalRef(nativeClass);
             return -1;
         }
+        if (mmods & fsys::kAccAbstract) {     // 0x0400
+            LOGE("[agent_do_transform] %s#%s 是 abstract（方法级别），无法插桩。",
+                 targetClassName.c_str(), targetMethodName.c_str());
+            env->DeleteLocalRef(nativeClass);
+            return -1;
+        }
+
+        // 按策略跳过编译器方法
+        if (mmods & (fsys::kAccBridge | fsys::kAccSynthetic)) {
+            LOGW("[agent_do_transform] %s#%s 是 bridge/synthetic，编译器方案不支持。",
+                 targetClassName.c_str(), targetMethodName.c_str());
+            env->DeleteLocalRef(nativeClass);
+            return -1;
+        }
+
     }
 
     // 每次hook先清空 不处理删除

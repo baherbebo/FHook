@@ -13,32 +13,42 @@
 #include "freg_manager.h"
 
 namespace finject {
+    // 把类名统一成 "java/lang/xxx" 形式
+    static inline std::string norm_cls(std::string s) {
+        // 去掉前导 'L' 与末尾 ';'
+        if (!s.empty() && s.front() == 'L') s.erase(s.begin());
+        if (!s.empty() && s.back() == ';') s.pop_back();
+        // 点号 -> 斜杠
+        for (auto &ch: s) if (ch == '.') ch = '/';
+        return s; // 例如 "java/lang/ClassLoader"
+    }
 
     // 仅判断三种“框架关键方法”
-    static bool is_frame_method(const ir::EncodedMethod *m) {
+    static inline bool is_frame_methods(ir::EncodedMethod *m) {
         if (!m || !m->decl || !m->decl->parent || !m->decl->prototype) return false;
 
-        const std::string cls = m->decl->parent->Decl();           // 例：Ljava/lang/ClassLoader;
-        const std::string mn = m->decl->name->c_str();            // 方法名
-        const std::string sig = m->decl->prototype->Signature();   // 例：(Ljava/lang/String;)Ljava/lang/Class;
+        const std::string cls = norm_cls(m->decl->parent->Decl());
+        const char *mn = m->decl->name->c_str();
+        const std::string sig = m->decl->prototype->Signature();
 
-        // 1) ClassLoader.loadClass(String): (Ljava/lang/String;)Ljava/lang/Class;
-        if (cls == "Ljava/lang/ClassLoader;" && mn == "loadClass"
-            && SigEq(sig, "(Ljava/lang/String;)Ljava/lang/Class;")) {
+        // 1) ClassLoader.loadClass(String) 或 (String, boolean)
+        if (cls == "java/lang/ClassLoader" &&
+            std::strcmp(mn, "loadClass") == 0 &&
+            (sig == "(Ljava/lang/String;)Ljava/lang/Class;"
+             || sig == "(Ljava/lang/String;Z)Ljava/lang/Class;"))
             return true;
-        }
 
-        // 2) Class.getDeclaredMethod(String, Class[]): (Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;
-        if (cls == "Ljava/lang/Class;" && mn == "getDeclaredMethod"
-            && SigEq(sig, "(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;")) {
+        // 2) Class.getDeclaredMethod(String, Class[])
+        if (cls == "java/lang/Class" &&
+            std::strcmp(mn, "getDeclaredMethod") == 0 &&
+            sig == "(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;")
             return true;
-        }
 
-        // 3) Method.invoke(Object, Object[]): (Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
-        if (cls == "Ljava/lang/reflect/Method;" && mn == "invoke"
-            && SigEq(sig, "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;")) {
-            return true;
-        }
+        // 3) Method.invoke(Object, Object[]) 这个是native 方法  其它已处理
+//        if (cls == "java/lang/reflect/Method" &&
+//            std::strcmp(mn, "invoke") == 0 &&
+//            sig == "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;")
+//            return true;
 
         return false;
     }
@@ -72,10 +82,9 @@ namespace finject {
     }
 
     static bool do_HEnter(const deploy::Transform *transform,
-                          const deploy::MethodHooks hook_info,
+                          const deploy::MethodHooks &hook_info,
                           lir::CodeIr *code_ir,
                           slicer::IntrusiveList<lir::Instruction>::Iterator insert_point,
-                          unsigned short &num_add_reg,
                           unsigned short &num_reg_non_param_new,
                           bool &is_run_backup_plan) {
 
@@ -91,17 +100,19 @@ namespace finject {
         auto regs1 = FRegManager::AllocV(
                 code_ir, forbidden_v, count, "regs1");
         CHECK_ALLOC_OR_RET(regs1, count, false, "[do_HEnter] regs1 申请寄存器失败 ...");
-
+        // 这里参数来源 自动读 p指针 object[arg0,arg1...]
         fir_funs_do::cre_arr_do_args4onEnter(
-                code_ir, regs1[0], regs1[1], regs1[2], insert_point);
-
+                code_ir,
+                regs1[0], regs1[1], regs1[2],
+                insert_point);
+        auto reg_do_args = regs1[2]; // Object[]
+        forbidden_v.push_back(reg_do_args);
 
         if (transform->is_app_loader()) {
             LOGD("[do_HEnter] 应用侧 调用 isHEnter ...")
 
             // --------------------- 2 直接执行 do_THook_onEnter 这个没得返回 改了的参数在 regs3[0]
             count = 1; // 先申请宽
-            forbidden_v.push_back(regs1[2]);
             auto regs2_wide = FRegManager::AllocWide(
                     code_ir, forbidden_v, count, "regs2_wide");
             CHECK_ALLOC_OR_RET(regs2_wide, count, false,
@@ -118,7 +129,7 @@ namespace finject {
             auto f_THook_onEnter = fir_funs_def::get_THook_onEnter(code_ir);
             bool res = fir_funs_do::do_THook_onEnter(
                     f_THook_onEnter, code_ir,
-                    regs1[2], regs2_wide[0], regs3[0],
+                    reg_do_args, regs2_wide[0], regs3[0],
                     hook_info.j_method_id, insert_point);
             if (!res)return false;
 
@@ -128,39 +139,48 @@ namespace finject {
             // 系统侧 调用
             LOGD("[do_HEnter] 系统侧 调用 isHEnter ...")
 
+            // reg_do_args  Object[arg0,arg1...]
             // --------------------- 1
             count = 2;
-            forbidden_v.clear();
             auto regs5 = FRegManager::AllocV(
                     code_ir, forbidden_v, count, "regs5");
             CHECK_ALLOC_OR_RET(regs5, count, false, "[do_HEnter] regs5 申请寄存器失败 ...");
 
             // public final static Object[] onEnter4fhook(Object[] rawArgs, long methodId)
-            // Object[Object[],Long] 再包一层对象 reg_do_args 完成
-            fir_funs_do::cre_arr_do_arg_2p(code_ir, regs5[0], regs1[2],
+            // Object[Object[arg0,arg1...],Long] 再包一层对象 reg_do_args 完成
+            fir_funs_do::cre_arr_do_arg_2p(code_ir,
+                                           regs5[0], reg_do_args,
                                            regs5[1], hook_info.j_method_id, insert_point);
-
-            // --------------------- 2
-            count = 3;
-            forbidden_v.push_back(regs5[1]);
-            auto regs6 = FRegManager::AllocV(
-                    code_ir, forbidden_v, count, "regs6");
-            CHECK_ALLOC_OR_RET(regs6, count, false, "[do_HEnter] regs6 申请寄存器失败 ...");
-            // 调用 onEnter 函数
-            // 创建参数 Class[] 在 v2 （Class[]{Object[].class,Long.class}）
-            fir_funs_do::cre_arr_class_args4onEnter(
-                    code_ir, regs6[0], regs6[1], regs6[2], insert_point);
+            reg_do_args = regs5[1]; // Object[ Object[arg0,arg1...],Long]
+            forbidden_v.clear();  // 前面的可以清了
+            forbidden_v.push_back(reg_do_args);
 
             // --------------------- 3
             if (!is_run_backup_plan) {
+                LOGD("[do_HEnter] 运行A方案 ...")
+
+                // --------------------- 2
                 count = 3;
-                forbidden_v.push_back(regs6[2]);
+                auto regs6 = FRegManager::AllocV(
+                        code_ir, forbidden_v, count, "regs6");
+                CHECK_ALLOC_OR_RET(regs6, count, false, "[do_HEnter] regs6 申请寄存器失败 ...");
+                // 调用 onEnter 函数
+                // 创建参数 Class[] 在 v2 （Class[]{Object[].class,Long.class}）
+                fir_funs_do::cre_arr_class_args4onEnter(
+                        code_ir, regs6[0], regs6[1], regs6[2], insert_point);
+                auto reg_method_args = regs6[2];
+                forbidden_v.push_back(reg_method_args);
+
+
+                count = 3;
                 auto regs7 = FRegManager::AllocV(code_ir, forbidden_v, count);
+                CHECK_ALLOC_OR_RET(regs7, count, false, "[do_HEnter] regs7 申请寄存器失败 ...");
+
 
                 // 执行结果返回到 v0`
-                bool res = fir_funs_do::do_apploader_static_fun(
+                bool res = fir_funs_do::do_sysloader_hook_funs(
                         code_ir, regs7[0], regs7[1], regs7[2],
-                        regs6[2], regs5[1],
+                        reg_method_args, reg_do_args,
                         regs7[0],
                         g_name_class_THook, g_name_fun_onEnter,
                         insert_point);
@@ -169,9 +189,22 @@ namespace finject {
                 reg_do_return = regs7[0];
             } else {
 
+                LOGI("[do_HEnter] 运行B方案 ...")
+
+                count = 4;
+                auto regs8 = FRegManager::AllocV(
+                        code_ir, forbidden_v, count, "regs8");
+                CHECK_ALLOC_OR_RET(regs8, count, false, "[do_HEnter] regs8 申请寄存器失败 ...");
+                bool res = fir_funs_do::do_sysloader_hook_funs_B(
+                        code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
+                        reg_do_args, regs8[0],
+                        g_name_class_THook, g_name_fun_onEnter, insert_point);
+                if (!res)return false;
+
+                reg_do_return = regs8[0];
+
             }
         }
-
 
         // --------------------- 3 恢复类型和位置
 
@@ -346,7 +379,7 @@ namespace finject {
                         code_ir, forbidden_v, count, "regs11");
                 CHECK_ALLOC_OR_RET(regs11, count, -1, "[doHExit] regs11 申请寄存器失败 ...");
 
-                bool res = fir_funs_do::do_apploader_static_fun(
+                bool res = fir_funs_do::do_sysloader_hook_funs(
                         code_ir, regs11[0], regs11[1], regs11[2],
                         reg_method_args, reg_do_args, regs11[2],
                         g_name_class_THook, g_name_fun_onExit,
@@ -354,7 +387,7 @@ namespace finject {
                 if (!res) return -1;
                 reg_return_dst = regs11[2];
             } else {
-                // do_apploader_static_fun_B
+                // do_sysloader_hook_funs_B
             }
 
         }
@@ -371,13 +404,16 @@ namespace finject {
      * @return
      */
     bool do_finject(deploy::Transform *transform,
-                    const deploy::MethodHooks &hook_info,
+                    deploy::MethodHooks &hook_info,
                     lir::CodeIr *code_ir) {
 
 
         /// 开发调试
+//        hook_info.isRunOrigFun = false;
+//        LOGE("[do_finject]  ------ 开启了反向调试  ------ isRunOrigFun= %d", hook_info.isRunOrigFun)
 //        transform->set_app_loader(!transform->is_app_loader());
 //        LOGE("[do_finject]  ------ 开启了反向调试  ------ transform->set_app_loader(!transform->is_app_loader())  -----------")
+
 
         auto ir_method = code_ir->ir_method;
         // 方法信息
@@ -389,10 +425,11 @@ namespace finject {
         // ---- 如果是系统侧 需要根据方法信息需要框架是否走备用方案
         bool is_run_backup_plan = false; // 默认是普通方法，
         if (!transform->is_app_loader()) {
-            is_run_backup_plan = is_frame_method(ir_method); // 是系统函数 是框架函数走 B方法
+            is_run_backup_plan = is_frame_methods(ir_method); // 是系统函数 是框架函数走 B方法
+            LOGI("[do_finject] is_run_backup_plan= %d", is_run_backup_plan)
             /// 开发调试
-            is_run_backup_plan = false;
-            LOGE("[do_finject] 开发调试 is_run_backup_plan= %d", is_run_backup_plan)
+//            is_run_backup_plan = false;
+//            LOGE("[do_finject] 开发调试 is_run_backup_plan= %d", is_run_backup_plan)
         }
 
         auto orig_return_type = ir_method->decl->prototype->return_type;
@@ -443,15 +480,15 @@ namespace finject {
         if (hook_info.isHEnter) {
             bool res = do_HEnter(
                     transform, hook_info, code_ir,
-                    insert_point, num_add_reg, num_reg_non_param_new,
+                    insert_point, num_reg_non_param_new,
                     is_run_backup_plan);
 
             if (!res)return false;
         }
 
         // --- 只要申请了寄存器，同时要运行原方法，必须需要把参数移回原位
-        if (num_add_reg > 0 && hook_info.isRunOrigFun ) {
-            LOGD("[do_HEnter] 恢复寄存器位置 ...")
+        if (num_add_reg > 0 && hook_info.isRunOrigFun) {
+            LOGD("[do_finject] 恢复寄存器位置 ...")
             //扩展了几个寄存器 = 需要多少本地寄存器 - 原有多少个本地寄存器
             fir_tools::restore_reg_params4shift(code_ir, insert_point, num_add_reg);
         }

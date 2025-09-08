@@ -252,16 +252,15 @@ namespace fir_funs_def {
         return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
-    // MethodType methodType(Class rtype, Class p1, Class p2)
-    lir::Method *get_MethodType_methodType_3p(lir::CodeIr *code_ir) {
-        std::string name_class = "Ljava/lang/invoke/MethodType;";
-        std::string name_method = "methodType";
+    // 用于 MethodType.methodType(Class, Class[])
+    lir::Method* get_MethodType_methodType_2p(lir::CodeIr* code_ir) {
+        const std::string name_class  = "Ljava/lang/invoke/MethodType;";
+        const std::string name_method = "methodType";
         std::vector<std::string> param_types = {
-                "Ljava/lang/Class;",  // rtype
-                "Ljava/lang/Class;",  // p1
-                "Ljava/lang/Class;"   // p2
+                "Ljava/lang/Class;",     // rtype
+                "[Ljava/lang/Class;"     // ptypes (数组)
         };
-        std::string return_type = "Ljava/lang/invoke/MethodType;";
+        const std::string return_type = "Ljava/lang/invoke/MethodType;";
         return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
