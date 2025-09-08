@@ -3,18 +3,22 @@ package top.feadre.fhook;
 import java.lang.reflect.Method;
 
 public class CLinker {
+
+    protected static native boolean dcEnableJdwp(boolean enable); // 常规初始
+
+    protected static native boolean jcJvmtiSuccess(String nameSoFhookAgent,boolean is_safe_mode); // 后处理
+
+    protected static native int dcSetRuntimeJavaDebuggable(int debuggable); // 尝试增强初始
+
     protected static native long dcHook(Method method, boolean isHEnter, boolean isHExit,
-                                     boolean isRunOrigFun);
+                                        boolean isRunOrigFun);
 
-    protected static native int dcSetRuntimeJavaDebuggable(int debuggable);
-
-    protected static native boolean dcEnableJdwp(boolean enable);
+    // 初始化入口
 
     protected static native boolean dcIsJdwpAllowed();
 
     protected static native boolean dcUnhook(long methodId);
 
-    protected static native boolean jcJvmtiSuccess(String nameSoFhookAgent);
 
     ///  查找接口 或 抽象类 的实现类
     public static native Class<?>[] jcJvmtiFindImpl(Class<?> ifaceOrAbstract);

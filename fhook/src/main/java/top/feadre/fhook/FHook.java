@@ -42,20 +42,21 @@ public class FHook {
 
     static {
         System.loadLibrary("fhook");
-        // 全局初始化方法
-        var mt_enter = MethodType.methodType(Object[].class, Object[].class, long.class);
-        var mt_exit = MethodType.methodType(Object.class, Object.class, long.class);
+
         try {
-            MH_ENTER = MethodHandles.lookup().findStatic(FHook.class, "onEnter4fhook", mt_enter);
-            MH_EXIT = MethodHandles.lookup().findStatic(FHook.class, "onExit4fhook", mt_exit);
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
-        } catch (NoSuchMethodException e) {
+            //  用于 hook 系统API 的全局方法变量
+            var mtEnter = MethodType.methodType(Object[].class, Object[].class, long.class);
+            var mtExit = MethodType.methodType(Object.class, Object.class, long.class);
+            var lk = MethodHandles.lookup();
+            MH_ENTER = lk.findStatic(FHook.class, "onEnter4fhook", mtEnter);
+            MH_EXIT = lk.findStatic(FHook.class, "onExit4fhook", mtExit);
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
     private static boolean isInit = false;
+
 
     public static final class InitReport {
         public boolean jdwpEnabledTried;   // 尝试过开 JDWP
@@ -130,7 +131,7 @@ public class FHook {
             Debug.attachJvmtiAgent(name_so_fhook_agent, null, context.getClassLoader());
 
             // c++ 加载 name_so_fhook_agent
-            boolean res = CLinker.jcJvmtiSuccess(name_so_fhook_agent);
+            boolean res = CLinker.jcJvmtiSuccess(name_so_fhook_agent, FCFG_fhook.IS_SAFE_MODE);
             if (res) {
                 r.note = "attach success Jvmti 第一次就初始化成功";
                 r.attachOk = true;
@@ -160,7 +161,7 @@ public class FHook {
                 Debug.attachJvmtiAgent("libfhook_agent.so", null, context.getClassLoader());
 
                 // c++ 加载 name_so_fhook_agent
-                boolean res = CLinker.jcJvmtiSuccess(name_so_fhook_agent);
+                boolean res = CLinker.jcJvmtiSuccess(name_so_fhook_agent, FCFG_fhook.IS_SAFE_MODE);
                 if (res) {
                     r.attachOk = true;
                     r.note = "attach success after enabling Runtime debuggable";
@@ -443,73 +444,122 @@ public class FHook {
     }
 
 
-    /**
-     * !canHook(m)：接口/抽象/native/<clinit> 等不支持的；
-     *
-     * @param cls
-     * @return
-     */
-    public static synchronized GroupHandle hook(Class<?> cls) {
-        FLog.d(TAG, "[hook(Class)] start ... class=" + cls.getName());
+    // 统一收集并包装：在 clazz 中按 nameFilter（可空）筛选方法；
+    // searchInherited=true 时，声明方法没命中则回退到 getMethods()（含父类 public）。
+    private static GroupHandle hookClassInternal(Class<?> clazz,
+                                                 String nameFilter,
+                                                 boolean searchInherited) {
+        final String where = "[hookClassInternal]";
         if (!isInit) {
-            FLog.e(TAG, "[hook(Class)] 请先初始化 call FHook.init() first");
-            return new GroupHandle(cls); // 返回空组，避免 NPE
+            FLog.e(TAG, where + " 请先初始化 call FHook.init() first");
+            return new GroupHandle(clazz);
         }
-        if (cls == null) {
-            FLog.e(TAG, "[hook(Class)] cls = null");
+        if (clazz == null) {
+            FLog.e(TAG, where + " clazz = null");
             return new GroupHandle(null);
         }
-        if (cls.isInterface() || cls.isAnnotation()) {
-            FLog.e(TAG, "[hook(Class)] 传入的是接口/注解： " + cls.getName() + "，不能直接重写；请先找实现类再批量 hook");
-            return new GroupHandle(cls);
+        if (clazz.isInterface() || clazz.isAnnotation()) {
+            FLog.e(TAG, where + " 传入的是接口/注解： " + clazz.getName() + "，不能直接重写；请先找实现类");
+            return new GroupHandle(clazz);
         }
 
-        GroupHandle group = new GroupHandle(cls);
+        GroupHandle group = new GroupHandle(clazz);
 
-        // 只枚举“本类声明”的方法；如需包含父类可换 getMethods()
-        Method[] methods;
+        // 1) 本类声明的方法
+        Method[] declared;
         try {
-            methods = cls.getDeclaredMethods();
+            declared = clazz.getDeclaredMethods();
         } catch (Throwable t) {
-            FLog.e(TAG, "[hook(Class)] getDeclaredMethods 失败: " + cls.getName(), t);
+            FLog.e(TAG, where + " getDeclaredMethods 失败: " + clazz.getName(), t);
             return group;
         }
 
-        int ok = 0, skip = 0;
-        for (Method m : methods) {
-            // 过滤掉不支持/不需要的
-            int mods = m.getModifiers();
-            if (!canHook(m)) {
-                skip++;
-                continue;
+        java.util.List<Method> targets = new java.util.ArrayList<>();
+        for (Method m : declared) {
+            if (nameFilter == null || nameFilter.equals(m.getName())) {
+                targets.add(m);
             }
-            if (m.isSynthetic() || m.isBridge()) {
-                skip++;
-                continue;
-            } // 降噪
-            // 避免破坏锁边界（可选，仅提示，不跳过）
-            if (Modifier.isSynchronized(mods)) {
-                FLog.w(TAG, "[hook(Class)] synchronized 方法：" + cls.getName() + "#" + m.getName());
-            }
-            try {
-                if (!m.isAccessible()) m.setAccessible(true);
-            } catch (Throwable ignore) {
-            }
-
-            // 复用你已有的单方法入口
-            HookHandle h = hook(m);
-            // 失败的会被 markNotHooked，这里仍然收集，方便统一设置/commit
-            group.handles.add(h);
-            ok++;
         }
 
-        // collected：实际被加入 group.handles 的方法数
-        FLog.i(TAG, "[hook(Class)] 收集完成 class=" + cls.getName()
-                + " methods=" + methods.length + " collected=" + ok + " skipped=" + skip);
+        // 2) 回退：继承而来的 public（仅在需要时）
+        boolean usedFallback = false;
+        if (targets.isEmpty() && searchInherited) {
+            try {
+                for (Method m : clazz.getMethods()) {
+                    if (nameFilter == null || nameFilter.equals(m.getName())) {
+                        targets.add(m);
+                    }
+                }
+                if (!targets.isEmpty()) {
+                    usedFallback = true;
+                    FLog.w(TAG, where + " 未在 " + clazz.getName()
+                            + " 的声明方法中找到匹配；改用 public(可能来自父类/接口) 的重载，共 "
+                            + targets.size() + " 个。注意：实际 hook 的是各自声明类的方法。");
+                }
+            } catch (Throwable t) {
+                FLog.e(TAG, where + " getMethods 回退失败: " + clazz.getName(), t);
+            }
+        }
+
+        if (targets.isEmpty()) {
+            FLog.e(TAG, where + " 未找到匹配方法： " + clazz.getName()
+                    + (nameFilter == null ? " 〈全部〉" : ("#" + nameFilter)));
+            return group;
+        }
+
+        int collected = 0, skipped = 0;
+        for (Method m : targets) {
+            try {
+                // 降噪 / 黑名单
+                if (m.isSynthetic() || m.isBridge() || isBridgeCritical(m)) {
+                    skipped++;
+                    continue;
+                }
+                try {
+                    if (!m.isAccessible()) m.setAccessible(true);
+                } catch (Throwable ignore) {
+                }
+
+                if (!canHook(m)) { // 接口/抽象/native/<clinit> 等直接跳过
+                    skipped++;
+                    continue;
+                }
+
+                if (Modifier.isSynchronized(m.getModifiers())) {
+                    FLog.w(TAG, where + " synchronized 方法："
+                            + m.getDeclaringClass().getName() + "#" + m.getName());
+                }
+
+                // 复用单方法入口（其中仍会再次做轻量校验与提示）
+                HookHandle h = hook(m);
+                group.getHandles().add(h); // 即使 markNotHooked 也纳入，便于统一 set()/commit()
+                collected++;
+            } catch (Throwable t) {
+                skipped++;
+                FLog.e(TAG, where + " 处理方法失败："
+                        + m.getDeclaringClass().getName() + "#" + m.getName(), t);
+            }
+        }
+
+        FLog.i(TAG, where + " 完成 class=" + clazz.getName()
+                + " filter=" + (nameFilter == null ? "<ALL>" : nameFilter)
+                + " found=" + targets.size()
+                + (usedFallback ? " (via getMethods fallback)" : "")
+                + " collected=" + collected + " skipped=" + skipped);
         return group;
     }
 
-    /// FHook.hook(o1).setOrigFunRun(false).setHookEnter(...).commit(); kipped：被跳过的不处理的方法数。
+    /**
+     * 按类批量 hook（仅本类声明的方法）
+     */
+    public static synchronized GroupHandle hook(Class<?> cls) {
+        FLog.d(TAG, "[hook(Class)] start ... class=" + (cls == null ? "null" : cls.getName()));
+        return hookClassInternal(cls, null, false);
+    }
+
+    /**
+     * 按对象批量 hook（向上寻找可 hook 的具体实现类；仅本类声明的方法）
+     */
     public static synchronized GroupHandle hook(Object obj) {
         FLog.d(TAG, "[hook(Object)] start ... " + obj);
         if (!isInit) {
@@ -522,24 +572,7 @@ public class FHook {
         }
 
         Class<?> cls = obj.getClass();
-
-        // 一些提示：匿名/合成/代理类可能不是你真正想要的实现类
-        try {
-            if (cls.isAnonymousClass() || cls.isSynthetic()) {
-                FLog.w(TAG, "[hook(Object)] 目标类是匿名/合成类：" + cls.getName() + "，将直接尝试对其声明的方法进行 hook");
-            }
-            // Proxy 场景仅提示（Android 上少见对业务对象用动态代理）
-            try {
-                if (java.lang.reflect.Proxy.isProxyClass(cls)) {
-                    FLog.w(TAG, "[hook(Object)] 目标是 JDK 动态代理类：" + cls.getName()
-                            + "（通常应考虑 hook InvocationHandler 或具体实现类）");
-                }
-            } catch (Throwable ignore) {
-            }
-        } catch (Throwable ignore) {
-        }
-
-        // 如果当前类不可直接 hook（抽象/接口等），向上找一个可 hook 的具体类
+        // 找到可 hook 的具体类
         Class<?> cur = cls;
         while (cur != null && !FHookTool.isHookableClass(cur)) {
             cur = cur.getSuperclass();
@@ -548,72 +581,58 @@ public class FHook {
             FLog.e(TAG, "[hook(Object)] 未找到可 hook 的具体实现类，原始：" + cls.getName());
             return new GroupHandle(null);
         }
-
-        // 复用你现有的“按类批量 hook”
-        return hook(cur);
+        return hookClassInternal(cur, null, false);
     }
 
     /**
-     * JVMTI 不支持类型
-     * 接口/注解接口：declaringClass.isInterface() / isAnnotation()。
-     * 抽象方法：Modifier.isAbstract(method.getModifiers())（没有 CodeItem）。
-     * native 方法：Modifier.isNative(...)（没有 dex code，JVMTI 也不能给它换实现）。
-     * 类初始化方法 <clinit>：理论上可以改字节码，但在 ART 上高风险（容易触发初始化时机/验证问题），通常当作不支持处理。
-     * 类/方法产生的变更涉及结构性修改（增删方法/字段、改签名/继承结构等）：ART 仅支持不改变类结构的“换方法体”型重转换。
-     *
-     * @param method
-     * @return
+     * 单方法入口（真正的可用性以 canHook/isBridgeCritical 为准）
      */
     public static synchronized HookHandle hook(Method method) {
         if (!isInit) {
-            FLog.e(TAG, "[hook] 请先初始化 call FHook.init() first");
+            FLog.e(TAG, "[hook(Method)] 请先初始化 call FHook.init() first");
             return new HookHandle(-1, method).markNotHooked();
         }
-
         if (method == null) {
-            FLog.e(TAG, "[hook] method = null 没有找到 ...");
-            return new HookHandle(-1, method).markNotHooked();
+            FLog.e(TAG, "[hook(Method)] method = null");
+            return new HookHandle(-1, null).markNotHooked();
         }
 
+        // 不可 hook 的类型（已在 canHook 内部覆盖了绝大部分）
         if (!canHook(method)) {
-            FLog.e(TAG, "[hook] 不支持的 hook 方法：" + method);
+            FLog.e(TAG, "[hook(Method)] 不支持的 hook 方法：" + method);
+            return new HookHandle(-1, method).markNotHooked();
+        }
+        if (isBridgeCritical(method)) {
+            FLog.e(TAG, "[hook(Method)] 桥接关键方法（禁止）： " + method);
             return new HookHandle(-1, method).markNotHooked();
         }
 
-        // 判断 JVMTI  是否支持 Retransform
+        // 只做轻提示，不再重复业务判断
         final Class<?> declaring = method.getDeclaringClass();
         final int mods = method.getModifiers();
-        if (declaring.isInterface() || declaring.isAnnotation()) {
-            FLog.e(TAG, "[hook] 目标是接口/注解接口：" + declaring.getName() + "#" + method.getName() + " 不支持 Retransform");
-            return new HookHandle(-1, method).markNotHooked();
-        }
-
-        if (Modifier.isAbstract(mods)) {
-            FLog.e(TAG, "[hook] 抽象方法无代码：" + declaring.getName() + "#" + method.getName());
-            return new HookHandle(-1, method).markNotHooked();
-        }
-
-        if (Modifier.isNative(mods)) {
-            FLog.e(TAG, "[hook] native 方法无法用字节码重写：" + declaring.getName() + "#" + method.getName());
-            return new HookHandle(-1, method).markNotHooked();
-        }
-
-        // （保守）避免 <clinit>
-        if (method.getName().equals("<clinit>")) {
-            FLog.e(TAG, "[hook] 不建议 hook <clinit>（类初始化器）");
-            return new HookHandle(-1, method).markNotHooked();
-        }
-
         if (declaring.getClassLoader() == null) { // Bootstrap/BootClassPath
-            FLog.w(TAG, "[hook] 警告：" + declaring.getName() + " 属于 BootClassPath，部分 ROM/策略可能禁止重转换");
+            FLog.w(TAG, "[hook(Method)] 警告：" + declaring.getName()
+                    + " 属于 BootClassPath，部分 ROM/策略可能禁止重转换");
         }
-
         if (Modifier.isSynchronized(mods)) {
-            FLog.w(TAG, "[hook] 警告：" + declaring.getName() + "#" + method.getName()
-                    + " 是 synchronized，若hook破坏锁边界可能验证失败");
+            FLog.w(TAG, "[hook(Method)] 警告：synchronized 方法，若破坏锁边界可能验证失败 — "
+                    + declaring.getName() + "#" + method.getName());
         }
 
         return new HookHandle(-1, method);
+    }
+
+    /**
+     * 指定类与方法名：hook 其所有重载（先本类声明，未命中再回退到继承的 public）
+     */
+    public static synchronized GroupHandle hook(Class<?> clazz, String name_fun) {
+        FLog.d(TAG, "[hook(Class,String)] start ... class=" + (clazz == null ? "null" : clazz.getName())
+                + " name=" + name_fun);
+        if (name_fun == null || name_fun.length() == 0) {
+            FLog.e(TAG, "[hook(Class,String)] 方法名为空");
+            return new GroupHandle(clazz);
+        }
+        return hookClassInternal(clazz, name_fun, true);
     }
 
 

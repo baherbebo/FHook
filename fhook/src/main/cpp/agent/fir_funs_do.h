@@ -57,6 +57,7 @@ namespace fir_funs_do {
             dex::u2 reg1_tmp,
             dex::u2 reg_method_args, // ptypes = new Class[2]; ptypes[0]=Object[].class; ptypes[1]=Long.TYPE;
             dex::u2 reg_return, // 可以重复
+            std::string &rtype_name,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
 
@@ -123,7 +124,7 @@ namespace fir_funs_do {
             dex::u2 reg_return, // 可重复
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
-    bool do_sysloader_hook_funs(
+    bool do_sysloader_hook_funs_A(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp,//额外临时寄存器
             int reg_method_args, // 可以为null 用于存储方法参数类型数组（Class[]）
@@ -144,7 +145,7 @@ namespace fir_funs_do {
             std::string &name_fun,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
-    bool do_sysloader_hook_funs_B(
+    bool do_sysloader_hook_funs_B_Exit(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp, dex::u2 reg4_tmp,
             int reg_do_args,// Object[Object[arg0,arg1...],Long]
@@ -152,6 +153,16 @@ namespace fir_funs_do {
             std::string &name_class,
             std::string &name_fun,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
+
+    bool do_sysloader_hook_funs_B_Enter(
+            lir::CodeIr *code_ir,
+            dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp, dex::u2 reg4_tmp,
+            int reg_do_args,// Object[Object[arg0,arg1...],Long]
+            dex::u2 reg_return, // 可重复
+            std::string &name_class,
+            std::string &name_fun,
+            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
+
 
     bool do_sysloader_hook_funs_C(
             lir::CodeIr *code_ir,
@@ -162,7 +173,7 @@ namespace fir_funs_do {
             std::string &name_fun,           // 未用，保留
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
-    bool do_get_onenter_method(
+    bool do_get_java_method(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp,
             dex::u2 reg2_tmp,

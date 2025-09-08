@@ -14,6 +14,44 @@
 #include <vector>
 
 namespace deploy {
+
+    static inline bool IsBlacklistedMethod(ir::EncodedMethod *m) {
+        if (!m || !m->decl || !m->decl->parent || !m->decl->prototype) return false;
+        const std::string &cls = m->decl->parent->Decl();          // 例：Ljava/lang/Class;
+        const char *mn = m->decl->name->c_str();            // 方法名
+        const std::string &sig = m->decl->prototype->Signature();   // 例：(Ljava/lang/String;)Ljava/lang/Class;
+
+        // 整包禁止
+        if (StartsWith(cls.c_str(), "Ljava/lang/invoke/")) return true;
+        if (StartsWith(cls.c_str(), "Ljava/lang/reflect/")) return true;
+
+        // 这个是可以的
+//        if (cls == "Ljava/lang/ClassLoader;" && strcmp(mn, "loadClass") == 0) return true;
+
+        if (cls == "Ljava/lang/Class;") {
+            if ((strcmp(mn, "getDeclaredMethod") == 0 &&
+                 sig == "(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;") ||
+                (strcmp(mn, "getDeclaredField") == 0 &&
+                 sig == "(Ljava/lang/String;)Ljava/lang/reflect/Field;") ||
+                (strcmp(mn, "getField") == 0 &&
+                 sig == "(Ljava/lang/String;)Ljava/lang/reflect/Field;"))
+                return true;
+        }
+
+        if (cls == "Ljava/lang/reflect/Method;" && strcmp(mn, "invoke") == 0 &&
+            sig == "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;") {
+            return true;
+        }
+
+        if (cls == "Ljava/lang/reflect/AccessibleObject;" && strcmp(mn, "setAccessible") == 0 &&
+            sig == "(Z)V") {
+            return true;
+        }
+
+        return false;
+    }
+
+
     /// Ltop/feadre/fhook/THook;
     std::string Transform::GetJniClassName() const { return class_name_; }
 
@@ -114,6 +152,11 @@ namespace deploy {
                 return;
             }
 
+            // 黑名单
+            if (IsBlacklistedMethod(ir_method) && g_is_safe_mode) {
+                LOGW("[Apply] skip blacklisted method: %s#%s %s");
+                continue;
+            }
 
             if (ir_method->code == nullptr) {
                 LOGE("[Transform::Apply] 方法不可修改 ir_method->code 为空")

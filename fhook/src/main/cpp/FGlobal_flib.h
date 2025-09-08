@@ -46,6 +46,8 @@ extern std::string g_name_fun_onExit;
 extern std::string g_name_fun_MH_ENTER;
 extern std::string g_name_fun_MH_EXIT;
 
+extern bool g_is_safe_mode;
+
 // 用于string 和 char* 比较
 inline bool SigEq(const std::string &a, const char *b) noexcept {
     return b && a == b;
@@ -63,3 +65,13 @@ inline bool StrEq(const char *a, const char *b) noexcept { return std::strcmp(a,
     } while (0)
 
 #endif //PJ02_FGLOBAL_FLIB_H
+
+
+inline bool StartsWith(const char *s, const char *p) {
+    if (!s || !p) return false;
+    while (*p && *s && *s == *p) {
+        ++s;
+        ++p;
+    }
+    return *p == '\0';
+}

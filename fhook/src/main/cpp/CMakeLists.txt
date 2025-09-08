@@ -64,6 +64,7 @@ add_library(
         agent/finject.cpp
         agent/fir_funs_def.cpp
         agent/fir_funs_do.cpp
+        agent/fir_funs_do_impl.cpp
         agent/fir_tools.cpp
         agent/fsmali_printer.cpp
         agent/transform.cpp

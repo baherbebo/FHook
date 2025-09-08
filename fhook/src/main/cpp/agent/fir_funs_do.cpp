@@ -179,17 +179,18 @@ namespace fir_funs_do {
     }
 
 
-    /// MethodType mtEnter = MethodType.methodType(Object[].class, Object[].class, long.class);
+    /// 包装参数和返回值 MethodType mtEnter = MethodType.methodType(Object[].class, Object[].class, long.class);
     void do_MethodType_methodType_2p(
             lir::Method *f_MethodType_methodType,
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp,
             dex::u2 reg_method_args, // ptypes = new Class[2]; ptypes[0]=Object[].class; ptypes[1]=Long.TYPE;
             dex::u2 reg_return, // 可以重复
+            std::string &rtype_name,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
-        // 创建 rtype = Object[].class
-        fir_tools::emitReference2Class(code_ir, "[Ljava/lang/Object;",
+        // 创建 rtype = Object[].class  "[Ljava/lang/Object;" "Ljava/lang/Object;"
+        fir_tools::emitReference2Class(code_ir, rtype_name.c_str(),
                                        reg1_tmp, insert_point);
 
         // --- invoke-static {reg1, reg2, reg3}, MethodType.methodType(Class, Class, Class)
@@ -548,7 +549,7 @@ namespace fir_funs_do {
      *
      * @return
      */
-    bool do_sysloader_hook_funs(
+    bool do_sysloader_hook_funs_A(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp,//额外临时寄存器
             int reg_method_args, // 可以为null 用于存储方法参数类型数组（Class[]）
@@ -562,7 +563,7 @@ namespace fir_funs_do {
         // 全局可使用 Thread.currentThread() → 返回线程对象 v0
         lir::Method *f_Thread_currentThread = fir_funs_def::get_Thread_currentThread(code_ir);
         CHECK_OR_RETURN(f_Thread_currentThread, false,
-                        "[do_sysloader_hook_funs] f_Thread_currentThread error");
+                        "[do_sysloader_hook_funs_A] f_Thread_currentThread error");
 
         do_static_0p(f_Thread_currentThread, code_ir, reg1_tmp, insert_point);
 
@@ -570,7 +571,7 @@ namespace fir_funs_do {
         lir::Method *f_thread_getContextClassLoader = fir_funs_def::get_thread_getContextClassLoader(
                 code_ir);
         CHECK_OR_RETURN(f_thread_getContextClassLoader, false,
-                        "[do_sysloader_hook_funs] f_thread_getContextClassLoader error");
+                        "[do_sysloader_hook_funs_A] f_thread_getContextClassLoader error");
 
         do_thread_getContextClassLoader(f_thread_getContextClassLoader, code_ir,
                                         reg1_tmp, reg1_tmp, insert_point);
@@ -582,7 +583,7 @@ namespace fir_funs_do {
         lir::Method *f_classloader_loadClass = fir_funs_def::get_classloader_loadClass(
                 code_ir);
         CHECK_OR_RETURN(f_classloader_loadClass, false,
-                        "[do_sysloader_hook_funs] f_classloader_loadClass error");
+                        "[do_sysloader_hook_funs_A] f_classloader_loadClass error");
 
         do_classloader_loadClass(f_classloader_loadClass, code_ir,
                                  reg1_tmp, reg2_tmp,
@@ -593,13 +594,13 @@ namespace fir_funs_do {
         lir::Method *f_class_getDeclaredMethod = fir_funs_def::get_class_getDeclaredMethod(
                 code_ir);
         CHECK_OR_RETURN(f_class_getDeclaredMethod, false,
-                        "[do_sysloader_hook_funs] f_class_getDeclaredMethod error");
+                        "[do_sysloader_hook_funs_A] f_class_getDeclaredMethod error");
 
 
         if (reg_method_args < 0) {
             fir_tools::cre_null_reg(code_ir, reg3_tmp, insert_point);
             reg_method_args = reg3_tmp;
-            LOGI("[do_sysloader_hook_funs] reg_method_args= %d ", reg_method_args)
+            LOGI("[do_sysloader_hook_funs_A] reg_method_args= %d ", reg_method_args)
         }
 
         // 拿到方法对象 v1   reg1_tmp= class对象  reg2_tmp = 方法名  reg3_tmp= 方法参数 class[]
@@ -611,7 +612,7 @@ namespace fir_funs_do {
         /// Object ret = m.invoke(null, new Object[]{ args });
         lir::Method *f_method_invoke = fir_funs_def::get_method_invoke(code_ir);
         CHECK_OR_RETURN(f_method_invoke, false,
-                        "[do_sysloader_hook_funs] f_method_invoke error");
+                        "[do_sysloader_hook_funs_A] f_method_invoke error");
 
 
         if (reg_do_args < 0) {
@@ -679,7 +680,7 @@ namespace fir_funs_do {
     }
 
 
-    bool do_get_onenter_method(
+    bool do_get_java_method(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp,
             dex::u2 reg2_tmp,
@@ -752,6 +753,102 @@ namespace fir_funs_do {
     }
 
 
+    bool do_sysloader_hook_funs_B_Exit(
+            lir::CodeIr *code_ir,
+            dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp, dex::u2 reg4_tmp,
+            int reg_do_args,// Object[Object[arg0,arg1...],Long]
+            dex::u2 reg_return, // 可重复
+            std::string &name_class,
+            std::string &name_fun,
+            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
+
+
+        fir_funs_do::cre_arr_class_args4onExit(
+                code_ir, reg1_tmp, reg2_tmp, reg3_tmp,
+                insert_point);
+        auto reg_method_args = reg3_tmp;
+
+        // --------------------------- 111 -----------------------------
+        // MethodType mtEnter = MethodType.methodType(Object[].class, Object[].class, long.class);
+        lir::Method *f_get_MethodType_methodType_2p =
+                fir_funs_def::get_MethodType_methodType_2p(code_ir);
+        CHECK_OR_RETURN(f_get_MethodType_methodType_2p, false,
+                        "[do_sysloader_hook_funs_B_Exit] f_get_MethodType_methodType_2p error");
+        std::string rtype_name = "Ljava/lang/Object;";
+        do_MethodType_methodType_2p(f_get_MethodType_methodType_2p, code_ir,
+                                    reg1_tmp, reg_method_args,
+                                    reg1_tmp,
+                                    rtype_name,
+                                    insert_point);
+        auto reg_mt = reg1_tmp;  // *****************
+
+        // -------------------------- 222 -----------------------------
+
+        // 1) Thread t = Thread.currentThread();
+        lir::Method *f_Thread_currentThread = fir_funs_def::get_Thread_currentThread(code_ir);
+        CHECK_OR_RETURN(f_Thread_currentThread, false,
+                        "[do_sysloader_hook_funs_B_Exit] f_Thread_currentThread error");
+        // thread 对象
+        do_static_0p(f_Thread_currentThread, code_ir, reg2_tmp, insert_point);
+
+
+        // 2) ClassLoader cl = t.getContextClassLoader();
+        lir::Method *f_thread_getContextClassLoader =
+                fir_funs_def::get_thread_getContextClassLoader(code_ir);
+        CHECK_OR_RETURN(f_thread_getContextClassLoader, false,
+                        "[do_sysloader_hook_funs_B_Exit] f_thread_getContextClassLoader error");
+        // 拿到线程的 classloader 对象
+        do_thread_getContextClassLoader(f_thread_getContextClassLoader, code_ir,
+                                        reg2_tmp, reg2_tmp, insert_point);
+
+
+        // 3) Class<?> clazz = Class.forName("top.feadre.fhook.FHook", true, cl);
+        lir::Method *f_Class_forName_3 = fir_funs_def::get_Class_forName_3p(
+                code_ir);
+        CHECK_OR_RETURN(f_Class_forName_3, false,
+                        "[do_sysloader_hook_funs_B_Exit] get_class_forName error");
+        /// 拿到 FHook.class 对象  *********** 这个有用   reg1_tmp
+        do_Class_forName_3p(f_Class_forName_3, code_ir,
+                            reg3_tmp, reg4_tmp, reg2_tmp,
+                            reg2_tmp, name_class, insert_point);
+        auto reg_class = reg2_tmp; // *******************
+
+        // --------------------------- 333 -----------------------------
+        // 准备类名字符串到 reg2_tmp
+        // MethodHandles.Lookup lk = MethodHandles.publicLookup();
+        lir::Method *f_MethodHandles_publicLookup = fir_funs_def::get_MethodHandles_publicLookup(
+                code_ir);
+        CHECK_OR_RETURN(f_MethodHandles_publicLookup, false,
+                        "[do_sysloader_hook_funs_B_Exit] f_MethodHandles_publicLookup error");
+        do_static_0p(f_MethodHandles_publicLookup, code_ir, reg3_tmp, insert_point);
+        auto reg_lookup = reg3_tmp;
+
+        // MethodHandle mhEnter = lk.findStatic(clazz, "onEnter4fhook", mtEnter);
+        lir::Method *f_lookup_findStatic = fir_funs_def::get_lookup_findStatic(code_ir);
+        CHECK_OR_RETURN(f_lookup_findStatic, false,
+                        "[do_sysloader_hook_funs_B_Exit] f_lookup_findStatic error");
+        do_lookup_findStatic(f_lookup_findStatic, code_ir,
+                             reg_lookup, reg_class, reg4_tmp, reg_mt,
+                             reg4_tmp, name_fun, insert_point);
+        auto reg_mh = reg4_tmp; // 不能动 其它已可用
+
+
+        // --------------------------- 444 执行 -----------------------------
+        // Object[] newArgs = (Object[]) mhEnter.invokeWithArguments(rawArgs, methodId);
+        lir::Method *f_methodHandle_invokeWithArguments =
+                fir_funs_def::get_methodHandle_invokeWithArguments(code_ir);
+        CHECK_OR_RETURN(f_methodHandle_invokeWithArguments, false,
+                        "[do_sysloader_hook_funs_B_Exit] f_methodHandle_invokeWithArguments error");
+
+        do_methodHandle_invokeWithArguments(f_methodHandle_invokeWithArguments, code_ir,
+                                            reg_mh, reg_do_args,
+                                            reg_return,
+                                            insert_point);
+
+        return true;
+    }
+
+
     /**
      *
     Object[] rawArgs  = new Object[3];
@@ -779,7 +876,7 @@ namespace fir_funs_do {
 
      * @return
      */
-    bool do_sysloader_hook_funs_B(
+    bool do_sysloader_hook_funs_B_Enter(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp, dex::u2 reg4_tmp,
             int reg_do_args,// Object[Object[arg0,arg1...],Long]
@@ -797,10 +894,12 @@ namespace fir_funs_do {
         lir::Method *f_get_MethodType_methodType_2p =
                 fir_funs_def::get_MethodType_methodType_2p(code_ir);
         CHECK_OR_RETURN(f_get_MethodType_methodType_2p, false,
-                        "[do_sysloader_hook_funs_B] f_get_MethodType_methodType_2p error");
+                        "[do_sysloader_hook_funs_B_Enter] f_get_MethodType_methodType_2p error");
+        std::string rtype_name = "[Ljava/lang/Object;";
         do_MethodType_methodType_2p(f_get_MethodType_methodType_2p, code_ir,
                                     reg1_tmp, reg_method_args,
                                     reg1_tmp,
+                                    rtype_name,
                                     insert_point);
         auto reg_mt = reg1_tmp;  // *****************
 
@@ -809,7 +908,7 @@ namespace fir_funs_do {
         // 1) Thread t = Thread.currentThread();
         lir::Method *f_Thread_currentThread = fir_funs_def::get_Thread_currentThread(code_ir);
         CHECK_OR_RETURN(f_Thread_currentThread, false,
-                        "[do_sysloader_hook_funs_B] f_Thread_currentThread error");
+                        "[do_sysloader_hook_funs_B_Enter] f_Thread_currentThread error");
         // thread 对象
         do_static_0p(f_Thread_currentThread, code_ir, reg2_tmp, insert_point);
 
@@ -818,7 +917,7 @@ namespace fir_funs_do {
         lir::Method *f_thread_getContextClassLoader =
                 fir_funs_def::get_thread_getContextClassLoader(code_ir);
         CHECK_OR_RETURN(f_thread_getContextClassLoader, false,
-                        "[do_sysloader_hook_funs_B] f_thread_getContextClassLoader error");
+                        "[do_sysloader_hook_funs_B_Enter] f_thread_getContextClassLoader error");
         // 拿到线程的 classloader 对象
         do_thread_getContextClassLoader(f_thread_getContextClassLoader, code_ir,
                                         reg2_tmp, reg2_tmp, insert_point);
@@ -828,7 +927,7 @@ namespace fir_funs_do {
         lir::Method *f_Class_forName_3 = fir_funs_def::get_Class_forName_3p(
                 code_ir);
         CHECK_OR_RETURN(f_Class_forName_3, false,
-                        "[do_sysloader_hook_funs_B] get_class_forName error");
+                        "[do_sysloader_hook_funs_B_Enter] get_class_forName error");
         /// 拿到 FHook.class 对象  *********** 这个有用   reg1_tmp
         do_Class_forName_3p(f_Class_forName_3, code_ir,
                             reg3_tmp, reg4_tmp, reg2_tmp,
@@ -841,14 +940,14 @@ namespace fir_funs_do {
         lir::Method *f_MethodHandles_publicLookup = fir_funs_def::get_MethodHandles_publicLookup(
                 code_ir);
         CHECK_OR_RETURN(f_MethodHandles_publicLookup, false,
-                        "[do_sysloader_hook_funs_B] f_MethodHandles_publicLookup error");
+                        "[do_sysloader_hook_funs_B_Enter] f_MethodHandles_publicLookup error");
         do_static_0p(f_MethodHandles_publicLookup, code_ir, reg3_tmp, insert_point);
         auto reg_lookup = reg3_tmp;
 
         // MethodHandle mhEnter = lk.findStatic(clazz, "onEnter4fhook", mtEnter);
         lir::Method *f_lookup_findStatic = fir_funs_def::get_lookup_findStatic(code_ir);
         CHECK_OR_RETURN(f_lookup_findStatic, false,
-                        "[do_sysloader_hook_funs_B] f_lookup_findStatic error");
+                        "[do_sysloader_hook_funs_B_Enter] f_lookup_findStatic error");
         do_lookup_findStatic(f_lookup_findStatic, code_ir,
                              reg_lookup, reg_class, reg4_tmp, reg_mt,
                              reg4_tmp, name_fun, insert_point);
@@ -860,7 +959,7 @@ namespace fir_funs_do {
         lir::Method *f_methodHandle_invokeWithArguments =
                 fir_funs_def::get_methodHandle_invokeWithArguments(code_ir);
         CHECK_OR_RETURN(f_methodHandle_invokeWithArguments, false,
-                        "[do_sysloader_hook_funs_B] f_methodHandle_invokeWithArguments error");
+                        "[do_sysloader_hook_funs_B_Enter] f_methodHandle_invokeWithArguments error");
 
         do_methodHandle_invokeWithArguments(f_methodHandle_invokeWithArguments, code_ir,
                                             reg_mh, reg_do_args,
@@ -877,7 +976,7 @@ namespace fir_funs_do {
             int reg_do_args,                 // Object[]{ rawArgs, Long(methodId) }
             dex::u2 reg_return,              // out: Object[] (newArgs)
             std::string &name_class,         // "top.feadre.fhook.FHook"
-            std::string &name_fun,           // 未用，保留
+            std::string &name_fun,           //  这里分区是走哪一个
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
         ir::Builder builder(code_ir->dex_ir);
@@ -905,74 +1004,12 @@ namespace fir_funs_do {
         auto reg_clazz = reg2_tmp;
 
 
-
         // 3) 直接用 public 字段：Field f = clazz.getField("MH_ENTER"); MethodHandle mh = (MethodHandle) f.get(null)
-
-
-
         /// 传了1234 个寄存器
-        bool res = do_get_onenter_method(code_ir, reg1_tmp, reg4_tmp, reg3_tmp,
-                                         reg_clazz, reg4_tmp,
-                                         name_fun, insert_point);
+        bool res = do_get_java_method(code_ir, reg1_tmp, reg4_tmp, reg3_tmp,
+                                      reg_clazz, reg4_tmp,
+                                      name_fun, insert_point);
         if (!res)return res;
-
-        auto *f_Class_getField = fir_funs_def::get_class_getField(code_ir);
-        CHECK_OR_RETURN(f_Class_getField, false, "[C] Class.getField fail");
-
-//        // reg4_tmp = "MH_ENTER"
-//        {
-//            auto s = builder.GetAsciiString("MH_ENTER");
-//            auto bc = code_ir->Alloc<lir::Bytecode>();
-//            bc->opcode = dex::OP_CONST_STRING;
-//            bc->operands.push_back(code_ir->Alloc<lir::VReg>(reg4_tmp));
-//            bc->operands.push_back(code_ir->Alloc<lir::String>(s, s->orig_index));
-//            code_ir->instructions.insert(insert_point, bc);
-//        }
-//        // Field f = clazz.getField("MH_ENTER") → reg3_tmp
-//        {
-//            auto call = code_ir->Alloc<lir::Bytecode>();
-//            call->opcode = dex::OP_INVOKE_VIRTUAL;
-//            auto regs = code_ir->Alloc<lir::VRegList>();
-//            regs->registers = {reg_clazz,
-//                               reg4_tmp};                                   // (receiver, name)
-//            call->operands.push_back(regs);
-//            call->operands.push_back(f_Class_getField);
-//            code_ir->instructions.insert(insert_point, call);
-//
-//            auto mres = code_ir->Alloc<lir::Bytecode>();
-//            mres->opcode = dex::OP_MOVE_RESULT_OBJECT;
-//            mres->operands.push_back(
-//                    code_ir->Alloc<lir::VReg>(reg3_tmp));               // reg3_tmp = Field
-//            code_ir->instructions.insert(insert_point, mres);
-//        }
-//
-//        auto *f_Field_get = fir_funs_def::get_field_get(code_ir);
-//        CHECK_OR_RETURN(f_Field_get, false, "[C] Field.get fail");
-//
-//        // Object mhObj = f.get(null) → reg4_tmp ; check-cast to MethodHandle
-//        {
-//            fir_tools::emitValToReg(code_ir, insert_point, reg1_tmp, 0);                 // null
-//            auto call = code_ir->Alloc<lir::Bytecode>();
-//            call->opcode = dex::OP_INVOKE_VIRTUAL;
-//            auto regs = code_ir->Alloc<lir::VRegList>();
-//            regs->registers = {reg3_tmp, reg1_tmp};
-//            call->operands.push_back(regs);
-//            call->operands.push_back(f_Field_get);
-//            code_ir->instructions.insert(insert_point, call);
-//
-//            auto mres = code_ir->Alloc<lir::Bytecode>();
-//            mres->opcode = dex::OP_MOVE_RESULT_OBJECT;
-//            mres->operands.push_back(
-//                    code_ir->Alloc<lir::VReg>(reg4_tmp));               // reg4_tmp = Object
-//            code_ir->instructions.insert(insert_point, mres);
-//
-////            emitCheckCast(reg4_tmp, "Ljava/lang/invoke/MethodHandle;");                  // reg4_tmp = MethodHandle
-//            fir_tools::emitCheckCast(code_ir,
-//                                     "Ljava/lang/invoke/MethodHandle;",
-//                                     reg4_tmp,
-//                                     insert_point);
-//        }
-
         auto reg_mh = reg4_tmp; // 不能再覆盖
 
         // 4) 调用 mh.invokeWithArguments(wrapperArgs)

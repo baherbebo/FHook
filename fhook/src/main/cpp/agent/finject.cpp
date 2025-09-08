@@ -176,7 +176,7 @@ namespace finject {
                 CHECK_ALLOC_OR_RET(regs7, count, false, "[do_HEnter] regs7 申请寄存器失败 ...");
 
                 // 执行结果返回到 v0`
-                bool res = fir_funs_do::do_sysloader_hook_funs(
+                bool res = fir_funs_do::do_sysloader_hook_funs_A(
                         code_ir, regs7[0], regs7[1], regs7[2],
                         reg_method_args, reg_do_args,
                         regs7[0],
@@ -193,11 +193,16 @@ namespace finject {
                 auto regs8 = FRegManager::AllocV(
                         code_ir, forbidden_v, count, "regs8");
                 CHECK_ALLOC_OR_RET(regs8, count, false, "[do_HEnter] regs8 申请寄存器失败 ...");
-//                bool res = fir_funs_do::do_sysloader_hook_funs_B(
+//                bool res = fir_funs_do::do_sysloader_hook_funs_B_Enter(
+//                        code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
+//                        reg_do_args, regs8[0],
+//                        g_name_class_THook, g_name_fun_onEnter, insert_point);
+
                 bool res = fir_funs_do::do_sysloader_hook_funs_C(
                         code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
                         reg_do_args, regs8[0],
                         g_name_class_THook, g_name_fun_MH_ENTER, insert_point);
+
                 if (!res)return false;
 
                 reg_do_return = regs8[0];
@@ -354,31 +359,32 @@ namespace finject {
                     hook_info.j_method_id, insert_point);
 
             auto reg_do_args = regs9[1]; //  reg_do_arg -》 reg_do_args
-
-            // --------------------- 3
-            count = 3;// 前面只有最后的封装参数需要保留
             forbidden_v.clear();
             forbidden_v.push_back(reg_do_args);
 
-            auto regs10 = FRegManager::AllocV(
-                    code_ir, forbidden_v, count, "regs10");
-            CHECK_ALLOC_OR_RET(regs10, count, -1, "[doHExit] regs10 申请寄存器失败 ...");
-
-            // Class[]{Object.class,Long.class}
-            fir_funs_do::cre_arr_class_args4onExit(
-                    code_ir, regs10[0], regs10[1], regs10[2],
-                    insert_point);
-            auto reg_method_args = regs10[2];
-
             // --------------------- 4
             if (!is_run_backup_plan) {
+                // --------------------- 3
+                count = 3;// 前面只有最后的封装参数需要保留
+
+                auto regs10 = FRegManager::AllocV(
+                        code_ir, forbidden_v, count, "regs10");
+                CHECK_ALLOC_OR_RET(regs10, count, -1, "[doHExit] regs10 申请寄存器失败 ...");
+
+                // Class[]{Object.class,Long.class}
+                fir_funs_do::cre_arr_class_args4onExit(
+                        code_ir, regs10[0], regs10[1], regs10[2],
+                        insert_point);
+                auto reg_method_args = regs10[2];
+
+
                 count = 3;
                 forbidden_v.push_back(reg_method_args);
                 auto regs11 = FRegManager::AllocV(
                         code_ir, forbidden_v, count, "regs11");
                 CHECK_ALLOC_OR_RET(regs11, count, -1, "[doHExit] regs11 申请寄存器失败 ...");
 
-                bool res = fir_funs_do::do_sysloader_hook_funs(
+                bool res = fir_funs_do::do_sysloader_hook_funs_A(
                         code_ir, regs11[0], regs11[1], regs11[2],
                         reg_method_args, reg_do_args, regs11[2],
                         g_name_class_THook, g_name_fun_onExit,
@@ -387,6 +393,24 @@ namespace finject {
                 reg_return_dst = regs11[2];
             } else {
                 // do_sysloader_hook_funs_B
+                LOGI("[doHExit] 运行B方案 ...")
+
+                count = 4;
+                auto regs8 = FRegManager::AllocV(
+                        code_ir, forbidden_v, count, "regs8");
+                CHECK_ALLOC_OR_RET(regs8, count, false, "[doHExit] regs8 申请寄存器失败 ...");
+//                bool res = fir_funs_do::do_sysloader_hook_funs_B_Exit(
+//                        code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
+//                        reg_do_args, regs8[0],
+//                        g_name_class_THook, g_name_fun_onExit, insert_point);
+
+                bool res = fir_funs_do::do_sysloader_hook_funs_C(
+                        code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
+                        reg_do_args, regs8[0],
+                        g_name_class_THook, g_name_fun_MH_EXIT, insert_point);
+
+                if (!res) return -1;
+                reg_return_dst = regs8[0];
             }
 
         }
@@ -407,8 +431,8 @@ namespace finject {
                     lir::CodeIr *code_ir) {
 
         /// 开发调试 清空方法切换
-        hook_info.isRunOrigFun = false;
-        LOGE("[do_finject]  ------ 开启了反向调试  ------ isRunOrigFun= %d", hook_info.isRunOrigFun)
+//        hook_info.isRunOrigFun = false;
+//        LOGE("[do_finject]  ------ 开启了反向调试  ------ isRunOrigFun= %d", hook_info.isRunOrigFun)
 
         /// 开发调试 应用侧切换
 //        transform->set_app_loader(!transform->is_app_loader());
@@ -423,7 +447,7 @@ namespace finject {
              ir_method->decl->prototype->Signature().c_str())
 
         // ---- 如果是系统侧 需要根据方法信息需要框架是否走备用方案
-        bool is_run_backup_plan = false; // 默认是普通方法，
+        bool is_run_backup_plan = false;
         if (!transform->is_app_loader()) {
             is_run_backup_plan = is_frame_methods(ir_method); // 是系统函数 是框架函数走 B方法
             LOGI("[do_finject] is_run_backup_plan= %d", is_run_backup_plan)

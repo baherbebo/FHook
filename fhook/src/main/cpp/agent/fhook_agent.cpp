@@ -210,6 +210,18 @@ static int SetNeedCapabilities(jvmtiEnv *jvmti) {
     return addErr;
 }
 
+
+static inline bool IsBlacklistedClass(const char *internal_name) {
+    // 内部名，如 "java/lang/invoke/MethodHandles"
+    if (!internal_name) return false;
+    if (StartsWith(internal_name, "java/lang/invoke/")) return true;
+    if (StartsWith(internal_name, "java/lang/reflect/")) return true;
+    if (strcmp(internal_name, "java/lang/Class") == 0) return true;
+    if (strcmp(internal_name, "java/lang/ClassLoader") == 0) return true;
+    return false;
+}
+
+
 /**
  * 这个调用  transform.cpp  current_transform->Apply(dex_ir);
  */
@@ -228,6 +240,12 @@ extern "C" void JNICALL HookClassFileLoadHook(
     // 没有配置直接返回
     if (current_transform == nullptr) {
 //        LOGD("[HookClassFileLoadHook] 当前没有hook配置 类名= %s", name)
+        return;
+    }
+
+    // “全局护栏”，设置黑名单，也不会改这些核心包
+    if (IsBlacklistedClass(name) && g_is_safe_mode) {
+        LOGW("[HookClassFileLoadHook] skip blacklisted class: %s", name);
         return;
     }
 
@@ -401,7 +419,8 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
             return -1;
         }
         if (!modifiable) {
-            LOGE("[agent_do_transform] %s 不可重定义（IsModifiableClass=false）", targetClassName.c_str());
+            LOGE("[agent_do_transform] %s 不可重定义（IsModifiableClass=false）",
+                 targetClassName.c_str());
             env->DeleteLocalRef(nativeClass);
             return -1;
         }
@@ -416,7 +435,8 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
 
         // 仅在类级别判断是否为接口
         if (cls_mod & fsys::kAccInterface) { // 0x0200
-            LOGE("[agent_do_transform] %s 是接口（类级别），保守策略：跳过 Retransform。", targetClassName.c_str());
+            LOGE("[agent_do_transform] %s 是接口（类级别），保守策略：跳过 Retransform。",
+                 targetClassName.c_str());
             env->DeleteLocalRef(nativeClass);
             return -1;
         }

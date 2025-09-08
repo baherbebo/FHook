@@ -56,7 +56,7 @@ extern "C" JNIEXPORT jlong JNICALL dcHook(
         jboolean isRunOrigFun) {
     LOGD("[dcHook] start...")
 
-    if(isRunOrigFun && !isHEnter && !isHExit){
+    if (isRunOrigFun && !isHEnter && !isHExit) {
         // 无意义的 hook 操作
         LOGE("[dcHook] 无意义的 hook 操作")
         return -1;
@@ -273,29 +273,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
     return JNI_VERSION_1_6;
 }
 
-extern "C"
-JNIEXPORT jboolean JNICALL
-Java_top_feadre_fhook_CLinker_jcJvmtiSuccess(JNIEnv *env, jclass clazz,
-                                             jstring name_so_fhook_agent) {
-    LOGD("[dcJvmtiSuccess] start...")
-    if (!name_so_fhook_agent) {
-        return false;
-    }
 
-    fAgentPath = fsys::jstring2cstring(env, name_so_fhook_agent);
-    if (fAgentPath.empty()) {
-        LOGE("[dcJvmtiSuccess] agent path empty")
-        return false;
-    }
-
-    fAgentHandle = fsys::dlopen_best_effort(fAgentPath.c_str(), RTLD_NOW);
-    if (fAgentHandle == nullptr) {
-        LOGE("[dcJvmtiSuccess] open %s fail", fAgentPath.c_str());
-    }
-
-    return true;
-
-}
 extern "C"
 JNIEXPORT jobjectArray JNICALL
 Java_top_feadre_fhook_CLinker_jcJvmtiFindImpl(JNIEnv *env, jclass clazz, jclass ifaceOrAbstract) {
@@ -326,5 +304,31 @@ Java_top_feadre_fhook_CLinker_jcJvmtiFindInstances(JNIEnv *env, jclass clazz, jc
         return nullptr;
     }
 
-    return transformFn(env, klass,only_live);
+    return transformFn(env, klass, only_live);
+}
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_top_feadre_fhook_CLinker_jcJvmtiSuccess(JNIEnv *env, jclass clazz, jstring name_so_fhook_agent,
+                                             jboolean is_safe_mode) {
+
+    g_is_safe_mode = is_safe_mode;
+
+    LOGD("[dcJvmtiSuccess] start...")
+    if (!name_so_fhook_agent) {
+        return false;
+    }
+
+    fAgentPath = fsys::jstring2cstring(env, name_so_fhook_agent);
+    if (fAgentPath.empty()) {
+        LOGE("[dcJvmtiSuccess] agent path empty")
+        return false;
+    }
+
+    fAgentHandle = fsys::dlopen_best_effort(fAgentPath.c_str(), RTLD_NOW);
+    if (fAgentHandle == nullptr) {
+        LOGE("[dcJvmtiSuccess] open %s fail", fAgentPath.c_str());
+    }
+
+    return true;
+
 }

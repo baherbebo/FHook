@@ -13,6 +13,6 @@ std::string g_name_fun_onExit = "onExit4fhook";
 std::string g_name_fun_MH_ENTER = "MH_ENTER";
 std::string g_name_fun_MH_EXIT = "MH_EXIT";
 
-
+bool g_is_safe_mode = false;
 
 
