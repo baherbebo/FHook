@@ -124,21 +124,21 @@ namespace fir_funs_do {
             dex::u2 reg3_arr, // array 目标寄存器（Class[]）
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
-    void cre_arr_do_args4onExit(
+    bool cre_arr_do_args4onExit(
             lir::CodeIr *code_ir,
-            dex::u2 reg_do_arg,  // 需要一个寄存器，需要外面判断完成是不是宽
-            int reg_return,         // 原方法返回值所在寄存器 清空则没有返回值
+            int reg_return_orig,         // 原方法返回值所在寄存器 传入 清空则没有返回值
+            dex::u2 reg_do_arg,  // 这个是返回值 必需要一个正常的寄存器，可以相等，需要外面判断完成是不是宽
             bool is_wide_return,
-            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) ;
+            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
-    void cre_arr_object0(
+    void cre_arr_do_args4onEnter(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp_idx, // array_size 也是索引
             dex::u2 reg2_tmp_value, // value
             dex::u2 reg3_arr, // array 这个 object[] 对象
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
-    void cre_arr_object1(
+    void cre_arr_do_arg_2p(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp_idx, // 索引寄存器（也临时承接 String/Long）
             dex::u2 reg2_value, // 需要打包的第一个参数     临时（用作 aput 索引=1 等）

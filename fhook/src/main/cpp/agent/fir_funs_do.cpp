@@ -92,7 +92,6 @@ namespace fir_funs_do {
 
         ir::Builder builder(code_ir->dex_ir);
         auto *ir_method = code_ir->ir_method;
-        auto *code = ir_method->code;
 
         // 写入 method_id 到 {reg2_tmp_long, reg2_tmp_long+1}  const-wide v<reg_id_lo>, 123456L
         {
@@ -125,13 +124,12 @@ namespace fir_funs_do {
         {
             // 恢复避免后续恢复 这个完了直接返回了，但还有有可能被使用
             // 先清高半 v+1
-            fir_tools::EmitConstToReg(code_ir, insert_point, reg2_tmp_long + 1, 0);
+            fir_tools::emitValToReg(code_ir, insert_point, reg2_tmp_long + 1, 0);
             // 再清低半 v
-            fir_tools::EmitConstToReg(code_ir, insert_point, reg2_tmp_long, 0);
+            fir_tools::emitValToReg(code_ir, insert_point, reg2_tmp_long, 0);
         }
 
         return true;
-
     }
 
     ///  LOG.d("Feadre_fjtik", "xxx") 这个没有返回值
@@ -287,9 +285,9 @@ namespace fir_funs_do {
         {
             // long 临时必须恢复宽寄存器
             // 先清高半 v+1
-            fir_tools::EmitConstToReg(code_ir, insert_point, reg_tmp_long + 1, 0);
+            fir_tools::emitValToReg(code_ir, insert_point, reg_tmp_long + 1, 0);
             // 再清低半 v
-            fir_tools::EmitConstToReg(code_ir, insert_point, reg_tmp_long, 0);
+            fir_tools::emitValToReg(code_ir, insert_point, reg_tmp_long, 0);
         }
 
         return true;
@@ -319,7 +317,7 @@ namespace fir_funs_do {
 
 
         // 准备 Class.forName 的参数：initialize = true (v5)
-        fir_tools::EmitConstToReg(code_ir, insert_point, reg2_tmp, 1);
+        fir_tools::emitValToReg(code_ir, insert_point, reg2_tmp, 1);
 
         auto call_forName3 = code_ir->Alloc<lir::Bytecode>();
         call_forName3->opcode = dex::OP_INVOKE_STATIC;
@@ -465,22 +463,20 @@ namespace fir_funs_do {
     }
 
     /**
-       * public static Application currentApplication()
-       * Object application = currentAppMethod.invoke(null); // 静态方法调用
-       * m.invoke(null, new Object[]{ args });
-       * 方法是静态的，但反射调用按照反射的调用方式来
-       * 不管用原来是什么方法，用反射都是 OP_INVOKE_VIRTUAL
-       * @param f_Log_d
-       * @param code_ir
-       * @param ir_method
-       * @param builder
-       * @param reg_methon
-       * @param reg_obj
-       * @param reg_do_args 参数数组两层
-       */
+    *  method.invoke(Object,Object[]) 这个反射调用得传三个参数
+    * m.invoke(null, new Object[]{ Object[],long });
+    * m.invoke(null, new Object[]{ Object,long });
+    * 方法是静态的，但反射调用按照反射的调用方式来
+    * 不管用原来是什么方法，用反射都是 OP_INVOKE_VIRTUAL
+    * @param f_Log_d
+    * @param code_ir
+    * @param reg_method
+    * @param reg_obj
+    * @param reg_do_args 参数数组两层
+    */
     void do_method_invoke(lir::Method *f_method_invoke,
                           lir::CodeIr *code_ir,
-                          dex::u2 reg_methon, // method 对象
+                          dex::u2 reg_method, // method 对象
                           dex::u2 reg_obj, // 实例对象 静态函数为 null
                           dex::u2 reg_do_args, // 执行参数
                           dex::u2 reg_return, // 可重复
@@ -492,7 +488,7 @@ namespace fir_funs_do {
         auto reg_currentApp = code_ir->Alloc<lir::VRegList>();
         // v1=方法对象, v2=null(实例), v2=null(参数)
         reg_currentApp->registers.clear();
-        reg_currentApp->registers.push_back(reg_methon);
+        reg_currentApp->registers.push_back(reg_method);
         reg_currentApp->registers.push_back(reg_obj);
         reg_currentApp->registers.push_back(reg_do_args);
 
@@ -572,6 +568,7 @@ namespace fir_funs_do {
         do_class_getDeclaredMethod(f_class_getDeclaredMethod, code_ir,
                                    reg1_tmp, reg2_tmp, reg_method_args,
                                    reg1_tmp, name_fun, insert_point);
+        auto reg_method = reg1_tmp;
 
         /// Object ret = m.invoke(null, new Object[]{ args });
         lir::Method *f_method_invoke = fir_funs_def::get_method_invoke(code_ir);
@@ -581,16 +578,17 @@ namespace fir_funs_do {
 
         if (reg_do_args < 0) {
             fir_tools::cre_null_reg(code_ir, reg3_tmp, insert_point);
-        } else {
-            reg3_tmp = reg_do_args;
         }
 
         fir_tools::cre_null_reg(code_ir, reg2_tmp,
                                 insert_point);  // 创建空引用 固定为静态方法 ****************** 前面可以用
+        auto reg_obj_null = reg2_tmp;
+
 
 //         reg1_tmp 是方法对象, reg2_tmp 静态是是 null, reg3_tmp 包装后的参数数组
-        do_method_invoke(f_method_invoke, code_ir, reg1_tmp, reg2_tmp,
-                         reg3_tmp, reg_return, insert_point);
+        do_method_invoke(f_method_invoke, code_ir,
+                         reg_method, reg_obj_null, reg_do_args,
+                         reg_return, insert_point);
 
 
         return true;
@@ -686,9 +684,8 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
     /** ----------------- 参数区 ------------------- */
 
     /**
-   * 生成 onEnter 的参数类型数组（Class[]{Object[].class}） 只有一个参数
+   * 生成 onEnter 的参数类型数组（Class[]{Object[].class,Long.class}）
    * @param code_ir
-   * @param builder
    * @param reg1_tmp
    * @param reg2_tmp
    * @param reg3_arr
@@ -709,7 +706,7 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
         ir::Builder builder(code_ir->dex_ir);
 
         // const reg1_tmp #0x2 → 数组长度2  长度=2：  Class[]{ Object[].class, long.class }
-        fir_tools::EmitConstToReg(code_ir, insert_point, reg1_tmp, 2);
+        fir_tools::emitValToReg(code_ir, insert_point, reg1_tmp, 2);
 
         // 填 index 0: Object[].class new-array reg3_arr reg1_tmp      reg3_arr 是  Object[].class（Class 类型）
         {
@@ -723,23 +720,15 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
             new_arr->operands.push_back(
                     code_ir->Alloc<lir::Type>(class_base_type, class_base_type->orig_index));
             code_ir->instructions.insert(insert_point, new_arr);
+        }
 
-            /// 假设 obj_array_type = builder.GetType("[Ljava/lang/Object;")
-            const auto obj_array_type = builder.GetType("[Ljava/lang/Object;");
-
+        {
             // 生成 const-class reg2_tmp, [Ljava/lang/Object;
-
-
-            auto const_class_op = code_ir->Alloc<lir::Bytecode>();
-            const_class_op->opcode = dex::OP_CONST_CLASS; // 注意：使用 CONST_CLASS 指令
-            const_class_op->operands.push_back(
-                    code_ir->Alloc<lir::VReg>(reg2_tmp)); // reg2_tmp <- Class object
-            const_class_op->operands.push_back(
-                    code_ir->Alloc<lir::Type>(obj_array_type, obj_array_type->orig_index));
-            code_ir->instructions.insert(insert_point, const_class_op);
+            fir_tools::emitReference2Class(code_ir, "[Ljava/lang/Object;",
+                                           reg2_tmp, insert_point);
 
             // 然后再做 index const 和 aput-object (把 reg2_tmp 存到 Class[] 数组)
-            fir_tools::EmitConstToReg(code_ir, insert_point, reg1_tmp, 0);
+            fir_tools::emitValToReg(code_ir, insert_point, reg1_tmp, 0);
 
             auto aput_class = code_ir->Alloc<lir::Bytecode>();
             aput_class->opcode = dex::OP_APUT_OBJECT;
@@ -752,20 +741,9 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
 
         // idx 1 = long.class (Long.TYPE) Ljava/lang/Long;->TYPE:Ljava/lang/Class;
         {
-            const auto java_lang_Long = builder.GetType("Ljava/lang/Long;");
-            const auto java_lang_Class = builder.GetType("Ljava/lang/Class;");
-            auto name_TYPE = builder.GetAsciiString("TYPE");
-            auto field_TYPE_decl = builder.GetFieldDecl(name_TYPE, java_lang_Class, java_lang_Long);
+            fir_tools::emitLong2Class(code_ir, reg2_tmp, insert_point);
 
-            // sget-object v<reg2_tmp>, Ljava/lang/Long;->TYPE:Ljava/lang/Class;
-            auto sget = code_ir->Alloc<lir::Bytecode>();
-            sget->opcode = dex::OP_SGET_OBJECT;
-            sget->operands.push_back(code_ir->Alloc<lir::VReg>(reg2_tmp));
-            sget->operands.push_back(code_ir->Alloc<lir::Field>(
-                    field_TYPE_decl, field_TYPE_decl->orig_index));
-            code_ir->instructions.insert(insert_point, sget);
-
-            fir_tools::EmitConstToReg(code_ir, insert_point, reg1_tmp, 1);
+            fir_tools::emitValToReg(code_ir, insert_point, reg1_tmp, 1);
 
             auto aput1 = code_ir->Alloc<lir::Bytecode>();
             aput1->opcode = dex::OP_APUT_OBJECT;
@@ -776,6 +754,7 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
         }
     }
 
+    /// 生成 onExit 的参数类型数组（Class[]{Object.class,Long.class}）
     void cre_arr_class_args4onExit(
             lir::CodeIr *code_ir,
             dex::u2 reg1, // index 与 array_size 复用
@@ -786,7 +765,7 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
         ir::Builder builder(code_ir->dex_ir);
 
         // Class[] 长度=2： { Object.class, long.class }
-        fir_tools::EmitConstToReg(code_ir, insert_point, reg1, 2);
+        fir_tools::emitValToReg(code_ir, insert_point, reg1, 2);
 
         // new-array v<reg3_arr>, v<reg1>, [Ljava/lang/Class;
         {
@@ -803,18 +782,12 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
 
         // index 0 = Object.class
         {
-            const auto obj_type = builder.GetType("Ljava/lang/Object;");
-
             // const-class v<reg2>, Ljava/lang/Object;
-            auto const_class_obj = code_ir->Alloc<lir::Bytecode>();
-            const_class_obj->opcode = dex::OP_CONST_CLASS;
-            const_class_obj->operands.push_back(code_ir->Alloc<lir::VReg>(reg2));
-            const_class_obj->operands.push_back(
-                    code_ir->Alloc<lir::Type>(obj_type, obj_type->orig_index));
-            code_ir->instructions.insert(insert_point, const_class_obj);
+            fir_tools::emitReference2Class(code_ir, "Ljava/lang/Object;",
+                                           reg2, insert_point);
 
             // index = 0
-            fir_tools::EmitConstToReg(code_ir, insert_point, reg1, 0);
+            fir_tools::emitValToReg(code_ir, insert_point, reg1, 0);
 
             // aput-object v<reg2> → v<reg3_arr>[v<reg1>]
             auto aput0 = code_ir->Alloc<lir::Bytecode>();
@@ -827,21 +800,10 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
 
         // index 1 = long.class  —— 通过 java.lang.Long.TYPE 获取
         {
-            const auto java_lang_Long = builder.GetType("Ljava/lang/Long;");
-            const auto java_lang_Class = builder.GetType("Ljava/lang/Class;");
-            auto name_TYPE = builder.GetAsciiString("TYPE");
-            auto field_TYPE_decl = builder.GetFieldDecl(name_TYPE, java_lang_Class, java_lang_Long);
-
-            // sget-object v<reg2>, Ljava/lang/Long;->TYPE:Ljava/lang/Class;
-            auto sget = code_ir->Alloc<lir::Bytecode>();
-            sget->opcode = dex::OP_SGET_OBJECT;
-            sget->operands.push_back(code_ir->Alloc<lir::VReg>(reg2));
-            sget->operands.push_back(
-                    code_ir->Alloc<lir::Field>(field_TYPE_decl, field_TYPE_decl->orig_index));
-            code_ir->instructions.insert(insert_point, sget);
+            fir_tools::emitLong2Class(code_ir, reg2, insert_point);
 
             // index = 1
-            fir_tools::EmitConstToReg(code_ir, insert_point, reg1, 1);
+            fir_tools::emitValToReg(code_ir, insert_point, reg1, 1);
 
             // aput-object v<reg2> → v<reg3_arr>[v<reg1>]
             auto aput1 = code_ir->Alloc<lir::Bytecode>();
@@ -855,32 +817,30 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
 
 
     /**
-     * 生成 object
-     * 参数 包装返回值到 Object（放到 reg1_tmp_arg），便于后续注入 onExit(Object)
+     * 把原返回值弄成 object   这个函数不会报错 需确保 reg_do_arg 不与宽冲突
+     * 用于传入 public final static Object onExit4fhook(Object ret, long methodId)
+     *
      * @param code_ir
-     * @param reg_return
+     * @param reg_return_orig
+     * @param reg_do_arg
      * @param is_wide_return 带有宽恢复功能
      * @param insert_point
-     * @return 返回已打包好的寄存器编号
+     * @return 是否成功
      */
-    void cre_arr_do_args4onExit(
+    bool cre_arr_do_args4onExit(
             lir::CodeIr *code_ir,
-            dex::u2 reg_do_arg,  // 必需要一个正常的寄存器，可以相等，需要外面判断完成是不是宽
-            int reg_return,         // 返回值在这里，原方法返回值所在寄存器 清空则没有返回值
+            int reg_return_orig,         // 原方法返回值所在寄存器 传入 清空则没有返回值
+            dex::u2 reg_do_arg,  // 这个是返回值 必需要一个正常的寄存器，可以相等，需要外面判断完成是不是宽
             bool is_wide_return,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
-        LOGD("[cre_arr_do_args4onExit] reg_return= %d", reg_return)
-        SLICER_CHECK(code_ir != nullptr);
+        LOGD("[cre_arr_do_args4onExit] reg_return_orig= %d", reg_return_orig)
         auto ir_method = code_ir->ir_method;
-        SLICER_CHECK(ir_method != nullptr);
         auto proto = ir_method->decl->prototype;
-        SLICER_CHECK(proto != nullptr);
         auto return_type = proto->return_type;
-        SLICER_CHECK(return_type != nullptr);
 
         // 无返回值或方法已经清空情况
-        if (strcmp(return_type->descriptor->c_str(), "V") == 0 || reg_return < 0) {
+        if (strcmp(return_type->descriptor->c_str(), "V") == 0 || reg_return_orig < 0) {
             // 拿到方法信息
             LOGI("[cre_arr_do_args4onExit] %s.%s%s -> void/null, 插入null到v%d",
                  ir_method->decl->parent->Decl().c_str(),
@@ -889,7 +849,7 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
                  reg_do_arg);
             // 创建空对象
             fir_tools::cre_null_reg(code_ir, reg_do_arg, insert_point);
-            return;
+            return true;
         }
 
         if (return_type->GetCategory() == ir::Type::Category::Reference) {
@@ -897,30 +857,30 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
             auto move_obj = code_ir->Alloc<lir::Bytecode>();
             move_obj->opcode = dex::OP_MOVE_OBJECT;
             move_obj->operands.push_back(code_ir->Alloc<lir::VReg>(reg_do_arg));
-            move_obj->operands.push_back(code_ir->Alloc<lir::VReg>(reg_return));
+            move_obj->operands.push_back(code_ir->Alloc<lir::VReg>(reg_return_orig));
             code_ir->instructions.insert(insert_point, move_obj);
-            return;
+            return true;
         }
 
         // === 基本标量类型：装箱成对象 ===
         fir_tools::box_scalar_value(insert_point, code_ir, return_type,
-                                    reg_return, reg_do_arg);
+                                    reg_return_orig, reg_do_arg);
 
         // 如果是寄存器相同 就不能恢复
-        if (is_wide_return && reg_return != reg_do_arg) {
+        if (is_wide_return && reg_return_orig != reg_do_arg) {
             // 恢复宽寄存器
-            fir_tools::EmitConstToReg(code_ir, insert_point, reg_return + 1, 0);
-            fir_tools::EmitConstToReg(code_ir, insert_point, reg_return, 0);
+            fir_tools::emitValToReg(code_ir, insert_point, reg_return_orig + 1, 0);
+            fir_tools::emitValToReg(code_ir, insert_point, reg_return_orig, 0);
         }
 
         LOGD("[cre_arr_do_args4onExit] 处理完成：%s → 转换为Object到v%d",
              return_type->descriptor->c_str(), reg_do_arg);
 
-        return;
+        return true;
     }
 
     /// 自动找到参数寄存器 把方法的参数强转object 放在 object[] 数组中
-    void cre_arr_object0(
+    void cre_arr_do_args4onEnter(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp_idx, // array_size 也是索引
             dex::u2 reg2_tmp_value, // value
@@ -995,7 +955,7 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
             }
 
             //  定义数组索引 const v0 #0x1
-            fir_tools::EmitConstToReg(code_ir, insert_point, reg1_tmp_idx, i);
+            fir_tools::emitValToReg(code_ir, insert_point, reg1_tmp_idx, i);
             i++;
 //            LOGD("[cre_arr_do_args4onEnter] %s",
 //                 SmaliPrinter::ToSmali(dynamic_cast<lir::Bytecode *>(*insert_point)).c_str())
@@ -1013,8 +973,8 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
         }
     }
 
-    /// 用 Object[] 把指定的参数 放入
-    void cre_arr_object1(
+    /// 用 Object[Object[],Long] 把指定的参数 放入
+    void cre_arr_do_arg_2p(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp_idx, // 索引寄存器（也临时承接 String/Long）
             dex::u2 reg2_value, // 需要打包的第一个参数     临时（用作 aput 索引=1 等）
@@ -1027,7 +987,7 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
 
         {
             // outer = new Object[2]
-            fir_tools::EmitConstToReg(code_ir, insert_point, reg1_tmp_idx, 2);
+            fir_tools::emitValToReg(code_ir, insert_point, reg1_tmp_idx, 2);
 
             // 创建数组对象 reg4
 //        const auto obj_array_type = builder.GetType("[Ljava/lang/Object;");
@@ -1040,7 +1000,7 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
             code_ir->instructions.insert(insert_point, new_outer_array);
 
             // reg1_tmp_idx 索引为0 outer[0] = reg2_value（内层 Object[]）
-            fir_tools::EmitConstToReg(code_ir, insert_point, reg1_tmp_idx, 0);
+            fir_tools::emitValToReg(code_ir, insert_point, reg1_tmp_idx, 0);
 
             // 先把原参数放进去
             auto aput_outer = code_ir->Alloc<lir::Bytecode>();
@@ -1089,7 +1049,7 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
             code_ir->instructions.insert(insert_point, mres);
 
             // idx=1 （此处用 reg2_value 暂存索引，避免覆盖 reg1_tmp_idx 中的 Long）
-            fir_tools::EmitConstToReg(code_ir, insert_point, reg2_value, 1);
+            fir_tools::emitValToReg(code_ir, insert_point, reg2_value, 1);
 
             // aput-object <Long>, outer, 1
             auto aput1 = code_ir->Alloc<lir::Bytecode>();
@@ -1127,10 +1087,12 @@ MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
         // 创建 object[] 对象 -》 reg_arr
-        cre_arr_object0(code_ir, reg1_tmp, reg_arr, reg2_tmp, insert_point);
+        cre_arr_do_args4onEnter(code_ir, reg1_tmp, reg_arr,
+                                reg2_tmp, insert_point);
 
         // object[object[]] 再包一层对象
-        cre_arr_object1(code_ir, reg1_tmp, reg2_tmp, reg_arr, method_id, insert_point);
+        cre_arr_do_arg_2p(code_ir, reg1_tmp, reg2_tmp,
+                          reg_arr, method_id, insert_point);
 
     }
 

@@ -43,6 +43,33 @@ namespace finject {
         return false;
     }
 
+    static bool debug_log_2p(lir::CodeIr *code_ir,
+                             std::vector<int> &forbidden_v,
+                             slicer::IntrusiveList<lir::Instruction>::Iterator insert_point) {
+        auto ir_method = code_ir->ir_method;
+
+        lir::Method *f_Log_d = fir_funs_def::get_log_method(code_ir);
+        std::string _text = "[finject] C++ ";
+        _text += ir_method->decl->parent->Decl().c_str();
+        _text += " ";
+        _text += ir_method->decl->name->c_str();
+        _text += " ";
+        _text += ir_method->decl->prototype->Signature().c_str();
+        _text += " ------";
+        std::string tag = "Feadre_fjtik";
+
+        int count = 2;
+        auto regsx = FRegManager::AllocV(
+                code_ir, forbidden_v, count, "regsx");
+
+        CHECK_ALLOC_OR_RET(regsx, count, false, "[finject] regsx 申请寄存器失败 ...");
+        auto reg_tag = regsx[0];
+        auto reg_text = regsx[1];
+
+        fir_funs_do::do_Log_d(f_Log_d, code_ir, reg_tag, reg_text,
+                              tag, _text, insert_point);
+        return true;
+    }
 
     static bool do_HEnter(const deploy::Transform *transform,
                           const deploy::MethodHooks hook_info,
@@ -58,22 +85,19 @@ namespace finject {
         std::vector<int> forbidden_v = {}; // 禁止使用
         dex::u4 reg_do_return = 0; //执行后的返回值所有的寄存器用于恢复
 
+        // --------------------- 1 参数包装成 object[object arg0,object arg1...]
+        count = 3;
+        forbidden_v.clear();
+        auto regs1 = FRegManager::AllocV(
+                code_ir, forbidden_v, count, "regs1");
+        CHECK_ALLOC_OR_RET(regs1, count, false, "[do_HEnter] regs1 申请寄存器失败 ...");
+
+        fir_funs_do::cre_arr_do_args4onEnter(
+                code_ir, regs1[0], regs1[1], regs1[2], insert_point);
+
+
         if (transform->is_app_loader()) {
             LOGD("[do_HEnter] 应用侧 调用 isHEnter ...")
-
-            // --------------------- 1 参数包装成 object[]
-            count = 3;
-            forbidden_v.clear();
-            auto regs1 = FRegManager::AllocV(
-                    code_ir, forbidden_v, count, "regs1");
-            CHECK_ALLOC_OR_RET(regs1, count, false, "[do_HEnter] regs1 申请寄存器失败 ...");
-
-            // 运行方法
-            auto f_THook_onEnter = fir_funs_def::get_THook_onEnter(code_ir);
-
-            fir_funs_do::cre_arr_object0(
-                    code_ir, regs1[0], regs1[1], regs1[2], insert_point);
-
 
             // --------------------- 2 直接执行 do_THook_onEnter 这个没得返回 改了的参数在 regs3[0]
             count = 1; // 先申请宽
@@ -90,6 +114,8 @@ namespace finject {
                     code_ir, forbidden_v, count, "regs3");
             CHECK_ALLOC_OR_RET(regs3, count, false, "[do_HEnter] regs3 申请寄存器失败 ...");
 
+            // 拿到 运行方法
+            auto f_THook_onEnter = fir_funs_def::get_THook_onEnter(code_ir);
             bool res = fir_funs_do::do_THook_onEnter(
                     f_THook_onEnter, code_ir,
                     regs1[2], regs2_wide[0], regs3[0],
@@ -103,20 +129,20 @@ namespace finject {
             LOGD("[do_HEnter] 系统侧 调用 isHEnter ...")
 
             // --------------------- 1
-            count = 3;
+            count = 2;
             forbidden_v.clear();
             auto regs5 = FRegManager::AllocV(
                     code_ir, forbidden_v, count, "regs5");
             CHECK_ALLOC_OR_RET(regs5, count, false, "[do_HEnter] regs5 申请寄存器失败 ...");
 
-            fir_funs_do::cre_arr_do_args4onEnter(
-                    code_ir, regs5[0], regs5[1], regs5[2],
-                    hook_info.j_method_id, insert_point);
-
+            // public final static Object[] onEnter4fhook(Object[] rawArgs, long methodId)
+            // Object[Object[],Long] 再包一层对象 reg_do_args 完成
+            fir_funs_do::cre_arr_do_arg_2p(code_ir, regs5[0], regs1[2],
+                                           regs5[1], hook_info.j_method_id, insert_point);
 
             // --------------------- 2
             count = 3;
-            forbidden_v.push_back(regs5[2]);
+            forbidden_v.push_back(regs5[1]);
             auto regs6 = FRegManager::AllocV(
                     code_ir, forbidden_v, count, "regs6");
             CHECK_ALLOC_OR_RET(regs6, count, false, "[do_HEnter] regs6 申请寄存器失败 ...");
@@ -126,7 +152,7 @@ namespace finject {
                     code_ir, regs6[0], regs6[1], regs6[2], insert_point);
 
             // --------------------- 3
-            if (is_run_backup_plan) {
+            if (!is_run_backup_plan) {
                 count = 3;
                 forbidden_v.push_back(regs6[2]);
                 auto regs7 = FRegManager::AllocV(code_ir, forbidden_v, count);
@@ -134,7 +160,7 @@ namespace finject {
                 // 执行结果返回到 v0`
                 bool res = fir_funs_do::do_apploader_static_fun(
                         code_ir, regs7[0], regs7[1], regs7[2],
-                        regs6[2], regs5[2],
+                        regs6[2], regs5[1],
                         regs7[0],
                         g_name_class_THook, g_name_fun_onEnter,
                         insert_point);
@@ -179,6 +205,7 @@ namespace finject {
         return true;
     }
 
+    /// 当 需要运行原始方法时，并申请了寄存器时 一定要恢复参数位置
     int doHExit(const deploy::Transform *transform,
                 const deploy::MethodHooks &hook_info,
                 lir::CodeIr *code_ir,
@@ -200,11 +227,9 @@ namespace finject {
         int count;
         std::vector<int> forbidden_v = {}; // 禁止使用
 
-
-        // 如果清空了，这里拿到的是一个null
+        // --- 确保返回寄存器不被其它函数占用  把他转成object, 如果清空了，就创建一个空对象 null
         count = 1; // 申请一个宽存
         forbidden_v.clear();
-
         std::vector<int> regs0;
 
         dex::u2 reg_do_arg = 0;
@@ -245,20 +270,26 @@ namespace finject {
 
         insert_point = code_ir->instructions.end(); // 参数等会用到这个指针
         // --------------------- 1
-        // 确保不与宽冲突 创建参数
+        // 确保不与宽冲突 创建参数 这个函数不会报错
         fir_funs_do::cre_arr_do_args4onExit(
                 code_ir,
-                reg_do_arg,
                 reg_return_orig,
+                reg_do_arg,
                 is_wide_reg_return,
                 insert_point);
-        if (reg_do_arg < 0) return -1; // 里面已汇报了错误
+
 
         forbidden_v.clear();
         forbidden_v = {reg_do_arg}; // 禁止使用
         if (is_wide_reg_return) {
             forbidden_v.push_back(reg_do_arg + 1);
         }
+
+        // --- 完成：reg_do_arg 是把返回值转成了 Object对象
+
+        /// 开发调试  -------------------
+        debug_log_2p(code_ir, forbidden_v, insert_point);
+
 
 //            if (!transform->is_app_loader()) { //  调试使用
         if (transform->is_app_loader()) {
@@ -272,6 +303,7 @@ namespace finject {
                                "[doHExit] regs8_wide 申请寄存器失败 ...");
 
             auto f_THook_onExit = fir_funs_def::get_THook_onExit(code_ir);
+            // 这里出来
             bool res = fir_funs_do::do_THook_onExit(
                     f_THook_onExit, code_ir,
                     reg_do_arg, reg_do_arg, regs8_wide[0],
@@ -281,46 +313,49 @@ namespace finject {
             reg_return_dst = reg_do_arg;
 
         } else {
-            // 系统侧 调用用
+            // 系统侧 调用 --------------------------
             LOGD("[doHExit] 系统侧 调用 isHExit ...")
 
-            // --------------------- 2 反射 Class 要再包一层
+            // --------------------- 2 do 参数打包 Object[Object,Long]
             count = 2;
             auto regs9 = FRegManager::AllocV(
                     code_ir, forbidden_v, count, "regs9");
             CHECK_ALLOC_OR_RET(regs9, count, -1,
                                "[doHExit] regs9 申请寄存器失败 ...");
 
-            // 反射要再包一层  Class[]{Object[].class,Long.class}
-            fir_funs_do::cre_arr_object1(
+            // 反射要再包一层  Class[]{Object.class,Long.class}
+            fir_funs_do::cre_arr_do_arg_2p(
                     code_ir, regs9[0], reg_do_arg, regs9[1],
                     hook_info.j_method_id, insert_point);
 
+            auto reg_do_args=regs9[1]; //  reg_do_arg -》 reg_do_args
 
             // --------------------- 3
             count = 3;// 前面只有最后的封装参数需要保留
             forbidden_v.clear();
-            forbidden_v.push_back(regs9[1]);
+            forbidden_v.push_back(reg_do_args);
+
             auto regs10 = FRegManager::AllocV(
                     code_ir, forbidden_v, count, "regs10");
             CHECK_ALLOC_OR_RET(regs10, count, -1, "[doHExit] regs10 申请寄存器失败 ...");
 
+            // Class[]{Object.class,Long.class}
             fir_funs_do::cre_arr_class_args4onExit(
                     code_ir, regs10[0], regs10[1], regs10[2],
                     insert_point);
-
+            auto reg_method_args = regs10[2];
 
             // --------------------- 4
-            if (is_run_backup_plan) {
+            if (!is_run_backup_plan) {
                 count = 3;
-                forbidden_v.push_back(regs10[2]);
+                forbidden_v.push_back(reg_method_args);
                 auto regs11 = FRegManager::AllocV(
                         code_ir, forbidden_v, count, "regs11");
                 CHECK_ALLOC_OR_RET(regs11, count, -1, "[doHExit] regs11 申请寄存器失败 ...");
 
                 bool res = fir_funs_do::do_apploader_static_fun(
                         code_ir, regs11[0], regs11[1], regs11[2],
-                        regs10[2], regs9[1], regs11[2],
+                        reg_method_args, reg_do_args, regs11[2],
                         g_name_class_THook, g_name_fun_onExit,
                         insert_point);
                 if (!res) return -1;
@@ -347,8 +382,7 @@ namespace finject {
                     lir::CodeIr *code_ir) {
 
 
-
-        /// 这里是用于调试反向 使用时注释
+        /// 开发调试
 //        transform->set_app_loader(!transform->is_app_loader());
 //        LOGE("[do_finject]  ------ 开启了反向调试  ------ transform->set_app_loader(!transform->is_app_loader())  -----------")
 
@@ -359,18 +393,22 @@ namespace finject {
              ir_method->decl->name->c_str(),
              ir_method->decl->prototype->Signature().c_str())
 
-        // 如果是系统侧 需要根据方法信息需要框架是否走备用方案
+        // ---- 如果是系统侧 需要根据方法信息需要框架是否走备用方案
         bool is_run_backup_plan;
         if (!transform->is_app_loader()) {
             is_run_backup_plan = is_frame_method(ir_method);
+            /// 开发调试
+            is_run_backup_plan = false;
+            LOGE("[do_finject] 开发调试 is_run_backup_plan= %d", is_run_backup_plan)
         }
 
         auto orig_return_type = ir_method->decl->prototype->return_type;
         ir::Builder builder(code_ir->dex_ir);
 
-        int reg_return_orig = -1; // 这个主要用于 exit
+        int reg_return_orig = -1; // 缓存原有返回的寄存器，可能有多个， 用于exit
         int reg_return_dst = -1; // hook后的返回值寄存器编号
 
+        // ---- 拿到返回值的类型 如果不运行原有方法则清空不需要
         bool is_wide_reg_return = false; // 返回类型是否为宽，用于返回值校验
         if (!hook_info.isRunOrigFun) {
             fir_tools::clear_original_instructions(code_ir);
@@ -381,7 +419,7 @@ namespace finject {
                  is_wide_reg_return);
         }
 
-        // 清除操作后 确定插入点（MOD: 修复返回点找到逻辑）
+        // 定位到方法开头
         auto insert_point = fir_tools::find_first_code(code_ir);
         dex::u2 num_add_reg = 0;
         dex::u2 num_reg_non_param_new = 0;
@@ -399,8 +437,9 @@ namespace finject {
                 num_reg_non_param_new = FRegManager::Locals(code_ir);
             }
         }
-        // 如果单清除掉原始方法，也需要申请一个寄存器 cre_return_code 需要1个
-        if (!hook_info.isRunOrigFun) {
+
+        // 如果单清除掉原始方法，也需要申请一个寄存器 用于 cre_return_code 需要1个 如果前面
+        if (!hook_info.isRunOrigFun && num_add_reg == 0) {
             num_add_reg = FRegManager::RequestLocals(code_ir, 1);
             num_reg_non_param_new = FRegManager::Locals(code_ir);
         }

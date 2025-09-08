@@ -254,13 +254,13 @@ namespace fir_tools {
      * @param reg_det
      * @param value 根据value 的大小 选择最紧凑的 const 指令
      */
-    void EmitConstToReg(lir::CodeIr *code_ir,
-                        slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point,
-                        dex::u4 reg_det,
-                        dex::s4 value) {
+    void emitValToReg(lir::CodeIr *code_ir,
+                      slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point,
+                      dex::u4 reg_det,
+                      dex::s4 value) {
         // vA 编码限制：const/4 需要 vA<16；const/16 与 const(31i) 需要 vA<256
         if (reg_det >= 256) {
-            LOGE("[EmitConstToReg] unsupported: dest v%u >= 256 (DEX const vA is 8-bit)", reg_det);
+            LOGE("[emitValToReg] unsupported: dest v%u >= 256 (DEX const vA is 8-bit)", reg_det);
             return;
         }
 
@@ -280,10 +280,10 @@ namespace fir_tools {
         code_ir->instructions.insert(insert_point, bc);
     }
 
-    void EmitConstClass(lir::CodeIr *code_ir,
-                        const char *type_desc, // "[Ljava/lang/Object;"
-                        dex::u2 reg_dst,
-                        slicer::IntrusiveList<lir::Instruction>::Iterator &it) {
+    void emitReference2Class(lir::CodeIr *code_ir,
+                             const char *type_desc, // "[Ljava/lang/Object;" 指定java 引用类型
+                             dex::u2 reg_dst,
+                             slicer::IntrusiveList<lir::Instruction>::Iterator &it) {
         ir::Builder builder(code_ir->dex_ir);
         const auto type = builder.GetType(type_desc);
 
@@ -292,6 +292,25 @@ namespace fir_tools {
         bc->operands.push_back(code_ir->Alloc<lir::VReg>(reg_dst));
         bc->operands.push_back(code_ir->Alloc<lir::Type>(type, type->orig_index));
         code_ir->instructions.insert(it, bc);
+    }
+
+    void emitLong2Class(lir::CodeIr *code_ir,
+                        dex::u2 reg_dst,
+                        slicer::IntrusiveList<lir::Instruction>::Iterator &it) {
+        ir::Builder builder(code_ir->dex_ir);
+
+        const auto java_lang_Long = builder.GetType("Ljava/lang/Long;");
+        const auto java_lang_Class = builder.GetType("Ljava/lang/Class;");
+        auto name_TYPE = builder.GetAsciiString("TYPE");
+        auto field_TYPE_decl = builder.GetFieldDecl(name_TYPE, java_lang_Class, java_lang_Long);
+
+        // sget-object v<reg2>, Ljava/lang/Long;->TYPE:Ljava/lang/Class;
+        auto sget = code_ir->Alloc<lir::Bytecode>();
+        sget->opcode = dex::OP_SGET_OBJECT;
+        sget->operands.push_back(code_ir->Alloc<lir::VReg>(reg_dst));
+        sget->operands.push_back(
+                code_ir->Alloc<lir::Field>(field_TYPE_decl, field_TYPE_decl->orig_index));
+        code_ir->instructions.insert(it, sget);
     }
 
 
@@ -582,7 +601,7 @@ namespace fir_tools {
             // 创建默认值  直接创建 null 就不需要转换
             if (is_reference) {
                 // const/4 vX, #null  -> return-object vX
-                EmitConstToReg(code_ir, insert_point, reg_num, 0);
+                emitValToReg(code_ir, insert_point, reg_num, 0);
 
                 // return-object vX
                 auto ret = code_ir->Alloc<lir::Bytecode>();
@@ -611,7 +630,7 @@ namespace fir_tools {
             // 非宽非引用：普通 scalar
             {
                 // 对于小常量优先使用 const/4，但这里用 const/4 (0) 足够
-                EmitConstToReg(code_ir, insert_point, reg_num, 0);
+                emitValToReg(code_ir, insert_point, reg_num, 0);
 
                 auto ret = code_ir->Alloc<lir::Bytecode>();
                 ret->opcode = dex::OP_RETURN;
@@ -722,7 +741,7 @@ namespace fir_tools {
         // 如果是实例方法，按你打包约定，index_arr=0 对应 this
         if (!is_static) {
             // 把 index 0 的从数组拿出来
-            EmitConstToReg(code_ir, insert_point, reg_tmp_idx, (dex::s4) index_arr);
+            emitValToReg(code_ir, insert_point, reg_tmp_idx, (dex::s4) index_arr);
 
             // aget-object reg_tmp_obj, reg_args, reg_tmp_idx
             {
@@ -773,7 +792,7 @@ namespace fir_tools {
             SLICER_CHECK(ptype != nullptr);
 
             // Load array index
-            EmitConstToReg(code_ir, insert_point, reg_tmp_idx, (dex::s4) index_arr);
+            emitValToReg(code_ir, insert_point, reg_tmp_idx, (dex::s4) index_arr);
 
             // 把值取出来先 aget-object reg_tmp_obj, reg_args, reg_tmp_idx
             {
@@ -929,7 +948,7 @@ namespace fir_tools {
                 if ((i + 1) < (int) plans.size()
                     && plans[i + 1].width == 1
                     && plans[i + 1].dst == src_hi) {
-                    EmitConstToReg(code_ir, insert_point, /*reg_det=*/src_hi, /*value=*/0);
+                    emitValToReg(code_ir, insert_point, /*reg_det=*/src_hi, /*value=*/0);
                 }
             }
         }

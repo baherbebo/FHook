@@ -13,13 +13,17 @@ namespace fir_tools {
     void cre_null_reg(lir::CodeIr *code_ir, int reg1,
                       slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
-    void EmitConstToReg(lir::CodeIr *code_ir,
-                        slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point,
-                        dex::u4 reg_det,
-                        dex::s4 value);
+    void emitValToReg(lir::CodeIr *code_ir,
+                      slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point,
+                      dex::u4 reg_det,
+                      dex::s4 value);
 
-    void EmitConstClass(lir::CodeIr *code_ir,
-                        const char *type_desc, // "[Ljava/lang/Object;"
+    void emitReference2Class(lir::CodeIr *code_ir,
+                             const char *type_desc, // "[Ljava/lang/Object;"
+                        dex::u2 reg_dst,
+                             slicer::IntrusiveList<lir::Instruction>::Iterator &it);
+
+    void emitLong2Class(lir::CodeIr *code_ir,
                         dex::u2 reg_dst,
                         slicer::IntrusiveList<lir::Instruction>::Iterator &it);
 

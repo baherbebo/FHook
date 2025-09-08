@@ -1,5 +1,6 @@
 package top.feadre.fhook.activitys;
 
+import android.content.ContentResolver;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -291,13 +292,14 @@ public class MainActivity extends AppCompatActivity {
         bt_main_24.setText("24 Settings_Secure_getString_S_OS");
         bt_main_24.setOnClickListener(v -> {
             try {
-                String res = Settings.Secure.getString(getContentResolver(),
-                        Settings.Secure.ANDROID_ID);
+                ContentResolver contentResolver = getContentResolver();
+                String res = Settings.Secure.getString(
+                        contentResolver, Settings.Secure.ANDROID_ID);
 
 //                String res2 = Settings.Secure.getString(
 //                        getContentResolver(), Settings.Secure.INPUT_METHOD_SELECTOR_VISIBILITY);
 //                FLog.d(TAG, "BACKGROUND_DATA=" + res2);
-                Toast.makeText(this, "ANDROID_ID=" + res, Toast.LENGTH_SHORT).show();
+//                Toast.makeText(this, "ANDROID_ID=" + res, Toast.LENGTH_SHORT).show();
                 FLog.d(TAG, "Settings_Secure_getString_S_OS res= " + res);
             } catch (Throwable e) {
                 Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
@@ -369,21 +371,21 @@ public class MainActivity extends AppCompatActivity {
 
 
         // Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool");
-        Method Class_forName = FHookTool.findMethod4First(Class.class, "forName");
-        FHook.hook(Class_forName)
-                .setOrigFunRun(true)
-                .setHookEnter((thiz, args, types, hh) -> {
-                    FLog.d(TAG, "[Class_forName_Class_S] start ....");
-                    args.set(0, "java.lang.Integer");
-                })
-                .setHookExit((ret, type, hh) -> {
-                    if (ret != null) {
-                        Class<?> _ret = (Class<?>) ret;
-                        FLog.d(TAG, "[Class_forName_Class_S] end ....ret= " + _ret.getName());
-                    }
-                    return ret;
-                })
-                .commit();
+//        Method Class_forName = FHookTool.findMethod4First(Class.class, "forName");
+//        FHook.hook(Class_forName)
+//                .setOrigFunRun(true)
+//                .setHookEnter((thiz, args, types, hh) -> {
+//                    FLog.d(TAG, "[Class_forName_Class_S] start ....");
+//                    args.set(0, "java.lang.Integer");
+//                })
+//                .setHookExit((ret, type, hh) -> {
+//                    if (ret != null) {
+//                        Class<?> _ret = (Class<?>) ret;
+//                        FLog.d(TAG, "[Class_forName_Class_S] end ....ret= " + _ret.getName());
+//                    }
+//                    return ret;
+//                })
+//                .commit();
 
 
 //
@@ -402,19 +404,19 @@ public class MainActivity extends AppCompatActivity {
 //
 //
 //        // String res = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
-//        {
-//            Method Settings_Secure_getString_S_OS =
-//                    android.provider.Settings.Secure.class.getMethod(
-//                            "getString", android.content.ContentResolver.class, String.class);
-//
-//            FHook.hook(Settings_Secure_getString_S_OS)
-//                    .setOrigFunRun(true)
-//                    .setHookEnter((thiz, args, types, hh) -> {
-//                        // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
-//                        showLog("Settings_Secure_getString_S_OS", thiz, args, types);
-//                        args.set(1, "input_method_selector_visibility");
-//
-//                    })
+        {
+            Method Settings_Secure_getString_S_OS =
+                    android.provider.Settings.Secure.class.getMethod(
+                            "getString", android.content.ContentResolver.class, String.class);
+
+            FHook.hook(Settings_Secure_getString_S_OS)
+                    .setOrigFunRun(true)
+                    .setHookEnter((thiz, args, types, hh) -> {
+                        // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
+                        showLog("Settings_Secure_getString_S_OS", thiz, args, types);
+                        args.set(1, "input_method_selector_visibility");
+
+                    })
 //                    .setHookExit((ret, type, hh) -> {
 //                        showLog("Settings_Secure_getString_S_OS", hh.thisObject, ret, type);
 //                        // 演示：在返回值后面加标记，肉眼可见 hook 生效
@@ -423,13 +425,13 @@ public class MainActivity extends AppCompatActivity {
 //                        }
 //                        return ret;
 //                    })
-//                    .commit();
-//        }
+                    .commit();
+        }
 //
 //        // boolean ok = sp.edit().putString(key, "时间" + System.currentTimeMillis()).commit();
 //        // 从实现类上取真实的 commit()（不是接口上的）
 //        //  boolean commit();
-//        Method sp_putString_S_SS = SharedPreferences.Editor.class.getMethod("putString");
+//        Method sp_putString_S_SS = SharedPreferences.Editor.class.getMethod("putString", String.class, String.class);
 //        SharedPreferences.Editor editor = this.getSharedPreferences("demo", MODE_PRIVATE).edit();
 //        Method mCommitImpl = FHookTool.findMethod4Impl(editor, sp_putString_S_SS);
 //
