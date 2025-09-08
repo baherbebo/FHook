@@ -394,34 +394,34 @@ public class MainActivity extends AppCompatActivity {
 
         // Class<?> clazz = classLoader.loadClass("java.lang.String");
         // 框架方法 hook
-        Method classLoader_loadClass_Class_S = FHookTool.findMethod4First(ClassLoader.class, "loadClass");
-        FHook.hook(classLoader_loadClass_Class_S)
-                .setOrigFunRun(false)
-                .setHookEnter((thiz, args, types, hh) -> {
-                    FLog.d(TAG, "[classLoader_loadClass_Class_S] start ....");
-                    args.set(0, "java.lang.Integer");
-                })
-//                .setHookExit((ret, type, hh) -> {
-//                    FLog.d(TAG, "[classLoader_loadClass_Class_S] end .... ");
-//                    return ret;
+//        Method classLoader_loadClass_Class_S = FHookTool.findMethod4First(ClassLoader.class, "loadClass");
+//        FHook.hook(classLoader_loadClass_Class_S)
+//                .setOrigFunRun(false)
+//                .setHookEnter((thiz, args, types, hh) -> {
+//                    FLog.d(TAG, "[classLoader_loadClass_Class_S] start ....");
+//                    args.set(0, "java.lang.Integer");
 //                })
-                .commit();
+////                .setHookExit((ret, type, hh) -> {
+////                    FLog.d(TAG, "[classLoader_loadClass_Class_S] end .... ");
+////                    return ret;
+////                })
+//                .commit();
 //
 //
-//        // String res = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
-//        {
-//            Method Settings_Secure_getString_S_OS =
-//                    android.provider.Settings.Secure.class.getMethod(
-//                            "getString", android.content.ContentResolver.class, String.class);
-//
-//            FHook.hook(Settings_Secure_getString_S_OS)
-//                    .setOrigFunRun(true)
-////                    .setHookEnter((thiz, args, types, hh) -> {
-////                        // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
-////                        showLog("Settings_Secure_getString_S_OS", thiz, args, types);
-////                        args.set(1, "input_method_selector_visibility");
-////
-////                    })
+        // String res = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+        {
+            Method Settings_Secure_getString_S_OS =
+                    android.provider.Settings.Secure.class.getMethod(
+                            "getString", android.content.ContentResolver.class, String.class);
+
+            FHook.hook(Settings_Secure_getString_S_OS)
+                    .setOrigFunRun(true)
+                    .setHookEnter((thiz, args, types, hh) -> {
+                        // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
+                        showLog("Settings_Secure_getString_S_OS", thiz, args, types);
+                        args.set(1, "input_method_selector_visibility");
+
+                    })
 //                    .setHookExit((ret, type, hh) -> {
 //                        showLog("Settings_Secure_getString_S_OS", hh.thisObject, ret, type);
 //                        // 演示：在返回值后面加标记，肉眼可见 hook 生效
@@ -432,8 +432,8 @@ public class MainActivity extends AppCompatActivity {
 //                        }
 //                        return ret;
 //                    })
-//                    .commit();
-//        }
+                    .commit();
+        }
 
         // boolean ok = sp.edit().putString(key, "时间" + System.currentTimeMillis()).commit();
         // 从实现类上取真实的 commit()（不是接口上的）

@@ -513,7 +513,6 @@ namespace fir_funs_do {
 
     }
 
-
     /// Object[] newArgs = (Object[]) mhEnter.invokeWithArguments(rawArgs, methodId);
     void do_methodHandle_invokeWithArguments(
             lir::Method *f_methodHandle_invokeWithArguments,
@@ -633,6 +632,7 @@ namespace fir_funs_do {
         return true;
     }
 
+
     /// MethodHandle mhEnter = lk.findStatic(clazz, "onEnter4fhook", mtEnter);
     void do_lookup_findStatic(
             lir::Method *f_lookup_findStatic,
@@ -676,6 +676,79 @@ namespace fir_funs_do {
         move->opcode = dex::OP_MOVE_RESULT_OBJECT;
         move->operands.push_back(code_ir->Alloc<lir::VReg>(reg_return));
         code_ir->instructions.insert(insert_point, move);
+    }
+
+
+    bool do_get_onenter_method(
+            lir::CodeIr *code_ir,
+            dex::u2 reg1_tmp,
+            dex::u2 reg2_tmp,
+            dex::u2 reg3_tmp,
+            dex::u2 reg_clazz,
+            dex::u2 reg_return,
+            std::string &name_fun,
+            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
+
+        ir::Builder builder(code_ir->dex_ir);
+
+        auto *f_Class_getField = fir_funs_def::get_class_getField(code_ir);
+        CHECK_OR_RETURN(f_Class_getField, false, "[C] Class.getField fail");
+
+        // reg2_tmp = "MH_ENTER"
+        {
+            auto s = builder.GetAsciiString(name_fun.c_str());
+            auto bc = code_ir->Alloc<lir::Bytecode>();
+            bc->opcode = dex::OP_CONST_STRING;
+            bc->operands.push_back(code_ir->Alloc<lir::VReg>(reg2_tmp));
+            bc->operands.push_back(code_ir->Alloc<lir::String>(s, s->orig_index));
+            code_ir->instructions.insert(insert_point, bc);
+        }
+        // Field f = clazz.getField("MH_ENTER") → reg3_tmp
+        {
+            auto call = code_ir->Alloc<lir::Bytecode>();
+            call->opcode = dex::OP_INVOKE_VIRTUAL;
+            auto regs = code_ir->Alloc<lir::VRegList>();
+            regs->registers = {reg_clazz,
+                               reg2_tmp};                                   // (receiver, name)
+            call->operands.push_back(regs);
+            call->operands.push_back(f_Class_getField);
+            code_ir->instructions.insert(insert_point, call);
+
+            auto mres = code_ir->Alloc<lir::Bytecode>();
+            mres->opcode = dex::OP_MOVE_RESULT_OBJECT;
+            mres->operands.push_back(
+                    code_ir->Alloc<lir::VReg>(reg3_tmp));               // reg3_tmp = Field
+            code_ir->instructions.insert(insert_point, mres);
+        }
+
+        auto *f_Field_get = fir_funs_def::get_field_get(code_ir);
+        CHECK_OR_RETURN(f_Field_get, false, "[C] Field.get fail");
+
+        // Object mhObj = f.get(null) → reg2_tmp ; check-cast to MethodHandle
+        {
+            fir_tools::emitValToReg(code_ir, insert_point, reg1_tmp, 0);                 // null
+            auto call = code_ir->Alloc<lir::Bytecode>();
+            call->opcode = dex::OP_INVOKE_VIRTUAL;
+            auto regs = code_ir->Alloc<lir::VRegList>();
+            regs->registers = {reg3_tmp, reg1_tmp};
+            call->operands.push_back(regs);
+            call->operands.push_back(f_Field_get);
+            code_ir->instructions.insert(insert_point, call);
+
+            auto mres = code_ir->Alloc<lir::Bytecode>();
+            mres->opcode = dex::OP_MOVE_RESULT_OBJECT;
+            mres->operands.push_back(
+                    code_ir->Alloc<lir::VReg>(reg_return)); // reg2_tmp = Object
+            code_ir->instructions.insert(insert_point, mres);
+
+            // reg2_tmp = MethodHandle
+            fir_tools::emitCheckCast(code_ir,
+                                     "Ljava/lang/invoke/MethodHandle;",
+                                     reg_return,
+                                     insert_point);
+        }
+
+        return true;
     }
 
 
@@ -796,6 +869,130 @@ namespace fir_funs_do {
 
         return true;
     }
+
+    // 最小可行：系统侧只做 forName + 取 public 静态 MH_ENTER + 调用
+    bool do_sysloader_hook_funs_C(
+            lir::CodeIr *code_ir,
+            dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp, dex::u2 reg4_tmp,
+            int reg_do_args,                 // Object[]{ rawArgs, Long(methodId) }
+            dex::u2 reg_return,              // out: Object[] (newArgs)
+            std::string &name_class,         // "top.feadre.fhook.FHook"
+            std::string &name_fun,           // 未用，保留
+            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
+
+        ir::Builder builder(code_ir->dex_ir);
+
+
+        // 1) Thread.currentThread().getContextClassLoader()
+        auto *f_Thread_currentThread = fir_funs_def::get_Thread_currentThread(code_ir);
+        CHECK_OR_RETURN(f_Thread_currentThread, false, "[C] Thread.currentThread fail");
+        do_static_0p(f_Thread_currentThread, code_ir, reg2_tmp,
+                     insert_point);          // reg2_tmp = Thread
+
+        auto *f_thread_getContextClassLoader = fir_funs_def::get_thread_getContextClassLoader(
+                code_ir);
+        CHECK_OR_RETURN(f_thread_getContextClassLoader, false, "[C] t.getContextClassLoader fail");
+        do_thread_getContextClassLoader(f_thread_getContextClassLoader, code_ir,
+                                        reg2_tmp, reg2_tmp,
+                                        insert_point);               // reg2_tmp = ClassLoader
+
+        // 2) Class.forName("top.feadre.fhook.FHook", true, cl) → reg2_tmp = FHook.class
+        auto *f_Class_forName_3 = fir_funs_def::get_Class_forName_3p(code_ir);
+        CHECK_OR_RETURN(f_Class_forName_3, false, "[C] Class.forName fail");
+        do_Class_forName_3p(f_Class_forName_3, code_ir,
+                            reg3_tmp, reg4_tmp, reg2_tmp,
+                            reg2_tmp, name_class, insert_point);
+        auto reg_clazz = reg2_tmp;
+
+
+
+        // 3) 直接用 public 字段：Field f = clazz.getField("MH_ENTER"); MethodHandle mh = (MethodHandle) f.get(null)
+
+
+
+        /// 传了1234 个寄存器
+        bool res = do_get_onenter_method(code_ir, reg1_tmp, reg4_tmp, reg3_tmp,
+                                         reg_clazz, reg4_tmp,
+                                         name_fun, insert_point);
+        if (!res)return res;
+
+        auto *f_Class_getField = fir_funs_def::get_class_getField(code_ir);
+        CHECK_OR_RETURN(f_Class_getField, false, "[C] Class.getField fail");
+
+//        // reg4_tmp = "MH_ENTER"
+//        {
+//            auto s = builder.GetAsciiString("MH_ENTER");
+//            auto bc = code_ir->Alloc<lir::Bytecode>();
+//            bc->opcode = dex::OP_CONST_STRING;
+//            bc->operands.push_back(code_ir->Alloc<lir::VReg>(reg4_tmp));
+//            bc->operands.push_back(code_ir->Alloc<lir::String>(s, s->orig_index));
+//            code_ir->instructions.insert(insert_point, bc);
+//        }
+//        // Field f = clazz.getField("MH_ENTER") → reg3_tmp
+//        {
+//            auto call = code_ir->Alloc<lir::Bytecode>();
+//            call->opcode = dex::OP_INVOKE_VIRTUAL;
+//            auto regs = code_ir->Alloc<lir::VRegList>();
+//            regs->registers = {reg_clazz,
+//                               reg4_tmp};                                   // (receiver, name)
+//            call->operands.push_back(regs);
+//            call->operands.push_back(f_Class_getField);
+//            code_ir->instructions.insert(insert_point, call);
+//
+//            auto mres = code_ir->Alloc<lir::Bytecode>();
+//            mres->opcode = dex::OP_MOVE_RESULT_OBJECT;
+//            mres->operands.push_back(
+//                    code_ir->Alloc<lir::VReg>(reg3_tmp));               // reg3_tmp = Field
+//            code_ir->instructions.insert(insert_point, mres);
+//        }
+//
+//        auto *f_Field_get = fir_funs_def::get_field_get(code_ir);
+//        CHECK_OR_RETURN(f_Field_get, false, "[C] Field.get fail");
+//
+//        // Object mhObj = f.get(null) → reg4_tmp ; check-cast to MethodHandle
+//        {
+//            fir_tools::emitValToReg(code_ir, insert_point, reg1_tmp, 0);                 // null
+//            auto call = code_ir->Alloc<lir::Bytecode>();
+//            call->opcode = dex::OP_INVOKE_VIRTUAL;
+//            auto regs = code_ir->Alloc<lir::VRegList>();
+//            regs->registers = {reg3_tmp, reg1_tmp};
+//            call->operands.push_back(regs);
+//            call->operands.push_back(f_Field_get);
+//            code_ir->instructions.insert(insert_point, call);
+//
+//            auto mres = code_ir->Alloc<lir::Bytecode>();
+//            mres->opcode = dex::OP_MOVE_RESULT_OBJECT;
+//            mres->operands.push_back(
+//                    code_ir->Alloc<lir::VReg>(reg4_tmp));               // reg4_tmp = Object
+//            code_ir->instructions.insert(insert_point, mres);
+//
+////            emitCheckCast(reg4_tmp, "Ljava/lang/invoke/MethodHandle;");                  // reg4_tmp = MethodHandle
+//            fir_tools::emitCheckCast(code_ir,
+//                                     "Ljava/lang/invoke/MethodHandle;",
+//                                     reg4_tmp,
+//                                     insert_point);
+//        }
+
+        auto reg_mh = reg4_tmp; // 不能再覆盖
+
+        // 4) 调用 mh.invokeWithArguments(wrapperArgs)
+        auto *f_mh_invoke = fir_funs_def::get_methodHandle_invokeWithArguments(code_ir);
+        CHECK_OR_RETURN(f_mh_invoke, false, "[C] MethodHandle.invokeWithArguments fail");
+
+        do_methodHandle_invokeWithArguments(
+                f_mh_invoke, code_ir,
+                reg_mh,            // MethodHandle
+                reg_do_args,       // Object[]{ rawArgs, Long(methodId) }
+                reg_return,        // out: Object[] newArgs
+                insert_point
+        );
+
+        return true;
+    }
+
+    /** ----------------- do java frame  ------------------- */
+
+
 
     /** ----------------- 参数区 ------------------- */
 

@@ -153,6 +153,25 @@ namespace fir_funs_do {
             std::string &name_fun,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
+    bool do_sysloader_hook_funs_C(
+            lir::CodeIr *code_ir,
+            dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp, dex::u2 reg4_tmp,
+            int reg_do_args,                 // Object[]{ rawArgs, Long(methodId) }
+            dex::u2 reg_return,              // out: Object[] (newArgs)
+            std::string &name_class,         // "top.feadre.fhook.FHook"
+            std::string &name_fun,           // 未用，保留
+            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
+
+    bool do_get_onenter_method(
+            lir::CodeIr *code_ir,
+            dex::u2 reg1_tmp,
+            dex::u2 reg2_tmp,
+            dex::u2 reg3_tmp,
+            dex::u2 reg_clazz,
+            dex::u2 reg_return,
+            std::string &name_fun,
+            slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
+
     /** ----------------- 参数区 ------------------- */
     void cre_arr_class_args4onEnter(
             lir::CodeIr *code_ir,

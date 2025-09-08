@@ -24,6 +24,18 @@ namespace fir_funs_def {
 
     lir::Method *get_class_getDeclaredMethod(lir::CodeIr *code_ir);
 
+    lir::Method *get_class_getDeclaredField(lir::CodeIr *code_ir);
+
+    lir::Method *get_field_setAccessible(lir::CodeIr *code_ir);
+
+    lir::Method *get_field_get(lir::CodeIr *code_ir);
+
+    lir::Method *get_class_getField(lir::CodeIr *code_ir);
+
+    lir::Method *get_atomicInteger_incrementAndGet(lir::CodeIr *code_ir);
+
+    lir::Method *get_atomicInteger_decrementAndGet(lir::CodeIr *code_ir);
+
     lir::Method *get_method_invoke(lir::CodeIr *code_ir);
 
     // ------------------------------------------

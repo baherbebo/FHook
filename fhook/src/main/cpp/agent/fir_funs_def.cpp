@@ -139,10 +139,67 @@ namespace fir_funs_def {
         std::string name_method = "getDeclaredMethod";
         std::vector<std::string> param_types = {
                 "Ljava/lang/String;",
-                "[Ljava/lang/Class;"
+                "[Ljava/lang/Class;"  // 这个可以为 null
         };
         std::string return_type = "Ljava/lang/reflect/Method;";
 
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
+    }
+
+    /// public java.lang.reflect.Field Class.getDeclaredField(String)
+    lir::Method* get_class_getDeclaredField(lir::CodeIr* code_ir) {
+        std::string name_class  = "Ljava/lang/Class;";
+        std::string name_method = "getDeclaredField";
+        std::vector<std::string> param_types = {
+                "Ljava/lang/String;",
+        };
+        std::string return_type = "Ljava/lang/reflect/Field;";
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
+    }
+
+    /// public void Field.setAccessible(boolean)   （声明在 AccessibleObject，但用 Field 调也OK）
+    lir::Method* get_field_setAccessible(lir::CodeIr* code_ir) {
+        std::string name_class  = "Ljava/lang/reflect/Field;";
+        std::string name_method = "setAccessible";
+        std::vector<std::string> param_types = { "Z" };
+        std::string return_type = "V";
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
+    }
+
+    /// public Object Field.get(Object)
+    lir::Method* get_field_get(lir::CodeIr* code_ir) {
+        std::string name_class  = "Ljava/lang/reflect/Field;";
+        std::string name_method = "get";
+        std::vector<std::string> param_types = { "Ljava/lang/Object;" };
+        std::string return_type = "Ljava/lang/Object;";
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
+    }
+
+    /// public Field Class.getField(String name)   // 只拿 public 字段
+    lir::Method* get_class_getField(lir::CodeIr* code_ir) {
+        std::string name_class  = "Ljava/lang/Class;";
+        std::string name_method = "getField";
+        std::vector<std::string> param_types = { "Ljava/lang/String;" };
+        std::string return_type = "Ljava/lang/reflect/Field;";
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
+    }
+
+
+    /// public int AtomicInteger.incrementAndGet()
+    lir::Method* get_atomicInteger_incrementAndGet(lir::CodeIr* code_ir) {
+        std::string name_class  = "Ljava/util/concurrent/atomic/AtomicInteger;";
+        std::string name_method = "incrementAndGet";
+        std::vector<std::string> param_types = {};
+        std::string return_type = "I";
+        return cre_method(code_ir, name_class, name_method, param_types, return_type);
+    }
+
+    /// public int AtomicInteger.decrementAndGet()
+    lir::Method* get_atomicInteger_decrementAndGet(lir::CodeIr* code_ir) {
+        std::string name_class  = "Ljava/util/concurrent/atomic/AtomicInteger;";
+        std::string name_method = "decrementAndGet";
+        std::vector<std::string> param_types = {};
+        std::string return_type = "I";
         return cre_method(code_ir, name_class, name_method, param_types, return_type);
     }
 
@@ -215,8 +272,7 @@ namespace fir_funs_def {
     }
 
     /// public ClassLoader getContextClassLoader()
-    lir::Method *
-    get_thread_getContextClassLoader(lir::CodeIr *code_ir) {
+    lir::Method *get_thread_getContextClassLoader(lir::CodeIr *code_ir) {
 
         std::string name_class = "Ljava/lang/Thread;";
         std::string name_method = "getContextClassLoader";
@@ -253,8 +309,8 @@ namespace fir_funs_def {
     }
 
     // 用于 MethodType.methodType(Class, Class[])
-    lir::Method* get_MethodType_methodType_2p(lir::CodeIr* code_ir) {
-        const std::string name_class  = "Ljava/lang/invoke/MethodType;";
+    lir::Method *get_MethodType_methodType_2p(lir::CodeIr *code_ir) {
+        const std::string name_class = "Ljava/lang/invoke/MethodType;";
         const std::string name_method = "methodType";
         std::vector<std::string> param_types = {
                 "Ljava/lang/Class;",     // rtype

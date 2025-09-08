@@ -18,6 +18,11 @@ namespace fir_tools {
                       dex::u4 reg_det,
                       dex::s4 value);
 
+    void emitCheckCast(lir::CodeIr *code_ir,
+                       const char *type_desc,
+                       dex::u2 reg_dst,
+                       slicer::IntrusiveList<lir::Instruction>::Iterator &it);
+
     void emitReference2Class(lir::CodeIr *code_ir,
                              const char *type_desc, // "[Ljava/lang/Object;"
                         dex::u2 reg_dst,

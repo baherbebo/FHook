@@ -280,6 +280,23 @@ namespace fir_tools {
         code_ir->instructions.insert(insert_point, bc);
     }
 
+    /// 强转操作
+    void emitCheckCast(lir::CodeIr *code_ir,
+                        const char *type_desc,
+                        dex::u2 reg_dst,
+                        slicer::IntrusiveList<lir::Instruction>::Iterator &it) {
+
+        ir::Builder builder(code_ir->dex_ir);
+        auto *ty = builder.GetType(type_desc);
+        auto *cc = code_ir->Alloc<lir::Bytecode>();
+        cc->opcode = dex::OP_CHECK_CAST;
+        cc->operands.push_back(code_ir->Alloc<lir::VReg>(reg_dst));
+        cc->operands.push_back(code_ir->Alloc<lir::Type>(ty, ty->orig_index));
+        code_ir->instructions.insert(it, cc);
+
+    }
+
+    /// 创建 class 类对象
     void emitReference2Class(lir::CodeIr *code_ir,
                              const char *type_desc, // "[Ljava/lang/Object;" 指定java 引用类型
                              dex::u2 reg_dst,

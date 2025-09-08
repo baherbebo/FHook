@@ -6,6 +6,9 @@ import android.os.Build;
 import android.os.Debug;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
@@ -29,13 +32,27 @@ public class FHook {
 
 //    public static native int jcFt001T02(int a, int b);
 
-//    public static void ft01() {
+    //    public static void ft01() {
 //        System.out.println("Hello FHook!");
 //        Log.i("Ft001", "jcFt001T01: -------------------" + jcFt001T02(4, 5));
 //    }
+    public static final MethodHandle MH_ENTER;
+    public static final MethodHandle MH_EXIT;
+
 
     static {
         System.loadLibrary("fhook");
+        // 全局初始化方法
+        var mt_enter = MethodType.methodType(Object[].class, Object[].class, long.class);
+        var mt_exit = MethodType.methodType(Object.class, Object.class, long.class);
+        try {
+            MH_ENTER = MethodHandles.lookup().findStatic(FHook.class, "onEnter4fhook", mt_enter);
+            MH_EXIT = MethodHandles.lookup().findStatic(FHook.class, "onExit4fhook", mt_exit);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static boolean isInit = false;
@@ -602,18 +619,18 @@ public class FHook {
 
     /**
      * A组  不能做任何操作
-     *     Thread thread = Thread.currentThread();
-     *     ClassLoader contextClassLoader = thread.getContextClassLoader();
+     * Thread thread = Thread.currentThread();
+     * ClassLoader contextClassLoader = thread.getContextClassLoader();
      * B组  能hook，强制不能清除方法
-     *     Class<?> clazz = contextClassLoader.loadClass("top.feadre.fhook.FHookTool");
-     *     method = clazz.getDeclaredMethod("printStackTrace", int.class);
-     *     Object res = method.invoke(null, 5);
+     * Class<?> clazz = contextClassLoader.loadClass("top.feadre.fhook.FHookTool");
+     * method = clazz.getDeclaredMethod("printStackTrace", int.class);
+     * Object res = method.invoke(null, 5);
      * C组  能hook，可清除（但不能同时hookB组） -
-     *     Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool", true, contextClassLoader);
-     *     MethodHandles.Lookup lk = MethodHandles.publicLookup();
-     *     MethodType mt = MethodType.methodType(void.class, int.class);
-     *     MethodHandle mh = lk.findStatic(clazz, "printStackTrace", mt);
-     *     Object res = mh.invokeWithArguments(5);
+     * Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool", true, contextClassLoader);
+     * MethodHandles.Lookup lk = MethodHandles.publicLookup();
+     * MethodType mt = MethodType.methodType(void.class, int.class);
+     * MethodHandle mh = lk.findStatic(clazz, "printStackTrace", mt);
+     * Object res = mh.invokeWithArguments(5);
      *
      * @param m
      * @return

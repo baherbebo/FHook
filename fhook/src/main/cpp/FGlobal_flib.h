@@ -43,6 +43,9 @@ extern std::string g_name_class_THook;
 extern std::string g_name_fun_onEnter;
 extern std::string g_name_fun_onExit;
 
+extern std::string g_name_fun_MH_ENTER;
+extern std::string g_name_fun_MH_EXIT;
+
 // 用于string 和 char* 比较
 inline bool SigEq(const std::string &a, const char *b) noexcept {
     return b && a == b;

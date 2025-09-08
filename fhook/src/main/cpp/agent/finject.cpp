@@ -171,11 +171,9 @@ namespace finject {
                 auto reg_method_args = regs6[2];
                 forbidden_v.push_back(reg_method_args);
 
-
                 count = 3;
                 auto regs7 = FRegManager::AllocV(code_ir, forbidden_v, count);
                 CHECK_ALLOC_OR_RET(regs7, count, false, "[do_HEnter] regs7 申请寄存器失败 ...");
-
 
                 // 执行结果返回到 v0`
                 bool res = fir_funs_do::do_sysloader_hook_funs(
@@ -195,10 +193,11 @@ namespace finject {
                 auto regs8 = FRegManager::AllocV(
                         code_ir, forbidden_v, count, "regs8");
                 CHECK_ALLOC_OR_RET(regs8, count, false, "[do_HEnter] regs8 申请寄存器失败 ...");
-                bool res = fir_funs_do::do_sysloader_hook_funs_B(
+//                bool res = fir_funs_do::do_sysloader_hook_funs_B(
+                bool res = fir_funs_do::do_sysloader_hook_funs_C(
                         code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
                         reg_do_args, regs8[0],
-                        g_name_class_THook, g_name_fun_onEnter, insert_point);
+                        g_name_class_THook, g_name_fun_MH_ENTER, insert_point);
                 if (!res)return false;
 
                 reg_do_return = regs8[0];
@@ -407,10 +406,11 @@ namespace finject {
                     deploy::MethodHooks &hook_info,
                     lir::CodeIr *code_ir) {
 
+        /// 开发调试 清空方法切换
+        hook_info.isRunOrigFun = false;
+        LOGE("[do_finject]  ------ 开启了反向调试  ------ isRunOrigFun= %d", hook_info.isRunOrigFun)
 
-        /// 开发调试
-//        hook_info.isRunOrigFun = false;
-//        LOGE("[do_finject]  ------ 开启了反向调试  ------ isRunOrigFun= %d", hook_info.isRunOrigFun)
+        /// 开发调试 应用侧切换
 //        transform->set_app_loader(!transform->is_app_loader());
 //        LOGE("[do_finject]  ------ 开启了反向调试  ------ transform->set_app_loader(!transform->is_app_loader())  -----------")
 
@@ -427,9 +427,9 @@ namespace finject {
         if (!transform->is_app_loader()) {
             is_run_backup_plan = is_frame_methods(ir_method); // 是系统函数 是框架函数走 B方法
             LOGI("[do_finject] is_run_backup_plan= %d", is_run_backup_plan)
-            /// 开发调试
-//            is_run_backup_plan = false;
-//            LOGE("[do_finject] 开发调试 is_run_backup_plan= %d", is_run_backup_plan)
+            /// 开发调试 备用方案强制
+            is_run_backup_plan = true;
+            LOGE("[do_finject] 开发调试 is_run_backup_plan= %d", is_run_backup_plan)
         }
 
         auto orig_return_type = ir_method->decl->prototype->return_type;
