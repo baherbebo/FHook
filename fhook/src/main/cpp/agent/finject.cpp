@@ -37,21 +37,29 @@ namespace finject {
         const char *mn = m->decl->name->c_str();
         const std::string sig = m->decl->prototype->Signature();
 
-        // 最后的防线 -----
-        // ---- 规则 2：Class.getDeclaredMethod → 用 PlanA
+        ///  最后的防线 -----------------
+        // ---- 规则 2：Class.getDeclaredMethod → 用 None 这个是系统要用一点不能动
         if (cls == "java/lang/Class" &&
             std::strcmp(mn, "getDeclaredMethod") == 0 &&
             sig == "(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;") {
             return HookPlan::None;
         }
 
-        // ---- 规则 1：ClassLoader.loadClass → 用 PlanB C都可用
-//        if (cls == "java/lang/ClassLoader" &&
-//            std::strcmp(mn, "loadClass") == 0 &&
-//            (sig == "(Ljava/lang/String;)Ljava/lang/Class;" ||
-//             sig == "(Ljava/lang/String;Z)Ljava/lang/Class;")) {
-//            return HookPlan::PlanB;
-//        }
+        // ---- 跳过桥接/基础“管道”方法：命中直接返回 None
+        // Thread.currentThread() → ()Ljava/lang/Thread;
+        if (cls == "java/lang/Thread" &&
+            std::strcmp(mn, "currentThread") == 0 &&
+            sig == "()Ljava/lang/Thread;") {
+            return HookPlan::None;
+        }
+
+        // Thread.getContextClassLoader() → ()Ljava/lang/ClassLoader;
+        if (cls == "java/lang/Thread" &&
+            std::strcmp(mn, "getContextClassLoader") == 0 &&
+            sig == "()Ljava/lang/ClassLoader;") {
+            return HookPlan::None;
+        }
+
 
         // ---- 规则 X：Class.forName → 用 PlanB
         if (cls == "java/lang/Class" &&
@@ -69,10 +77,13 @@ namespace finject {
         //     return HookPlan::PlanA;
         // }
 
-        // ---- 规则 4：其他可以加 PlanC 或保持 None
-        // if (cls == "xxx/YourClass" && strcmp(mn, "someFunc") == 0) {
-        //     return HookPlan::PlanC;
-        // }
+        // ---- 规则 1：ClassLoader.loadClass → 用 PlanB C都可用
+//        if (cls == "java/lang/ClassLoader" &&
+//            std::strcmp(mn, "loadClass") == 0 &&
+//            (sig == "(Ljava/lang/String;)Ljava/lang/Class;" ||
+//             sig == "(Ljava/lang/String;Z)Ljava/lang/Class;")) {
+//            return HookPlan::PlanB;
+//        }
 
         return HookPlan::PlanC;
     }
@@ -214,7 +225,7 @@ namespace finject {
 
 
                 case HookPlan::PlanC: {
-                    LOGI("[do_HEnter] 运行C方案 ...")
+                    if(gIsDebug)LOGI("[do_HEnter] 运行C方案 ...")
 
                     count = 4;
                     auto regs8 = FRegManager::AllocV(
@@ -457,7 +468,7 @@ namespace finject {
 
                 }
                 case HookPlan::PlanC: {
-                    LOGI("[doHExit] 运行C方案 ...")
+                    if(gIsDebug)LOGI("[doHExit] 运行C方案 ...")
 
                     count = 4;
                     auto regs8 = FRegManager::AllocV(

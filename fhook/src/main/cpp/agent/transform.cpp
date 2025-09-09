@@ -173,13 +173,13 @@ namespace deploy {
 //                 ir_method->decl->prototype->Signature().c_str())
 
             std::string _text = "修改前";
-            SmaliPrinter::CodeIrToSmali4Print(&code_ir, _text);
+            if(gIsShowSmail)SmaliPrinter::CodeIrToSmali4Print(&code_ir, _text);
 
             // do 注入 .... 修改
             bool ret = finject::do_finject(this, hook, &code_ir);
 
             _text = "修改后";
-            SmaliPrinter::CodeIrToSmali4Print(&code_ir, _text);
+            if(gIsShowSmail)SmaliPrinter::CodeIrToSmali4Print(&code_ir, _text);
 
             if (ret) {
                 code_ir.Assemble();  // 方法块修改应用

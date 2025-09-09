@@ -2,6 +2,9 @@ package top.feadre.fhook;
 
 import top.feadre.fhook.flibs.fsys.FLog;
 
+/**
+ * 测试类  各种类型的方法
+ */
 public class THook {
     private static final String TAG = FCFG_fhook.TAG_PREFIX + "THook";
 

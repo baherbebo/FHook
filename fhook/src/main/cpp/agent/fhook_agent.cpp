@@ -480,7 +480,7 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
     auto it = fClassTransforms.find(targetClassName);
     if (it == fClassTransforms.end()) {
         // 创建新的 HookTransform
-        LOGI("[agent_do_transform] 该类没有被hook 创建新的 %s %s",
+        LOGD("[agent_do_transform] 该类没有被hook 创建新的 %s %s",
              targetClassName.c_str(), targetMethodName.c_str())
 
         fClassTransforms[targetClassName] = std::make_unique<deploy::Transform>(
@@ -692,6 +692,7 @@ extern "C" JNIEXPORT jint JNICALL Agent_OnAttach(JavaVM *vm, char *options,
                                                  void *reserved) {
     LOGD("[Agent_OnAttach] start ...")
 
+
     if (vm == nullptr) {
         LOGE("[Agent_OnAttach] vm is null")
         return false;
@@ -902,4 +903,21 @@ JNIEXPORT jobjectArray JNICALL agent_do_find_instances(JNIEnv *env,
     return arr;
 }
 
+
+
+// ------------------------ Agent 初始化
+extern "C" JNIEXPORT void JNICALL agent_do_init_success(JNIEnv *env,
+                                                        jclass targetClass,
+                                                        jboolean is_safe_mode,
+                                                        jboolean is_debug) {
+
+    g_is_safe_mode = is_safe_mode;
+    gIsDebug = is_debug;
+    if (!gIsDebug) {
+        SetLogLevel(ANDROID_LOG_INFO, false);
+//        SetLogLevel(ANDROID_LOG_DEBUG, false);
+    }
+    gIsShowSmail = true; // 默认值
+
+}
 

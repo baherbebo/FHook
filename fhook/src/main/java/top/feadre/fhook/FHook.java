@@ -202,8 +202,9 @@ public class FHook {
         h.nativeHandle = mid;
         h.setHooked(true);
         sHandles.put(mid, h);
-        FLog.i(TAG, "[installOnce] success: mid=" + mid +
-                " enter=" + hasEnter + " exit=" + hasExit + " runOrig=" + runOrig);
+        if (FCFG_fhook.IS_DEBUG)
+            FLog.i(TAG, "[installOnce] success: mid=" + mid +
+                    " enter=" + hasEnter + " exit=" + hasExit + " runOrig=" + runOrig);
     }
 
     public final static Object[] onEnter4fhook(Object[] rawArgs, long methodId) {
@@ -223,7 +224,8 @@ public class FHook {
         final Class<?>[] paramTypes = hh.method.getParameterTypes();
 
         // 调试
-        FHookTool.showOnEnterArgs(TAG, "onEnter4fhook", hh.method, rawArgs);
+        if (FCFG_fhook.IS_DEBUG)
+            FHookTool.showOnEnterArgs(TAG, "onEnter4fhook", hh.method, rawArgs);
 
         try {
             hh.enterCb.onEnter(rawArgs[0], argsView, paramTypes, hh); // 允许直接修改 args[i]
@@ -231,7 +233,8 @@ public class FHook {
             FLog.e(TAG, "[onEnter4fhook] callback error", t);
         }
 
-        FLog.i(TAG, "[onEnter4fhook] 完成 --- 改后数据= " + FHookTool.showOnEnterArgs4line(hh.method, rawArgs));
+        if (FCFG_fhook.IS_DEBUG)
+            FLog.i(TAG, "[onEnter4fhook] 完成 --- 改后数据= " + FHookTool.showOnEnterArgs4line(hh.method, rawArgs));
         return rawArgs;
     }
 

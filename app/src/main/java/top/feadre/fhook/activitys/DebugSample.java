@@ -23,7 +23,6 @@ import top.feadre.fhook.FHookTool;
 import top.feadre.fhook.R;
 import top.feadre.fhook.THook;
 import top.feadre.fhook.TObject;
-import top.feadre.fhook.flibs.fsys.FLog;
 import top.feadre.fhook.tools.FFunsUI;
 
 public class DebugSample extends AppCompatActivity {
@@ -51,10 +50,10 @@ public class DebugSample extends AppCompatActivity {
     }
 
     void showLog(String name_fun, Object thiz, List<Object> args, Class<?>[] types) {
-        FLog.d("----------- " + name_fun + " --------");
-        FLog.d("    thiz= " + thiz);
+        Log.d(TAG, "----------- " + name_fun + " --------");
+        Log.d(TAG, "    thiz= " + thiz);
         for (int i = 0; i < args.size(); i++) {
-            FLog.d("    args[" + i + "]= " + args.get(i) + " " + types[i]);
+            Log.d(TAG, "    args[" + i + "]= " + args.get(i) + " " + types[i]);
         }
     }
 
@@ -92,10 +91,10 @@ public class DebugSample extends AppCompatActivity {
             } else {
                 if (!FHook.init(this)) {
                     Toast.makeText(this, "初始化失败", Toast.LENGTH_LONG).show();
-                    FLog.e(TAG, "初始化失败");
+                    Log.e(TAG, "初始化失败");
                 } else {
                     Toast.makeText(this, "初始化成功", Toast.LENGTH_LONG).show();
-                    FLog.e(TAG, "初始化成功");
+                    Log.e(TAG, "初始化成功");
 
                 }
             }
@@ -110,10 +109,10 @@ public class DebugSample extends AppCompatActivity {
             try {
                 doSysHook01();
             } catch (Exception e) {
-                FLog.e(TAG, "doSysHook01: " + e);
+                Log.e(TAG, "doSysHook01: " + e);
 
             } catch (Throwable e) {
-                FLog.e(TAG, "doSysHook01: " + e);
+                Log.e(TAG, "doSysHook01: " + e);
 
             }
 
@@ -144,7 +143,7 @@ public class DebugSample extends AppCompatActivity {
 
             Object[] instances = CLinker.jcJvmtiFindInstances(TObject.class, true);
             for (Object o : instances) {
-                FLog.d(TAG, "TObject instance: " + o);
+                Log.d(TAG, "TObject instance: " + o);
             }
 
 
@@ -152,7 +151,7 @@ public class DebugSample extends AppCompatActivity {
             for (Class<?> clazz : classes1) {
                 FHook.hookClassAllFuns(clazz)
                         .setHookEnter((thiz, args, types, hh) -> {
-                            FLog.d(TAG, "SharedPreferences.Editor.class.getName()=" + clazz.getName());
+                            Log.d(TAG, "SharedPreferences.Editor.class.getName()=" + clazz.getName());
                             showLog("SharedPreferences.Editor.class.getName()", thiz, args, types);
                         })
                         .setHookExit((thiz, ret, hh) -> {
@@ -160,7 +159,7 @@ public class DebugSample extends AppCompatActivity {
                             return ret;
                         })
                         .commit();
-                FLog.d(TAG, "SharedPreferences.Editor: " + clazz.getName());
+                Log.d(TAG, "SharedPreferences.Editor: " + clazz.getName());
             }
         });
 
@@ -171,10 +170,10 @@ public class DebugSample extends AppCompatActivity {
             FHook.hookClassAllFuns(TObject.class)
                     .setOrigFunRun(false)
                     .setHookEnter((thiz, args, types, hh) -> {
-                        FLog.d(TAG, "TObject.class.getName()=" + TObject.class.getName());
+                        Log.d(TAG, "TObject.class.getName()=" + TObject.class.getName());
                     })
                     .setHookExit((thiz, ret, hh) -> {
-                        FLog.d(TAG, "TObject.class.getName()=" + TObject.class.getName());
+                        Log.d(TAG, "TObject.class.getName()=" + TObject.class.getName());
                         return ret;
                     })
                     .commit();
@@ -224,7 +223,7 @@ public class DebugSample extends AppCompatActivity {
                 FFunsUI.toast(this, "classLoader.loadClass " + clazz.getName());
 
             } catch (ClassNotFoundException e) {
-                FLog.e(TAG, "classLoader.loadClass err: " + e);
+                Log.e(TAG, "classLoader.loadClass err: " + e);
             }
         });
 
@@ -239,10 +238,10 @@ public class DebugSample extends AppCompatActivity {
                 Object ret = method.invoke(new THook(), 11, 12, 34);
 
                 Toast.makeText(this, "method_invoke_O_OArr ret=" + ret, Toast.LENGTH_SHORT).show();
-                FLog.d(TAG, "method_invoke_O_OArr ret=" + ret);
+                Log.d(TAG, "method_invoke_O_OArr ret=" + ret);
             } catch (Throwable e) {
                 Toast.makeText(this, "method_invoke_O_OArr err: " + e, Toast.LENGTH_SHORT).show();
-                FLog.e(TAG, "method_invoke_O_OArr err: " + e);
+                Log.e(TAG, "method_invoke_O_OArr err: " + e);
             }
         });
 
@@ -270,13 +269,13 @@ public class DebugSample extends AppCompatActivity {
 //                Object res = mh.invokeWithArguments(5);
 
 
-//                FLog.d(TAG, "clazz= " + clazz);
-//                FLog.d(TAG, "method= " + method);
-//                FLog.d(TAG, "method.invoke(null, 5)= " + res);
-//                FLog.d(TAG, "mh.invokeWithArguments(5)= " + res);
+//                Log.d(TAG, "clazz= " + clazz);
+//                Log.d(TAG, "method= " + method);
+//                Log.d(TAG, "method.invoke(null, 5)= " + res);
+//                Log.d(TAG, "mh.invokeWithArguments(5)= " + res);
 
             } catch (Exception e) {
-                FLog.e(TAG, "err: " + e);
+                Log.e(TAG, "err: " + e);
             }
             Toast.makeText(this, "方法 -> " + method, Toast.LENGTH_SHORT).show();
         });
@@ -292,9 +291,9 @@ public class DebugSample extends AppCompatActivity {
 
 //                String res2 = Settings.Secure.getString(
 //                        getContentResolver(), Settings.Secure.INPUT_METHOD_SELECTOR_VISIBILITY);
-//                FLog.d(TAG, "BACKGROUND_DATA=" + res2);
+//                Log.d(TAG, "BACKGROUND_DATA=" + res2);
 //                Toast.makeText(this, "ANDROID_ID=" + res, Toast.LENGTH_SHORT).show();
-                FLog.d(TAG, "Settings_Secure_getString_S_OS res= " + res);
+                Log.d(TAG, "Settings_Secure_getString_S_OS res= " + res);
             } catch (Throwable e) {
                 Toast.makeText(this, "err: " + e, Toast.LENGTH_SHORT).show();
             }
@@ -311,7 +310,7 @@ public class DebugSample extends AppCompatActivity {
                 String v2 = sp.getString(key, "");
                 Toast.makeText(this, "sp_putString_S_SS=" + ok + ", v2=" + v2, Toast.LENGTH_SHORT).show();
             } catch (Throwable e) {
-                FLog.e(TAG, "运行出错: " + e);
+                Log.e(TAG, "运行出错: " + e);
                 Toast.makeText(this, "运行出错: " + e, Toast.LENGTH_SHORT).show();
             }
         });
@@ -341,15 +340,15 @@ public class DebugSample extends AppCompatActivity {
 //        Method fun_TObject_TObject = FHookTool.findMethod4First(THook.class, "fun_TObject_TObject");
 //        Method method_invoke_O_OArr = FHookTool.findMethod4First(Method.class, "invoke");
 //        Method method4Impl = FHookTool.findMethod4Impl(fun_TObject_TObject, method_invoke_O_OArr);
-//        FLog.d(TAG, "[method_invoke_O_OArr] method4Impl=" + method4Impl);
+//        Log.d(TAG, "[method_invoke_O_OArr] method4Impl=" + method4Impl);
 //        FHook.hook(method_invoke_O_OArr)
 //                .setOrigFunRun(false)
 //                .setHookEnter((thiz, args, types, hh) -> {
-//                    FLog.d(TAG, "[method_invoke_O_OArr] start ....");
+//                    Log.d(TAG, "[method_invoke_O_OArr] start ....");
 //                    args.set(0, "java.lang.Integer");
 //                })
 ////                .setHookExit((ret, type, hh) -> {
-////                    FLog.d(TAG, "[method_invoke_O_OArr] start ....");
+////                    Log.d(TAG, "[method_invoke_O_OArr] start ....");
 ////                    return ret;
 ////                })
 //                .commit();
@@ -362,14 +361,13 @@ public class DebugSample extends AppCompatActivity {
 //        FHook.hook(class_getDeclaredMethod_M_SC)
 //                .setOrigFunRun(true)
 //                .setHookEnter((thiz, args, types, hh) -> {
-//                    FLog.d(TAG, "[class_getDeclaredMethod_M_SC] start ....");
+//                    Log.d(TAG, "[class_getDeclaredMethod_M_SC] start ....");
 //                })
 //                .setHookExit((ret, type, hh) -> {
-//                    FLog.d(TAG, "[class_getDeclaredMethod_M_SC] start ....");
+//                    Log.d(TAG, "[class_getDeclaredMethod_M_SC] start ....");
 //                    return ret;
 //                })
 //                .commit();
-
 
 
 //        // 这个能用
@@ -379,13 +377,13 @@ public class DebugSample extends AppCompatActivity {
 //        FHook.hook(Class_forName)
 //                .setOrigFunRun(true)
 //                .setHookEnter((thiz, args, types, hh) -> {
-//                    FLog.d(TAG, "[Class_forName_Class_S] start ....");
+//                    Log.d(TAG, "[Class_forName_Class_S] start ....");
 ////                    args.set(0, "java.lang.Integer");
 //                })
 //                .setHookExit((ret, type, hh) -> {
 //                    if (ret != null) {
 //                        Class<?> _ret = (Class<?>) ret;
-//                        FLog.d(TAG, "[Class_forName_Class_S] end ....ret= " + _ret.getName());
+//                        Log.d(TAG, "[Class_forName_Class_S] end ....ret= " + _ret.getName());
 //                    }
 //                    return ret;
 //                })
@@ -400,16 +398,15 @@ public class DebugSample extends AppCompatActivity {
 //        FHook.hookOverloads(ClassLoader.class, "loadClass")
 //                .setOrigFunRun(true)
 //                .setHookEnter((thiz, args, types, hh) -> {
-//                    FLog.d(TAG, "[classLoader_loadClass_Class_S] start ....");
+//                    Log.d(TAG, "[classLoader_loadClass_Class_S] start ....");
 //                    args.set(0, "java.lang.Integer");
 //                })
 //                .setHookExit((ret, type, hh) -> {
-//                    FLog.d(TAG, "[classLoader_loadClass_Class_S] end .... ");
+//                    Log.d(TAG, "[classLoader_loadClass_Class_S] end .... ");
 //                    ret = Thread.class;
 //                    return ret;
 //                })
 //                .commit();
-
 
 
 //        // String res = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
@@ -589,7 +586,7 @@ public class DebugSample extends AppCompatActivity {
                     }
                     ArrayList<long[]> args = (ArrayList<long[]>) hh.extras.get("args");
                     for (int i = 0; i < args.size(); i++) {
-                        FLog.d(TAG, "jtFun_JArr_JArr ... args[" + i + "]=" + Arrays.toString(args.get(i)));
+                        Log.d(TAG, "jtFun_JArr_JArr ... args[" + i + "]=" + Arrays.toString(args.get(i)));
                     }
                     long[] r = (long[]) ret;
                     r[1] = 99;

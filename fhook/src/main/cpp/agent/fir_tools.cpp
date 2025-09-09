@@ -282,9 +282,9 @@ namespace fir_tools {
 
     /// 强转操作
     void emitCheckCast(lir::CodeIr *code_ir,
-                        const char *type_desc,
-                        dex::u2 reg_dst,
-                        slicer::IntrusiveList<lir::Instruction>::Iterator &it) {
+                       const char *type_desc,
+                       dex::u2 reg_dst,
+                       slicer::IntrusiveList<lir::Instruction>::Iterator &it) {
 
         ir::Builder builder(code_ir->dex_ir);
         auto *ty = builder.GetType(type_desc);
@@ -660,8 +660,9 @@ namespace fir_tools {
 
         // 指定了 reg_return：从 Object -> 真实返回类型，再 return* ----------------------
         // 直接赋值 宽类型
-        LOGI("[cre_return_code] 使用指定返回寄存器 reg_return: V%d (类型: %s) ",
-             reg_num, return_type->descriptor->c_str());
+        if (gIsDebug)
+            LOGI("[cre_return_code] 使用指定返回寄存器 reg_return: V%d (类型: %s) ",
+                 reg_num, return_type->descriptor->c_str());
 
         // 是引用需要转换回来
         if (is_reference) {

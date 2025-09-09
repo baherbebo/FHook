@@ -1,6 +1,8 @@
 package top.feadre.fhook;
 
-// 你自己的引用类：可放到任意包，保证与 THook 同工程即可
+/**
+ * 测试对象 属性提取
+ */
 public class TObject {
     private String name;
     private int age;

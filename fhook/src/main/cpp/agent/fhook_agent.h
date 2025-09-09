@@ -32,6 +32,13 @@ typedef jobjectArray (*agent_do_find_instances4type)(JNIEnv *env,
                                                      jclass targetClass,
                                                      jboolean onlyLive);
 
+const std::string agent_do_init_success4name = "agent_do_init_success";
+
+typedef void (*agent_do_init_success4type)(JNIEnv *env,
+                                           jclass targetClass,
+                                           jboolean is_safe_mode,
+                                           jboolean is_debug);
+
 class LocalJvmCharPtr {
 public:
     explicit LocalJvmCharPtr(jvmtiEnv *jvmtiEnv) : mJvmtiEnv(jvmtiEnv), mPtr(nullptr) {}

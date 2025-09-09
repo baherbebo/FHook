@@ -1,10 +1,11 @@
 package top.feadre.fhook.activitys;
 
+import android.util.Log;
+
 import java.lang.reflect.Method;
 
 import top.feadre.fhook.FCFG_fhook;
 import top.feadre.fhook.FHook;
-import top.feadre.fhook.flibs.fsys.FLog;
 
 public class MainActivityHelp {
     private static final String TAG = FCFG_fhook.TAG_PREFIX + "MainActivityHelp";
@@ -79,14 +80,22 @@ android.telephony.TelephonyManager.getSimSerialNumber() → ()Ljava/lang/String;
      */
     public void do_init_hooks() {
         try {
-            hook_System_exit();              // 进程控制
-            hook_Runtime_exec_1();           // 外部命令
-            hook_System_loadLibrary();       // so 加载
-            hook_SystemProperties_get();     // 系统属性
-            hook_Settings_Secure_getString();// 设备指纹
-            FLog.i(TAG, "All system hooks installed.");
+//            hook_System_exit();              // 进程控制
+//            hook_Runtime_exec_1();           // 外部命令
+//            hook_System_loadLibrary();       // so 加载
+//            hook_SystemProperties_get();     // 系统属性
+//            hook_Settings_Secure_getString();// 设备指纹
+//
+//            hook_Class_forName_1();              // 动态加载监控
+//            hook_Process_killProcess();          // 拦截 killProcess
+//            hook_Debug_isDebuggerConnected();    // 反调试：统一返回 false
+            hook_MessageDigest_getInstance();    // 记录摘要算法
+            hook_Cipher_getInstance();           // 记录对称算法/模式/填充
+
+
+            Log.i(TAG, "All system hooks installed.");
         } catch (Throwable t) {
-            FLog.e(TAG, "installAll failed", t);
+            Log.e(TAG, "installAll failed", t);
         }
 
     }
@@ -98,7 +107,7 @@ android.telephony.TelephonyManager.getSimSerialNumber() → ()Ljava/lang/String;
                 .setOrigFunRun(false) // 阻断退出
                 .setHookEnter((thiz, args, types, hh) -> {
                     int code = (args.get(0) instanceof Integer) ? (Integer) args.get(0) : -1;
-                    FLog.w("FHook", "[System.exit] blocked, code=" + code);
+                    Log.w("FHook", "[System.exit] blocked, code=" + code);
                 })
                 .commit();
     }
@@ -110,7 +119,7 @@ android.telephony.TelephonyManager.getSimSerialNumber() → ()Ljava/lang/String;
                 .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
                     String cmd = (String) args.get(0);
-                    FLog.i("FHook", "[Runtime.exec] cmd=" + cmd);
+                    Log.i("FHook", "[Runtime.exec] cmd=" + cmd);
                     // 示例：拦截高危命令
                     // if (cmd != null && cmd.startsWith("su")) {
                     //     hh.setOrigFunRun(false); // 如果你的 HookHandle 支持动态改
@@ -130,9 +139,9 @@ android.telephony.TelephonyManager.getSimSerialNumber() → ()Ljava/lang/String;
                 .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
                     String lib = (String) args.get(0);
-                    FLog.i("FHook", "[System.loadLibrary] lib=" + lib);
+                    Log.i("FHook", "[System.loadLibrary] lib=" + lib);
                     // 示例：拦截特定 so
-                    // if ("badlib".equals(lib)) { hh.setOrigFunRun(false); FLog.w("FHook","blocked badlib"); }
+                    // if ("badlib".equals(lib)) { hh.setOrigFunRun(false); Log.w("FHook","blocked badlib"); }
                 })
                 .commit();
     }
@@ -147,7 +156,7 @@ android.telephony.TelephonyManager.getSimSerialNumber() → ()Ljava/lang/String;
                 .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
                     String key = (String) args.get(0);
-                    FLog.d("FHook", "[SystemProperties.get] key=" + key);
+                    Log.d("FHook", "[SystemProperties.get] key=" + key);
                     hh.putExtra("key", key);
                 })
                 .setHookExit((ret, type, hh) -> {
@@ -179,7 +188,7 @@ android.telephony.TelephonyManager.getSimSerialNumber() → ()Ljava/lang/String;
                 .setHookEnter((thiz, args, types, hh) -> {
                     String key = (String) args.get(1);
                     if ("android_id".equals(key)) {
-                        FLog.i("FHook", "[Settings.Secure.getString] android_id requested");
+                        Log.i("FHook", "[Settings.Secure.getString] android_id requested");
                     }
                     hh.putExtra("key", key);
                 })
@@ -191,6 +200,71 @@ android.telephony.TelephonyManager.getSimSerialNumber() → ()Ljava/lang/String;
                     }
                     return ret;
                 })
+                .commit();
+    }
+
+    // Hook: java.lang.Class.forName(String) → (Ljava/lang/String;)Ljava/lang/Class;
+    private static void hook_Class_forName_1() throws Exception {
+        Method m = Class.class.getDeclaredMethod("forName", String.class);
+        FHook.hook(m)
+                .setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    String name = (String) args.get(0);
+                    Log.i("FHook", "[Class.forName] name=" + name);
+                    // 示例：重写目标类名
+                    // if ("com.target.A".equals(name)) args.set(0, "com.target.AShadow");
+                })
+                .setHookExit((ret, type, hh) -> ret)
+                .commit();
+    }
+
+    // Hook: android.os.Process.killProcess(int) → (I)V
+    private static void hook_Process_killProcess() throws Exception {
+        Method m = android.os.Process.class.getDeclaredMethod("killProcess", int.class);
+        FHook.hook(m)
+                .setOrigFunRun(false) // 拦截终止
+                .setHookEnter((thiz, args, types, hh) -> {
+                    int pid = (args.get(0) instanceof Integer) ? (Integer) args.get(0) : -1;
+                    Log.w("FHook", "[Process.killProcess] blocked, pid=" + pid);
+                })
+                .commit();
+    }
+
+    // Hook: android.os.Debug.isDebuggerConnected() → ()Z
+    private static void hook_Debug_isDebuggerConnected() throws Exception {
+        Method m = android.os.Debug.class.getDeclaredMethod("isDebuggerConnected");
+        FHook.hook(m)
+                .setOrigFunRun(true) // 先跑原逻辑，再强制改返回
+                .setHookExit((ret, type, hh) -> {
+                    Log.i("FHook", "[Debug.isDebuggerConnected] forced=false (orig=" + ret + ")");
+                    return Boolean.FALSE;
+                })
+                .commit();
+    }
+
+    // Hook: java.security.MessageDigest.getInstance(String) → (Ljava/lang/String;)Ljava/security/MessageDigest;
+    private static void hook_MessageDigest_getInstance() throws Exception {
+        Method m = java.security.MessageDigest.class.getDeclaredMethod("getInstance", String.class);
+        FHook.hook(m)
+                .setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+//                    String algo = (String) args.get(0);
+//                    Log.i("FHook", "[MessageDigest.getInstance] algo=" + algo);
+                })
+                .setHookExit((ret, type, hh) -> ret)
+                .commit();
+    }
+
+    // Hook: javax.crypto.Cipher.getInstance(String) → (Ljava/lang/String;)Ljavax/crypto/Cipher;
+    private static void hook_Cipher_getInstance() throws Exception {
+        Method m = javax.crypto.Cipher.class.getDeclaredMethod("getInstance", String.class);
+        FHook.hook(m)
+                .setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    String trans = (String) args.get(0); // 例如 "AES/CBC/PKCS5Padding"
+                    Log.i("FHook", "[Cipher.getInstance] transformation=" + trans);
+                })
+                .setHookExit((ret, type, hh) -> ret)
                 .commit();
     }
 

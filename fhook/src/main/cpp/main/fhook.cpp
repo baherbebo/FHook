@@ -309,10 +309,16 @@ Java_top_feadre_fhook_CLinker_jcJvmtiFindInstances(JNIEnv *env, jclass clazz, jc
 extern "C"
 JNIEXPORT jboolean JNICALL
 Java_top_feadre_fhook_CLinker_jcJvmtiSuccess(JNIEnv *env, jclass clazz, jstring name_so_fhook_agent,
-                                             jboolean is_safe_mode,jboolean is_debug) {
+                                             jboolean is_safe_mode, jboolean is_debug) {
 
+    LOGD("[jcJvmtiSuccess] start... is_safe_mode= %d, is_debug= %d", is_safe_mode, is_debug)
     g_is_safe_mode = is_safe_mode;
     gIsDebug = is_debug;
+    if (!gIsDebug) {
+        SetLogLevel(ANDROID_LOG_INFO, false); //
+    }
+
+//    gIsShowSmail = true; // 默认值 显示代码 这个so并没有作用
 
     LOGD("[dcJvmtiSuccess] start...")
     if (!name_so_fhook_agent) {
@@ -329,6 +335,11 @@ Java_top_feadre_fhook_CLinker_jcJvmtiSuccess(JNIEnv *env, jclass clazz, jstring 
     if (fAgentHandle == nullptr) {
         LOGE("[dcJvmtiSuccess] open %s fail", fAgentPath.c_str());
     }
+
+    auto transformFn = getAgentFn<agent_do_init_success4type>(
+            agent_do_init_success4name.c_str());
+    CHECK_OR_RETURN(transformFn, false, "没有找到符号 %s");
+    transformFn(env, clazz, is_safe_mode, is_debug); // 调用 agent_do_init_success4type
 
     return true;
 
