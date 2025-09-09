@@ -252,8 +252,8 @@ extern "C" void JNICALL HookClassFileLoadHook(
     // 有hook配置后 加载的类，不匹配不处理
     if (current_transform->GetClassName() != name) {
         // 通常由系统加载的类，这里需要过滤掉
-        LOGE("[HookClassFileLoadHook] 不需要配置 %s != %s",
-             current_transform->GetClassName().c_str(), name)
+//        LOGW("[HookClassFileLoadHook] 不需要配置 %s != %s",
+//             current_transform->GetClassName().c_str(), name)
         return;
     }
 

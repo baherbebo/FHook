@@ -309,9 +309,10 @@ Java_top_feadre_fhook_CLinker_jcJvmtiFindInstances(JNIEnv *env, jclass clazz, jc
 extern "C"
 JNIEXPORT jboolean JNICALL
 Java_top_feadre_fhook_CLinker_jcJvmtiSuccess(JNIEnv *env, jclass clazz, jstring name_so_fhook_agent,
-                                             jboolean is_safe_mode) {
+                                             jboolean is_safe_mode,jboolean is_debug) {
 
     g_is_safe_mode = is_safe_mode;
+    gIsDebug = is_debug;
 
     LOGD("[dcJvmtiSuccess] start...")
     if (!name_so_fhook_agent) {

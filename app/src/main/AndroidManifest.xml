@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <application
+        android:name=".MyApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -10,9 +11,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.FHook"
-        android:name=".MyApp"
-        >
+        android:theme="@style/Theme.FHook">
         <activity
             android:name=".activitys.MainActivity"
             android:exported="true">
@@ -22,6 +21,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".activitys.DebugSample"
+            android:exported="true"
+            tools:ignore="ExportedActivity"></activity>
     </application>
 
 </manifest>

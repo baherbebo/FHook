@@ -5,7 +5,9 @@ import java.lang.reflect.Method;
 public class CLinker {
     protected static native boolean dcEnableJdwp(boolean enable); // 常规初始 初始化入口
 
-    protected static native boolean jcJvmtiSuccess(String nameSoFhookAgent,boolean is_safe_mode); // 后处理
+    protected static native boolean jcJvmtiSuccess(String nameSoFhookAgent,
+                                                   boolean is_safe_mode,
+                                                   boolean is_debuggable); // 后处理
 
     protected static native int dcSetRuntimeJavaDebuggable(int debuggable); // 尝试增强初始
 

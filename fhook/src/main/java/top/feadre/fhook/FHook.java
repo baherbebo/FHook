@@ -86,7 +86,10 @@ public class FHook {
 
         try {
             Debug.attachJvmtiAgent("libfhook_agent.so", null, context.getClassLoader());
-            boolean ok = CLinker.jcJvmtiSuccess("libfhook_agent.so", FCFG_fhook.IS_SAFE_MODE);
+            boolean ok = CLinker.jcJvmtiSuccess(
+                    "libfhook_agent.so",
+                    FCFG_fhook.IS_SAFE_MODE,
+                    FCFG_fhook.IS_DEBUG);
             if (ok) {
                 isInit = true;
                 FLog.i(TAG, "[init] attach success (first try)");
@@ -100,7 +103,10 @@ public class FHook {
             FLog.d(TAG, "[init] setJavaDebuggable(true) -> " + rtState + " (1=T,0=F,-1=no symbol,-2=libart fail)");
             try {
                 Debug.attachJvmtiAgent("libfhook_agent.so", null, context.getClassLoader());
-                boolean ok2 = CLinker.jcJvmtiSuccess("libfhook_agent.so", FCFG_fhook.IS_SAFE_MODE);
+                boolean ok2 = CLinker.jcJvmtiSuccess(
+                        "libfhook_agent.so",
+                        FCFG_fhook.IS_SAFE_MODE,
+                        FCFG_fhook.IS_DEBUG);
                 if (ok2) {
                     isInit = true;
                     FLog.i(TAG, "[init] attach success after enabling Runtime debuggable");
@@ -133,7 +139,8 @@ public class FHook {
         // 2) 清理句柄表（unHookAll 会逐个移除，这里再次确保）
         try {
             sHandles.clear();
-        } catch (Throwable ignore) { }
+        } catch (Throwable ignore) {
+        }
 
         // 3) 可选：关闭调试桥接（注意不同 ROM 可能无效或被策略拦截）
         if (disableDebugBridge) {
@@ -158,12 +165,16 @@ public class FHook {
         FLog.i(TAG, "[unInit] done. isInit=" + isInit + ", handles=" + sHandles.size());
     }
 
-    /** 无参便捷版：默认关闭调试桥接能力 */
+    /**
+     * 无参便捷版：默认关闭调试桥接能力
+     */
     public static synchronized void unInit() {
         unInit(true);
     }
 
-    /** 可选：对外暴露当前初始化状态 */
+    /**
+     * 可选：对外暴露当前初始化状态
+     */
     public static boolean isInited() {
         return isInit;
     }

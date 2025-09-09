@@ -7,472 +7,362 @@
     tools:context=".activitys.MainActivity">
 
     <!-- 只有一个 HorizontalScrollView，内部包裹所有行；纵向依旧可滚动 -->
-    <HorizontalScrollView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:fillViewport="true"
-        android:scrollbars="none">
 
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/tv_main_01"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="left"
+            android:text="MainActivity" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="left"
+            android:text="-------------------- 系统功能区 --------------------" />
+
+
+        <!-- 01~04 单列按钮 -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="12dp">
+            android:layout_marginTop="12dp"
+            android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/tv_main_01"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="left"
-                android:text="FHook" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="left"
-                android:text="-------------------- 系统功能区 --------------------" />
-
-
-            <!-- 01~04 单列按钮 -->
-            <LinearLayout
+            <Button
+                android:id="@+id/bt_main_01"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="vertical">
+                android:text="按键01" />
 
-                <Button
-                    android:id="@+id/bt_main_01"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键01" />
-
-                <Button
-                    android:id="@+id/bt_main_02"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键02" />
-
-                <Button
-                    android:id="@+id/bt_main_03"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键03" />
-
-                <Button
-                    android:id="@+id/bt_main_04"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键04" />
-            </LinearLayout>
-
-            <!-- 以下每一行均为横向容器，只有一个统一的 HorizontalScrollView 在最外层 -->
-            <LinearLayout
+            <Button
+                android:id="@+id/bt_main_02"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
+                android:text="按键02" />
 
-                <Button
-                    android:id="@+id/bt_main_05"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键05" />
-
-                <Button
-                    android:id="@+id/bt_main_06"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键06" />
-
-                <Button
-                    android:id="@+id/bt_main_07"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键07" />
-
-                <Button
-                    android:id="@+id/bt_main_08"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键08" />
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:gravity="left"
-                android:text="-------------------- 应用函数区 --------------------" />
-
-            <LinearLayout
+            <Button
+                android:id="@+id/bt_main_03"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
+                android:text="按键03" />
 
-                <Button
-                    android:id="@+id/bt_main_09"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键09" />
-
-                <Button
-                    android:id="@+id/bt_main_10"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键10" />
-
-                <Button
-                    android:id="@+id/bt_main_11"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键11" />
-
-                <Button
-                    android:id="@+id/bt_main_12"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键12" />
-            </LinearLayout>
-
-            <LinearLayout
+            <Button
+                android:id="@+id/bt_main_04"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
+                android:text="按键04" />
 
-                <Button
-                    android:id="@+id/bt_main_13"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键13" />
-
-                <Button
-                    android:id="@+id/bt_main_14"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键14" />
-
-                <Button
-                    android:id="@+id/bt_main_15"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键15" />
-
-                <Button
-                    android:id="@+id/bt_main_16"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键16" />
-            </LinearLayout>
-
-            <LinearLayout
+            <Button
+                android:id="@+id/bt_main_05"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
+                android:text="按键05" />
 
-                <Button
-                    android:id="@+id/bt_main_17"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键17" />
-
-                <Button
-                    android:id="@+id/bt_main_18"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键18" />
-
-                <Button
-                    android:id="@+id/bt_main_19"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键19" />
-
-                <Button
-                    android:id="@+id/bt_main_20"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键20" />
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:gravity="left"
-                android:text="-------------------- 系统函数区 --------------------" />
-
-            <LinearLayout
+            <Button
+                android:id="@+id/bt_main_06"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
+                android:text="按键06" />
 
-                <Button
-                    android:id="@+id/bt_main_21"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键21" />
-
-                <Button
-                    android:id="@+id/bt_main_22"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键22" />
-
-                <Button
-                    android:id="@+id/bt_main_23"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键23" />
-
-                <Button
-                    android:id="@+id/bt_main_24"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键24" />
-            </LinearLayout>
-
-            <LinearLayout
+            <Button
+                android:id="@+id/bt_main_07"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
+                android:text="按键07" />
 
-                <Button
-                    android:id="@+id/bt_main_25"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键25" />
-
-                <Button
-                    android:id="@+id/bt_main_26"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键26" />
-
-                <Button
-                    android:id="@+id/bt_main_27"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键27" />
-
-                <Button
-                    android:id="@+id/bt_main_28"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键28" />
-            </LinearLayout>
-
-            <LinearLayout
+            <Button
+                android:id="@+id/bt_main_08"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
+                android:text="按键08" />
 
-                <Button
-                    android:id="@+id/bt_main_29"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键29" />
-
-                <Button
-                    android:id="@+id/bt_main_30"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键30" />
-
-                <Button
-                    android:id="@+id/bt_main_31"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键31" />
-
-                <Button
-                    android:id="@+id/bt_main_32"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键32" />
-            </LinearLayout>
-
-            <LinearLayout
+            <Button
+                android:id="@+id/bt_main_09"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
+                android:text="按键09" />
 
-                <Button
-                    android:id="@+id/bt_main_33"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键33" />
-
-                <Button
-                    android:id="@+id/bt_main_34"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键34" />
-
-                <Button
-                    android:id="@+id/bt_main_35"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键35" />
-
-                <Button
-                    android:id="@+id/bt_main_36"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键36" />
-            </LinearLayout>
-
-            <LinearLayout
+            <Button
+                android:id="@+id/bt_main_10"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
+                android:text="按键10" />
 
-                <Button
-                    android:id="@+id/bt_main_37"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键37" />
-
-                <Button
-                    android:id="@+id/bt_main_38"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键38" />
-
-                <Button
-                    android:id="@+id/bt_main_39"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键39" />
-
-                <Button
-                    android:id="@+id/bt_main_40"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键40" />
-            </LinearLayout>
-
-            <LinearLayout
+            <Button
+                android:id="@+id/bt_main_11"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
+                android:text="按键11" />
 
-                <Button
-                    android:id="@+id/bt_main_41"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键41" />
-
-                <Button
-                    android:id="@+id/bt_main_42"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键42" />
-
-                <Button
-                    android:id="@+id/bt_main_43"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键43" />
-
-                <Button
-                    android:id="@+id/bt_main_44"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键44" />
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:gravity="left"
-                android:text="----------------------------------------" />
-
-            <LinearLayout
+            <Button
+                android:id="@+id/bt_main_12"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
+                android:text="按键12" />
 
-                <Button
-                    android:id="@+id/bt_main_45"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键45" />
-
-                <Button
-                    android:id="@+id/bt_main_46"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键46" />
-
-                <Button
-                    android:id="@+id/bt_main_47"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键47" />
-
-                <Button
-                    android:id="@+id/bt_main_48"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键48" />
-            </LinearLayout>
-
-            <LinearLayout
+            <Button
+                android:id="@+id/bt_main_13"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
+                android:text="按键13" />
 
-                <Button
-                    android:id="@+id/bt_main_49"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键49" />
-
-                <Button
-                    android:id="@+id/bt_main_50"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键50" />
-
-                <Button
-                    android:id="@+id/bt_main_51"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键51" />
-
-                <Button
-                    android:id="@+id/bt_main_52"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="按键52" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/tv_main_end"
-                android:layout_width="match_parent"
+            <Button
+                android:id="@+id/bt_main_14"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:gravity="left"
-                android:text="FHook结束" />
+                android:text="按键14" />
 
-            <TextView
-                android:layout_width="match_parent"
+            <Button
+                android:id="@+id/bt_main_15"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="left"
-                android:text="----------------------------------------" />
+                android:text="按键15" />
+
+            <Button
+                android:id="@+id/bt_main_16"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键16" />
+
+            <Button
+                android:id="@+id/bt_main_17"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键17" />
+
+            <Button
+                android:id="@+id/bt_main_18"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键18" />
+
+            <Button
+                android:id="@+id/bt_main_19"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键19" />
+
+            <Button
+                android:id="@+id/bt_main_20"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键20" />
+
+            <Button
+                android:id="@+id/bt_main_21"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键21" />
+
+            <Button
+                android:id="@+id/bt_main_22"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键22" />
+
+            <Button
+                android:id="@+id/bt_main_23"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键23" />
+
+            <Button
+                android:id="@+id/bt_main_24"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键24" />
+
+            <Button
+                android:id="@+id/bt_main_25"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键25" />
+
+            <Button
+                android:id="@+id/bt_main_26"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键26" />
+
+            <Button
+                android:id="@+id/bt_main_27"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键27" />
+
+            <Button
+                android:id="@+id/bt_main_28"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键28" />
+
+            <Button
+                android:id="@+id/bt_main_29"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键29" />
+
+            <Button
+                android:id="@+id/bt_main_30"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键30" />
+
+            <Button
+                android:id="@+id/bt_main_31"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键31" />
+
+            <Button
+                android:id="@+id/bt_main_32"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键32" />
+
+            <Button
+                android:id="@+id/bt_main_33"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键33" />
+
+            <Button
+                android:id="@+id/bt_main_34"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键34" />
+
+            <Button
+                android:id="@+id/bt_main_35"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键35" />
+
+            <Button
+                android:id="@+id/bt_main_36"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键36" />
+
+            <Button
+                android:id="@+id/bt_main_37"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键37" />
+
+            <Button
+                android:id="@+id/bt_main_38"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键38" />
+
+            <Button
+                android:id="@+id/bt_main_39"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键39" />
+
+            <Button
+                android:id="@+id/bt_main_40"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键40" />
+
+            <Button
+                android:id="@+id/bt_main_41"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键41" />
+
+            <Button
+                android:id="@+id/bt_main_42"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键42" />
+
+            <Button
+                android:id="@+id/bt_main_43"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键43" />
+
+            <Button
+                android:id="@+id/bt_main_44"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键44" />
+
+            <Button
+                android:id="@+id/bt_main_45"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键45" />
+
+            <Button
+                android:id="@+id/bt_main_46"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键46" />
+
+            <Button
+                android:id="@+id/bt_main_47"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键47" />
+
+            <Button
+                android:id="@+id/bt_main_48"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键48" />
+
+            <Button
+                android:id="@+id/bt_main_49"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键49" />
+
+            <Button
+                android:id="@+id/bt_main_50"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键50" />
+
+            <Button
+                android:id="@+id/bt_main_51"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键51" />
+
+            <Button
+                android:id="@+id/bt_main_52"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="按键52" />
 
         </LinearLayout>
-    </HorizontalScrollView>
+
+
+        <TextView
+            android:id="@+id/tv_main_end"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="left"
+            android:text="MainActivity 结束" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="left"
+            android:text="----------------------------------------" />
+
+    </LinearLayout>
 </ScrollView>
