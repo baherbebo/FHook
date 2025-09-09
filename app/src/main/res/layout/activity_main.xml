@@ -21,12 +21,6 @@
             android:gravity="left"
             android:text="MainActivity" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="left"
-            android:text="-------------------- 系统功能区 --------------------" />
-
 
         <!-- 01~04 单列按钮 -->
         <LinearLayout
@@ -41,6 +35,13 @@
                 android:layout_height="wrap_content"
                 android:gravity="left"
                 android:text="按键01" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="left"
+                android:text="-------------------- 系统功能区 --------------------" />
+
 
             <Button
                 android:id="@+id/bt_main_02"
@@ -89,7 +90,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:gravity="left"
-                
+
                 android:text="按键08" />
 
             <Button

@@ -43,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         Button bt_main_02 = findViewById(R.id.bt_main_02);
-        bt_main_02.setText("02 初始化 hook");
+        bt_main_02.setText("02 初始化 FAndroidHook");
         bt_main_02.setOnClickListener(v -> {
 
             mainActivityHelp.do_init_hooks();

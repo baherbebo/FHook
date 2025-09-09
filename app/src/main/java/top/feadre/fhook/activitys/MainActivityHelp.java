@@ -90,7 +90,7 @@ android.telephony.TelephonyManager.getSimSerialNumber() → ()Ljava/lang/String;
 //            hook_Process_killProcess();          // 拦截 killProcess
 //            hook_Debug_isDebuggerConnected();    // 反调试：统一返回 false
             hook_MessageDigest_getInstance();    // 记录摘要算法
-            hook_Cipher_getInstance();           // 记录对称算法/模式/填充
+//            hook_Cipher_getInstance();           // 记录对称算法/模式/填充
 
 
             Log.i(TAG, "All system hooks installed.");
@@ -251,7 +251,7 @@ android.telephony.TelephonyManager.getSimSerialNumber() → ()Ljava/lang/String;
 //                    String algo = (String) args.get(0);
 //                    Log.i("FHook", "[MessageDigest.getInstance] algo=" + algo);
                 })
-                .setHookExit((ret, type, hh) -> ret)
+//                .setHookExit((ret, type, hh) -> ret)
                 .commit();
     }
 

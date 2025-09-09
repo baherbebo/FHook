@@ -18,7 +18,7 @@
  *  - Locals      ：返回本地寄存器个数（v 区数量 = registers - ins_count）
  *  - TotalRegs   ：返回总寄存器个数（registers）
  *  - InsCount    ：返回参数寄存器个数（ins_count）
- *  - RequestLocals：按“目标本地寄存器数”扩容，返回本次新增的寄存器数量
+ *  - ReqLocalsRegs4Need：按“目标本地寄存器数”扩容，返回本次新增的寄存器数量
  *  - AllocV      ：给定“本次不能用”的 v 索引，分配 N 个可用普通寄存器（返回 v 索引）
  *  - AllocWide   ：给定“本次不能用”的 v 索引，分配 N 对可用宽寄存器（返回每对的起点 v）
  *
@@ -28,6 +28,8 @@
  */
 class FRegManager {
 public:
+    
+
     // ===== 基础查询 =====
     /** @return 本地寄存器个数（= registers - ins_count） */
     static int Locals(const lir::CodeIr *code_ir);
@@ -45,7 +47,37 @@ public:
      * @param need_locals 目标 v 区个数（最终至少达到该值）
      * @return 本次“新增的寄存器数量”（0 表示未扩容）
      */
-    static dex::u2 RequestLocals(lir::CodeIr *code_ir, dex::u2 need_locals);
+    static dex::u2 ReqLocalsRegs4Need(lir::CodeIr *code_ir, dex::u2 need_locals);
+
+
+    /// ---------------------- 锁定 +N start ----------------------
+    /**
+     * 在当前本地寄存器(v 区)基础上增加 add 个
+     * @param code_ir
+     * @param add
+     * @return 扩容前的 locals 值（也就是“新段起始 v 下标”），便于后续只用新段
+     */
+    static int ReqLocalsRegs4Num(lir::CodeIr *code_ir, dex::u2 add);
+
+    // 只锁住旧槽：[0, base) —— 返回一份新的黑名单
+    static std::vector<int> LockOldRegs(int base);
+
+    // 就地重置：把外部传进来的 forbidden_v 改成只锁住旧槽
+    static void ResetForbid2Old(std::vector<int>& forbidden_v, int base);
+
+
+    /** 只从“新段”分配普通寄存器。base = ReqLocalsRegs4Num 返回值 */
+    static std::vector<int> AllocVFromTail(lir::CodeIr *code_ir,
+                                           int base, int count,
+                                           const char *text);
+
+    /** 只从“新段”分配宽寄存器（对）。base = ReqLocalsRegs4Num 返回值 */
+    static std::vector<int> AllocWideFromTail(lir::CodeIr *code_ir,
+                                              int base, int count,
+                                              const char *text);
+
+    /// ---------------------- 锁定 +N 完成 ----------------------
+
 
     static std::vector<int> AllocV(lir::CodeIr *code_ir,
                                    const std::vector<int> &forbidden_v,

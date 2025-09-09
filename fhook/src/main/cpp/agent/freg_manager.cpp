@@ -43,7 +43,7 @@ dex::u2 FRegManager::InsCount(const lir::CodeIr *code_ir) {
 }
 
 // ===== 扩容 =====
-dex::u2 FRegManager::RequestLocals(lir::CodeIr *code_ir, dex::u2 need_locals) {
+dex::u2 FRegManager::ReqLocalsRegs4Need(lir::CodeIr *code_ir, dex::u2 need_locals) {
     check_code_ir(code_ir);
     auto *code = code_ir->ir_method->code;
 
@@ -52,7 +52,7 @@ dex::u2 FRegManager::RequestLocals(lir::CodeIr *code_ir, dex::u2 need_locals) {
     const dex::u2 orig_locals = static_cast<dex::u2>(orig_total - ins_size);
 
     if (orig_locals >= need_locals) {
-        LOGI("[RequestLocals] 无需扩容 总=%u, 参数=%u, 本地=%u (need=%u)",
+        LOGI("[ReqLocalsRegs4Need] 无需扩容 总=%u, 参数=%u, 本地=%u (need=%u)",
              code->registers, ins_size, orig_locals, need_locals);
         return 0;  // 本次新增=0
     }
@@ -60,10 +60,104 @@ dex::u2 FRegManager::RequestLocals(lir::CodeIr *code_ir, dex::u2 need_locals) {
     const dex::u2 add = static_cast<dex::u2>(need_locals - orig_locals);
     code->registers = static_cast<dex::u2>(code->registers + add);
 
-    LOGI("[RequestLocals] 扩容：%u -> %u, 参数=%u, 本地=%u -> %u (+%u)",
+    LOGI("[ReqLocalsRegs4Need] 扩容：%u -> %u, 参数=%u, 本地=%u -> %u (+%u)",
          orig_total, code->registers, ins_size, orig_locals, need_locals, add);
     return add; // 返回本次新增的寄存器数量
 }
+
+/// ---------------------- 锁定 +N start ----------------------
+
+
+// ===== 新增：在现有基础上 +n，并锁定旧寄存器只用新段 =====
+int FRegManager::ReqLocalsRegs4Num(lir::CodeIr *code_ir, dex::u2 add) {
+    check_code_ir(code_ir);
+    auto *code = code_ir->ir_method->code;
+
+    const dex::u2 orig_total = code->registers;
+    const dex::u2 ins_size = code->ins_count;
+    const dex::u2 orig_locals = static_cast<dex::u2>(orig_total - ins_size);
+
+    if (add == 0) {
+        LOGI("[ReqLocalsRegs4Num] +0，无需扩容，总=%u, 参数=%u, 本地=%u",
+             orig_total, ins_size, orig_locals);
+        return static_cast<int>(orig_locals);
+    }
+
+    code->registers = static_cast<dex::u2>(orig_total + add);
+    const dex::u2 new_locals = static_cast<dex::u2>(code->registers - ins_size);
+
+    LOGI("[ReqLocalsRegs4Num] 本地 +%u：总 %u -> %u, 参数=%u, 本地 %u -> %u (base=%u)",
+         add, orig_total, code->registers, ins_size, orig_locals, new_locals, orig_locals);
+
+    // 返回“新段起始 v 下标”，后续只从 [base, new_locals) 里分配
+    return static_cast<int>(orig_locals);
+}
+
+/**
+ * 锁定旧段
+ * @param base
+ * @return
+ */
+std::vector<int> FRegManager::LockOldRegs(int base) {
+    if (base <= 0) return {};
+    std::vector<int> v;
+    v.reserve(static_cast<size_t>(base));
+    for (int i = 0; i < base; ++i) v.push_back(i);
+    return v;
+}
+
+/**
+ * 重置“禁止”列表为 [0, base)]
+ * @param forbidden_v
+ * @param base
+ */
+void FRegManager::ResetForbid2Old(std::vector<int> &forbidden_v, int base) {
+    forbidden_v.clear();
+    if (base <= 0) return;
+    forbidden_v.reserve(static_cast<size_t>(base));
+    for (int i = 0; i < base; ++i) forbidden_v.push_back(i);
+    LOGD("[ResetForbid2Old] base=%d, forbid=%s", base, VEC_CSTR(forbidden_v));
+}
+
+
+static inline std::vector<int> make_forbid_prefix_range(int upto_exclusive) {
+    std::vector<int> f;
+    if (upto_exclusive <= 0) return f;
+    f.reserve(static_cast<size_t>(upto_exclusive));
+    for (int i = 0; i < upto_exclusive; ++i) f.push_back(i);
+    return f;
+}
+
+/**
+ *
+ * @param code_ir
+ * @param base
+ * @param count
+ * @param text
+ * @return
+ */
+std::vector<int> FRegManager::AllocVFromTail(lir::CodeIr *code_ir,
+                                             int base, int count,
+                                             const char *text) {
+    // 锁死 [0, base) 的旧 v 槽，只从尾部分配；低位优先即可（因为 base 之后本身就是新段）
+    auto forbid = make_forbid_prefix_range(base);
+    return AllocV(code_ir, forbid, count, text, /*prefer_low_index=*/true);
+}
+
+std::vector<int> FRegManager::AllocWideFromTail(lir::CodeIr *code_ir,
+                                                int base, int count,
+                                                const char *text) {
+    auto forbid = make_forbid_prefix_range(base);
+    return AllocWide(code_ir, forbid, count, text, /*prefer_low_index=*/true);
+}
+
+/// ---------------------- 锁定 +N 完成 ----------------------
+
+
+
+/// ---------------------- 锁定 +N 完成 ----------------------
+
+
 
 // ===== 分配：普通寄存器 =====
 /**
@@ -82,6 +176,7 @@ std::vector<int> FRegManager::AllocV(lir::CodeIr *code_ir,
                                      int count,
                                      const char *text,
                                      bool prefer_low_index) {
+
     check_code_ir(code_ir);
     std::vector<int> out;
     if (count <= 0) return out;
