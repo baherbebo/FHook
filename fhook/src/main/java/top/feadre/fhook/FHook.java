@@ -551,7 +551,7 @@ public class FHook {
     /**
      * 按类批量 hook（仅本类声明的方法）
      */
-    public static synchronized GroupHandle hook(Class<?> cls) {
+    public static synchronized GroupHandle hookClassAllFuns(Class<?> cls) {
         FLog.d(TAG, "[hook(Class)] start ... class=" + (cls == null ? "null" : cls.getName()));
         return hookClassInternal(cls, null, false);
     }
@@ -559,7 +559,7 @@ public class FHook {
     /**
      * 按对象批量 hook（向上寻找可 hook 的具体实现类；仅本类声明的方法）
      */
-    public static synchronized GroupHandle hook(Object obj) {
+    public static synchronized GroupHandle hookObjAllFuns(Object obj) {
         FLog.d(TAG, "[hook(Object)] start ... " + obj);
         if (!isInit) {
             FLog.e(TAG, "[hook(Object)] 请先初始化 call FHook.init() first");

@@ -15,13 +15,15 @@
 
 namespace fir_impl {
     /**
- * 插桩绕开 loadClass，直接拿 Class<?> 或走 findClass
- * 重入/递归保护（ThreadLocal）
- * 原理 Thread → ContextClassLoader → loadClass → getDeclaredMethod → Method.invoke
- * ClassLoader#loadClass、Class#getDeclaredMethod、Method#invoke
- *
- * @return
- */
+     * 方案 A：ClassLoader + Class.getDeclaredMethod + Method.invoke
+         Thread t = Thread.currentThread();
+         ClassLoader cl = t.getContextClassLoader();
+         Class<?> clazz = Class.forName(name_class, true, cl);
+         Method m = clazz.getDeclaredMethod(name_fun, Class<?>... --- new Class[] { ... } );
+         m.setAccessible(true);
+         Object ret = m.invoke(null,  Object[] args --- do_args);
+     * @return
+     */
     bool do_sysloader_hook_funs_A(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp,//额外临时寄存器
@@ -108,29 +110,30 @@ namespace fir_impl {
 
 
     /**
+     * 方案 B：MethodHandles + MethodType + Lookup.findStatic（动态查找静态 MH）
+     *      避免反射 Method.invoke 的一些限制，性能和可见性通常更好
      *
-    Object[] rawArgs  = new Object[3];
-    rawArgs[0] = null;
-    rawArgs[1] = "key_android_id";
-    rawArgs[2] = "some-value";
-    long methodId = 0x71L;
+            Object[] rawArgs  = new Object[3];
+            rawArgs[0] = null;
+            rawArgs[1] = "key_android_id";
+            rawArgs[2] = "some-value";
+            long methodId = 0x71L;
 
+            1) onEnter4fhook(Object[] args, long methodId) -> Object[]
+            MethodType mtEnter = MethodType.methodType(Object[].class, Object[].class, long.class);
+            2) onExit4fhook(Object ret, long methodId) -> Object
+            MethodType mtExit = MethodType.methodType(Object.class, Object.class, long.class);
 
-     1) onEnter4fhook(Object[] args, long methodId) -> Object[]
-    MethodType mtEnter = MethodType.methodType(Object[].class, Object[].class, long.class);
-     2) onExit4fhook(Object ret, long methodId) -> Object
-    MethodType mtExit = MethodType.methodType(Object.class, Object.class, long.class);
+            Thread t = Thread.currentThread();
+            ClassLoader cl = t.getContextClassLoader();
+            Class<?> clazz = Class.forName("top.feadre.fhook.FHook", true, cl);
 
-    Thread t = Thread.currentThread();
-    ClassLoader cl = t.getContextClassLoader();
-    Class<?> clazz = Class.forName("top.feadre.fhook.FHook", true, cl);
+            MethodHandles.Lookup lk = MethodHandles.publicLookup();
+            MethodHandle mhEnter = lk.findStatic(clazz, "onEnter4fhook", mtEnter);
+            MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
 
-    MethodHandles.Lookup lk = MethodHandles.publicLookup();
-    MethodHandle mhEnter = lk.findStatic(clazz, "onEnter4fhook", mtEnter);
-    MethodHandle mhExit = lk.findStatic(clazz, "onExit4fhook", mtExit);
-
-    Object[] newArgs = (Object[]) mhEnter.invokeWithArguments(rawArgs, methodId);
-    Object newRet = mhExit.invokeWithArguments(ret, methodId);
+            Object[] newArgs = (Object[]) mhEnter.invokeWithArguments(rawArgs, methodId);
+            Object newRet = mhExit.invokeWithArguments(ret, methodId);
 
      * @return
      */
@@ -234,7 +237,20 @@ namespace fir_impl {
         return true;
     }
 
-    // 最小可行：系统侧只做 forName + 取 public 静态 MH_ENTER + 调用
+    /**
+     * 方案 C：Class.forName + 直接取 public 静态字段 MethodHandle（如 MH_ENTER/MH_EXIT）
+     *      系统侧无需拼 MethodType；字段已在业务侧初始化完成，可靠性高、速度快、代码最简单
+ *          避免每次查找/构造签名
+     *
+            Thread t = Thread.currentThread();
+            ClassLoader cl = t.getContextClassLoader();
+            Class<?> clazz = Class.forName("top.feadre.fhook.FHook", true, cl);
+            Field f = clazz.getField("MH_ENTER"); // 或 "MH_EXIT"
+            MethodHandle mh = (MethodHandle) f.get(null);
+            Object out = mh.invokeWithArguments(wrapperArgs);
+
+     * @return
+     */
     bool do_sysloader_hook_funs_C(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp, dex::u2 reg4_tmp,

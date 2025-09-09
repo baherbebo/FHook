@@ -150,7 +150,7 @@ public class MainActivity extends AppCompatActivity {
             TObject o2 = new TObject("o2", 1);
             TObject o3 = new TObject("o3", 1);
 
-            FHook.hook(o1).setOrigFunRun(false).commit();
+            FHook.hookObjAllFuns(o1).setOrigFunRun(false).commit();
 
             Object[] instances = CLinker.jcJvmtiFindInstances(TObject.class, true);
             for (Object o : instances) {
@@ -160,7 +160,7 @@ public class MainActivity extends AppCompatActivity {
 
             Class<?>[] classes1 = CLinker.jcJvmtiFindImpl(SharedPreferences.Editor.class);
             for (Class<?> clazz : classes1) {
-                FHook.hook(clazz)
+                FHook.hookClassAllFuns(clazz)
                         .setHookEnter((thiz, args, types, hh) -> {
                             FLog.d(TAG, "SharedPreferences.Editor.class.getName()=" + clazz.getName());
                             showLog("SharedPreferences.Editor.class.getName()", thiz, args, types);
@@ -178,7 +178,7 @@ public class MainActivity extends AppCompatActivity {
         Button bt_main_07 = findViewById(R.id.bt_main_07);
         bt_main_07.setText("07 hook类所有方法");
         bt_main_07.setOnClickListener(v -> {
-            FHook.hook(TObject.class)
+            FHook.hookClassAllFuns(TObject.class)
                     .setOrigFunRun(false)
                     .setHookEnter((thiz, args, types, hh) -> {
                         FLog.d(TAG, "TObject.class.getName()=" + TObject.class.getName());
@@ -348,20 +348,25 @@ public class MainActivity extends AppCompatActivity {
         /*
          [canHook] native 不支持: public native java.lang.Object java.lang.reflect.Method.invoke
          */
-        Method method_invoke_O_OArr = FHookTool.findMethod4First(Method.class, "invoke");
-        FHook.hook(method_invoke_O_OArr)
-                .setOrigFunRun(false)
-                .setHookEnter((thiz, args, types, hh) -> {
-                    FLog.d(TAG, "[method_invoke_O_OArr] start ....");
-                    args.set(0, "java.lang.Integer");
-                })
-//                .setHookExit((ret, type, hh) -> {
+//        Method fun_TObject_TObject = FHookTool.findMethod4First(THook.class, "fun_TObject_TObject");
+//        Method method_invoke_O_OArr = FHookTool.findMethod4First(Method.class, "invoke");
+//        Method method4Impl = FHookTool.findMethod4Impl(fun_TObject_TObject, method_invoke_O_OArr);
+//        FLog.d(TAG, "[method_invoke_O_OArr] method4Impl=" + method4Impl);
+//        FHook.hook(method_invoke_O_OArr)
+//                .setOrigFunRun(false)
+//                .setHookEnter((thiz, args, types, hh) -> {
 //                    FLog.d(TAG, "[method_invoke_O_OArr] start ....");
-//                    return ret;
+//                    args.set(0, "java.lang.Integer");
 //                })
-                .commit();
+////                .setHookExit((ret, type, hh) -> {
+////                    FLog.d(TAG, "[method_invoke_O_OArr] start ....");
+////                    return ret;
+////                })
+//                .commit();
 
-//         method = clazz.getDeclaredMethod("printStackTrace", int.class);
+
+        // 这个不能用 --------
+//        method = clazz.getDeclaredMethod("printStackTrace", int.class);
 //        Method class_getDeclaredMethod_M_SC = FHookTool.findMethod4First(
 //                Class.class, "getDeclaredMethod");
 //        FHook.hook(class_getDeclaredMethod_M_SC)
@@ -374,11 +379,12 @@ public class MainActivity extends AppCompatActivity {
 //                    return ret;
 //                })
 //                .commit();
-//
-//
+
+
+
 //        // 这个能用
-//        // Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool");
-////        Method Class_forName = FHookTool.findMethod4First(Class.class, "forName");
+        // Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool");
+//        Method Class_forName = FHookTool.findMethod4First(Class.class, "forName");
 //        Method Class_forName = FHookTool.findMethod4Index(Class.class, "forName", 1);
 //        FHook.hook(Class_forName)
 //                .setOrigFunRun(true)
@@ -401,18 +407,19 @@ public class MainActivity extends AppCompatActivity {
 //        FHook.hookOverloads(ClassLoader.class, "loadClass");
 //        Method classLoader_loadClass_Class_S = FHookTool.findMethod4First(ClassLoader.class, "loadClass");
 //        FHook.hook(classLoader_loadClass_Class_S)
-        FHook.hookOverloads(ClassLoader.class, "loadClass")
-                .setOrigFunRun(true)
-                .setHookEnter((thiz, args, types, hh) -> {
-                    FLog.d(TAG, "[classLoader_loadClass_Class_S] start ....");
-                    args.set(0, "java.lang.Integer");
-                })
-                .setHookExit((ret, type, hh) -> {
-                    FLog.d(TAG, "[classLoader_loadClass_Class_S] end .... ");
-                    ret = Thread.class;
-                    return ret;
-                })
-                .commit();
+//        FHook.hookOverloads(ClassLoader.class, "loadClass")
+//                .setOrigFunRun(true)
+//                .setHookEnter((thiz, args, types, hh) -> {
+//                    FLog.d(TAG, "[classLoader_loadClass_Class_S] start ....");
+//                    args.set(0, "java.lang.Integer");
+//                })
+//                .setHookExit((ret, type, hh) -> {
+//                    FLog.d(TAG, "[classLoader_loadClass_Class_S] end .... ");
+//                    ret = Thread.class;
+//                    return ret;
+//                })
+//                .commit();
+
 
 
 //        // String res = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
@@ -470,6 +477,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void doAppHook03() {
+
         Method fun_TObject_TObject = FHookTool.findMethod4First(THook.class, "fun_TObject_TObject");
         FHook.hook(fun_TObject_TObject)
                 .setOrigFunRun(true)
@@ -507,6 +515,7 @@ public class MainActivity extends AppCompatActivity {
                 })
                 .commit();
 
+
         Method fun_IArr_DArr = FHookTool.findMethod4First(THook.class, "fun_IArr_DArr");
         FHook.hook(fun_IArr_DArr)
                 .setOrigFunRun(true)
@@ -523,6 +532,7 @@ public class MainActivity extends AppCompatActivity {
                     return ret;
                 })
                 .commit();
+
 
         Method fun_TObjectArr_DArr = FHookTool.findMethod4First(THook.class, "fun_TObjectArr_DArr");
         FHook.hook(fun_TObjectArr_DArr)
@@ -548,6 +558,7 @@ public class MainActivity extends AppCompatActivity {
                 })
                 .commit();
 
+
         Method fun_double_DArr = FHookTool.findMethod4First(THook.class, "fun_double_DArr");
         FHook.hook(fun_double_DArr)
                 .setOrigFunRun(true)
@@ -567,6 +578,7 @@ public class MainActivity extends AppCompatActivity {
                     return ret;
                 })
                 .commit();
+
 
         Method jtFun_JArr_JArr = FHookTool.findMethod4First(THook.class, "jtFun_JArr_JArr");
         FHook.hook(jtFun_JArr_JArr)

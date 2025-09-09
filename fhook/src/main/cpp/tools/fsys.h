@@ -48,6 +48,8 @@ namespace fsys {
     void *dlopen_best_effort(const char *lib_name, int flags);
 
     bool CheckJvmti(jvmtiError error, const std::string &error_message);
+
+    std::string norm_cls(std::string s);
 }
 
 

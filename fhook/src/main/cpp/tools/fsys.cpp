@@ -258,6 +258,18 @@ namespace fsys{
         }
         return true;
     }
+
+
+    // 把类名统一成 "java/lang/xxx" 形式
+    std::string norm_cls(std::string s) {
+        // 去掉前导 'L' 与末尾 ';'
+        if (!s.empty() && s.front() == 'L') s.erase(s.begin());
+        if (!s.empty() && s.back() == ';') s.pop_back();
+        // 点号 -> 斜杠
+        for (auto &ch: s) if (ch == '.') ch = '/';
+        return s; // 例如 "java/lang/ClassLoader"
+    }
+
 }
 
 

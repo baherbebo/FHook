@@ -12,83 +12,78 @@
 #include "fir_funs_do.h"
 #include "fir_funs_do_impl.h"
 #include "freg_manager.h"
+#include "../tools/fsys.h"
 
 
 namespace finject {
-    // 把类名统一成 "java/lang/xxx" 形式
-    static inline std::string norm_cls(std::string s) {
-        // 去掉前导 'L' 与末尾 ';'
-        if (!s.empty() && s.front() == 'L') s.erase(s.begin());
-        if (!s.empty() && s.back() == ';') s.pop_back();
-        // 点号 -> 斜杠
-        for (auto &ch: s) if (ch == '.') ch = '/';
-        return s; // 例如 "java/lang/ClassLoader"
-    }
+    enum class HookPlan : uint8_t {
+        None = 0,
+        PlanA,   // 方案 A：ClassLoader + Class.getDeclaredMethod + Method.invoke
+        PlanB,   // 方案 B：MethodHandles + MethodType + Lookup.findStatic（动态查找静态 MH）
+        PlanC,   // 方案 C：Class.forName + 直接取 public 静态字段 MethodHandle（如 MH_ENTER/MH_EXIT）
+    };
 
-    // 仅判断三种“框架关键方法”
-    static inline bool is_frame_methods(ir::EncodedMethod *m) {
-        if (!m || !m->decl || !m->decl->parent || !m->decl->prototype) return false;
 
-        const std::string cls = norm_cls(m->decl->parent->Decl());
+    /**
+     * 方案 A：ClassLoader + Class.getDeclaredMethod + Method.invoke
+     * 方案 B：MethodHandles + MethodType + Lookup.findStatic（动态查找静态 MH）
+     * 方案 C：Class.forName + 直接取 public 静态字段 MethodHandle（如 MH_ENTER/MH_EXIT）
+     * @param m
+     * @return
+     */
+    static inline HookPlan select_plan(ir::EncodedMethod *m) {
+
+        const std::string cls = fsys::norm_cls(m->decl->parent->Decl());
         const char *mn = m->decl->name->c_str();
         const std::string sig = m->decl->prototype->Signature();
 
-        // 1) ClassLoader.loadClass(String) 或 (String, boolean)
-        if (cls == "java/lang/ClassLoader" &&
-            std::strcmp(mn, "loadClass") == 0 &&
-            (sig == "(Ljava/lang/String;)Ljava/lang/Class;"
-             || sig == "(Ljava/lang/String;Z)Ljava/lang/Class;"))
-            return true;
-
-        // 2) Class.getDeclaredMethod(String, Class[])
+        // 最后的防线 -----
+        // ---- 规则 2：Class.getDeclaredMethod → 用 PlanA
         if (cls == "java/lang/Class" &&
             std::strcmp(mn, "getDeclaredMethod") == 0 &&
-            sig == "(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;")
-            return true;
+            sig == "(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;") {
+            return HookPlan::None;
+        }
 
-        // 3) Method.invoke(Object, Object[]) 这个是native 方法  其它已处理
-//        if (cls == "java/lang/reflect/Method" &&
-//            std::strcmp(mn, "invoke") == 0 &&
-//            sig == "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;")
-//            return true;
+        // ---- 规则 1：ClassLoader.loadClass → 用 PlanB C都可用
+//        if (cls == "java/lang/ClassLoader" &&
+//            std::strcmp(mn, "loadClass") == 0 &&
+//            (sig == "(Ljava/lang/String;)Ljava/lang/Class;" ||
+//             sig == "(Ljava/lang/String;Z)Ljava/lang/Class;")) {
+//            return HookPlan::PlanB;
+//        }
 
-        return false;
+        // ---- 规则 X：Class.forName → 用 PlanB
+        if (cls == "java/lang/Class" &&
+            std::strcmp(mn, "forName") == 0 &&
+            (sig == "(Ljava/lang/String;)Ljava/lang/Class;" ||  // Class.forName(String)
+             sig ==
+             "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;")) { // Class.forName(String, boolean, ClassLoader)
+            return HookPlan::PlanA;
+        }
+
+        // ---- 规则 3：Method.invoke(Object,Object[]) → 这个是native
+        // if (cls == "java/lang/reflect/Method" &&
+        //     std::strcmp(mn, "invoke") == 0 &&
+        //     sig == "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;") {
+        //     return HookPlan::PlanA;
+        // }
+
+        // ---- 规则 4：其他可以加 PlanC 或保持 None
+        // if (cls == "xxx/YourClass" && strcmp(mn, "someFunc") == 0) {
+        //     return HookPlan::PlanC;
+        // }
+
+        return HookPlan::PlanC;
     }
 
-    static bool debug_log_2p(lir::CodeIr *code_ir,
-                             std::vector<int> &forbidden_v,
-                             slicer::IntrusiveList<lir::Instruction>::Iterator insert_point) {
-        auto ir_method = code_ir->ir_method;
-
-        lir::Method *f_Log_d = fir_funs_def::get_log_method(code_ir);
-        std::string _text = "[finject] C++ ";
-        _text += ir_method->decl->parent->Decl().c_str();
-        _text += " ";
-        _text += ir_method->decl->name->c_str();
-        _text += " ";
-        _text += ir_method->decl->prototype->Signature().c_str();
-        _text += " ------";
-        std::string tag = "Feadre_fjtik";
-
-        int count = 2;
-        auto regsx = FRegManager::AllocV(
-                code_ir, forbidden_v, count, "regsx");
-
-        CHECK_ALLOC_OR_RET(regsx, count, false, "[finject] regsx 申请寄存器失败 ...");
-        auto reg_tag = regsx[0];
-        auto reg_text = regsx[1];
-
-        fir_funs_do::do_Log_d(f_Log_d, code_ir, reg_tag, reg_text,
-                              tag, _text, insert_point);
-        return true;
-    }
 
     static bool do_HEnter(const deploy::Transform *transform,
                           const deploy::MethodHooks &hook_info,
                           lir::CodeIr *code_ir,
                           slicer::IntrusiveList<lir::Instruction>::Iterator insert_point,
                           unsigned short &num_reg_non_param_new,
-                          bool &is_run_backup_plan) {
+                          HookPlan plan) {
 
         LOGD("[do_HEnter] 运行 isHEnter ......")
 
@@ -158,63 +153,90 @@ namespace finject {
             forbidden_v.push_back(reg_do_args);
 
             // --------------------- 3
-            if (!is_run_backup_plan) {
-                LOGD("[do_HEnter] 运行A方案 ...")
+            switch (plan) {
+                case HookPlan::PlanA: {
+                    LOGI("[do_HEnter] 运行方案A ...")
 
-                // --------------------- 2
-                count = 3;
-                auto regs6 = FRegManager::AllocV(
-                        code_ir, forbidden_v, count, "regs6");
-                CHECK_ALLOC_OR_RET(regs6, count, false, "[do_HEnter] regs6 申请寄存器失败 ...");
-                // 调用 onEnter 函数
-                // 创建参数 Class[] 在 v2 （Class[]{Object[].class,Long.class}）
-                std::string name_class_arg = "[Ljava/lang/Object;";  // 普通obj
-                fir_impl::cre_arr_class_args4frame(
-                        code_ir, regs6[0], regs6[1], regs6[2],
-                        name_class_arg, insert_point);
-                auto reg_method_args = regs6[2];
-                forbidden_v.push_back(reg_method_args);
+                    // --------------------- 2
+                    count = 3;
+                    auto regs6 = FRegManager::AllocV(
+                            code_ir, forbidden_v, count, "regs6");
+                    CHECK_ALLOC_OR_RET(regs6, count, false, "[do_HEnter] regs6 申请寄存器失败 ...");
+                    // 调用 onEnter 函数
+                    // 创建参数 Class[] 在 v2 （Class[]{Object[].class,Long.class}）
+                    std::string name_class_arg = "[Ljava/lang/Object;";  // 普通obj
+                    fir_impl::cre_arr_class_args4frame(
+                            code_ir, regs6[0], regs6[1], regs6[2],
+                            name_class_arg, insert_point);
+                    auto reg_method_args = regs6[2];
+                    forbidden_v.push_back(reg_method_args);
 
-                count = 3;
-                auto regs7 = FRegManager::AllocV(code_ir, forbidden_v, count);
-                CHECK_ALLOC_OR_RET(regs7, count, false, "[do_HEnter] regs7 申请寄存器失败 ...");
+                    count = 3;
+                    auto regs7 = FRegManager::AllocV(code_ir, forbidden_v, count);
+                    CHECK_ALLOC_OR_RET(regs7, count, false, "[do_HEnter] regs7 申请寄存器失败 ...");
 
-                // 执行结果返回到 v0`
-                bool res = fir_impl::do_sysloader_hook_funs_A(
-                        code_ir, regs7[0], regs7[1], regs7[2],
-                        reg_method_args, reg_do_args,
-                        regs7[0],
-                        g_name_class_THook, g_name_fun_onEnter,
-                        insert_point);
-                if (!res)return false;
+                    // 执行结果返回到 v0`
+                    bool res = fir_impl::do_sysloader_hook_funs_A(
+                            code_ir, regs7[0], regs7[1], regs7[2],
+                            reg_method_args, reg_do_args,
+                            regs7[0],
+                            g_name_class_THook, g_name_fun_onEnter,
+                            insert_point);
+                    if (!res)return false;
 
-                reg_do_return = regs7[0];
-            } else {
+                    reg_do_return = regs7[0];
 
-                LOGI("[do_HEnter] 运行B方案 ...")
+                    break;
+                }
 
-                count = 4;
-                auto regs8 = FRegManager::AllocV(
-                        code_ir, forbidden_v, count, "regs8");
-                CHECK_ALLOC_OR_RET(regs8, count, false, "[do_HEnter] regs8 申请寄存器失败 ...");
-                std::string name_class_arg = "[Ljava/lang/Object;";
-                std::string rtype_name = "[Ljava/lang/Object;";
+                case HookPlan::PlanB: {
+                    LOGI("[do_HEnter] 运行B方案 ...")
 
-                bool res = fir_impl::do_sysloader_hook_funs_B(
-                        code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
-                        reg_do_args, regs8[0],
-                        g_name_class_THook, g_name_fun_onEnter,
-                        name_class_arg, rtype_name, insert_point);
+                    count = 4;
+                    auto regs8 = FRegManager::AllocV(
+                            code_ir, forbidden_v, count, "regs8");
+                    CHECK_ALLOC_OR_RET(regs8, count, false, "[do_HEnter] regs8 申请寄存器失败 ...");
+                    std::string name_class_arg = "[Ljava/lang/Object;";
+                    std::string rtype_name = "[Ljava/lang/Object;";
 
-//                bool res = fir_impl::do_sysloader_hook_funs_C(
-//                        code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
-//                        reg_do_args, regs8[0],
-//                        g_name_class_THook, g_name_fun_MH_ENTER, insert_point);
+                    bool res = fir_impl::do_sysloader_hook_funs_B(
+                            code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
+                            reg_do_args, regs8[0],
+                            g_name_class_THook, g_name_fun_onEnter,
+                            name_class_arg, rtype_name, insert_point);
 
-                if (!res)return false;
+                    if (!res)return false;
 
-                reg_do_return = regs8[0];
+                    reg_do_return = regs8[0];
 
+                    break;
+                }
+
+
+                case HookPlan::PlanC: {
+                    LOGI("[do_HEnter] 运行C方案 ...")
+
+                    count = 4;
+                    auto regs8 = FRegManager::AllocV(
+                            code_ir, forbidden_v, count, "regs8");
+                    CHECK_ALLOC_OR_RET(regs8, count, false, "[do_HEnter] regs8 申请寄存器失败 ...");
+
+                    bool res = fir_impl::do_sysloader_hook_funs_C(
+                            code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
+                            reg_do_args, regs8[0],
+                            g_name_class_THook, g_name_fun_MH_ENTER, insert_point);
+
+                    if (!res)return false;
+
+                    reg_do_return = regs8[0];
+
+                    break;
+                }
+
+
+                case HookPlan::None:
+                default:
+                    break;
             }
         }
 
@@ -250,7 +272,7 @@ namespace finject {
                 slicer::IntrusiveList<lir::Instruction>::Iterator insert_point,
                 int &reg_return_orig, // 原方法返回值所在寄存器 清空了这里是 -1
                 bool &is_wide_reg_return,
-                bool &is_run_backup_plan) {
+                HookPlan plan) {
 
         LOGD("[doHExit] 运行 isHExit ......")
         int reg_return_dst = -1;  // 最终返回值
@@ -372,63 +394,90 @@ namespace finject {
             forbidden_v.push_back(reg_do_args);
 
             // --------------------- 4
-            if (!is_run_backup_plan) {
-                // --------------------- 3
-                count = 3;// 前面只有最后的封装参数需要保留
+            switch (plan) {
+                case HookPlan::PlanA: {
+                    LOGI("[doHExit] 运行A方案 ...")
 
-                auto regs10 = FRegManager::AllocV(
-                        code_ir, forbidden_v, count, "regs10");
-                CHECK_ALLOC_OR_RET(regs10, count, -1, "[doHExit] regs10 申请寄存器失败 ...");
+                    // --------------------- 3
+                    count = 3;// 前面只有最后的封装参数需要保留
 
-                // Class[]{Object.class,Long.class}
-                std::string name_class_arg = "Ljava/lang/Object;";  // 普通obj
-                fir_impl::cre_arr_class_args4frame(
-                        code_ir, regs10[0], regs10[1], regs10[2],
-                        name_class_arg,
-                        insert_point);
-                auto reg_method_args = regs10[2];
+                    auto regs10 = FRegManager::AllocV(
+                            code_ir, forbidden_v, count, "regs10");
+                    CHECK_ALLOC_OR_RET(regs10, count, -1, "[doHExit] regs10 申请寄存器失败 ...");
+
+                    // Class[]{Object.class,Long.class}
+                    std::string name_class_arg = "Ljava/lang/Object;";  // 普通obj
+                    fir_impl::cre_arr_class_args4frame(
+                            code_ir, regs10[0], regs10[1], regs10[2],
+                            name_class_arg,
+                            insert_point);
+                    auto reg_method_args = regs10[2];
 
 
-                count = 3;
-                forbidden_v.push_back(reg_method_args);
-                auto regs11 = FRegManager::AllocV(
-                        code_ir, forbidden_v, count, "regs11");
-                CHECK_ALLOC_OR_RET(regs11, count, -1, "[doHExit] regs11 申请寄存器失败 ...");
+                    count = 3;
+                    forbidden_v.push_back(reg_method_args);
+                    auto regs11 = FRegManager::AllocV(
+                            code_ir, forbidden_v, count, "regs11");
+                    CHECK_ALLOC_OR_RET(regs11, count, -1, "[doHExit] regs11 申请寄存器失败 ...");
 
-                bool res = fir_impl::do_sysloader_hook_funs_A(
-                        code_ir, regs11[0], regs11[1], regs11[2],
-                        reg_method_args, reg_do_args, regs11[2],
-                        g_name_class_THook, g_name_fun_onExit,
-                        insert_point);
-                if (!res) return -1;
-                reg_return_dst = regs11[2];
+                    bool res = fir_impl::do_sysloader_hook_funs_A(
+                            code_ir, regs11[0], regs11[1], regs11[2],
+                            reg_method_args, reg_do_args, regs11[2],
+                            g_name_class_THook, g_name_fun_onExit,
+                            insert_point);
+                    if (!res) return -1;
+                    reg_return_dst = regs11[2];
 
-            } else {
+                    break;
 
-                LOGI("[doHExit] 运行B方案 ...")
+                }
+                case HookPlan::PlanB: {
+                    LOGI("[doHExit] 运行B方案 ...")
 
-                count = 4;
-                auto regs8 = FRegManager::AllocV(
-                        code_ir, forbidden_v, count, "regs8");
-                CHECK_ALLOC_OR_RET(regs8, count, false, "[doHExit] regs8 申请寄存器失败 ...");
+                    count = 4;
+                    auto regs8 = FRegManager::AllocV(
+                            code_ir, forbidden_v, count, "regs8");
+                    CHECK_ALLOC_OR_RET(regs8, count, false, "[doHExit] regs8 申请寄存器失败 ...");
 
-                std::string name_class_arg = "Ljava/lang/Object;";
-                std::string rtype_name = "Ljava/lang/Object;";
+                    std::string name_class_arg = "Ljava/lang/Object;";
+                    std::string rtype_name = "Ljava/lang/Object;";
 
-                bool res = fir_impl::do_sysloader_hook_funs_B(
-                        code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
-                        reg_do_args, regs8[0],
-                        g_name_class_THook, g_name_fun_onExit,
-                        name_class_arg, rtype_name,
-                        insert_point);
+                    bool res = fir_impl::do_sysloader_hook_funs_B(
+                            code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
+                            reg_do_args, regs8[0],
+                            g_name_class_THook, g_name_fun_onExit,
+                            name_class_arg, rtype_name,
+                            insert_point);
 
-//                bool res = fir_impl::do_sysloader_hook_funs_C(
-//                        code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
-//                        reg_do_args, regs8[0],
-//                        g_name_class_THook, g_name_fun_MH_EXIT, insert_point);
 
-                if (!res) return -1;
-                reg_return_dst = regs8[0];
+                    if (!res) return -1;
+                    reg_return_dst = regs8[0];
+
+                    break;
+
+                }
+                case HookPlan::PlanC: {
+                    LOGI("[doHExit] 运行C方案 ...")
+
+                    count = 4;
+                    auto regs8 = FRegManager::AllocV(
+                            code_ir, forbidden_v, count, "regs8");
+                    CHECK_ALLOC_OR_RET(regs8, count, false, "[doHExit] regs8 申请寄存器失败 ...");
+
+                    std::string name_class_arg = "Ljava/lang/Object;";
+                    std::string rtype_name = "Ljava/lang/Object;";
+
+                    bool res = fir_impl::do_sysloader_hook_funs_C(
+                            code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
+                            reg_do_args, regs8[0],
+                            g_name_class_THook, g_name_fun_MH_EXIT, insert_point);
+
+                    if (!res) return -1;
+                    reg_return_dst = regs8[0];
+
+                    break;
+
+                }
             }
 
         }
@@ -465,13 +514,14 @@ namespace finject {
              ir_method->decl->prototype->Signature().c_str())
 
         // ---- 如果是系统侧 需要根据方法信息需要框架是否走备用方案
-        bool is_run_backup_plan = false;
+        HookPlan plan = HookPlan::None;
         if (!transform->is_app_loader()) {
-            is_run_backup_plan = is_frame_methods(ir_method); // 是系统函数 是框架函数走 B方法
-            LOGI("[do_finject] is_run_backup_plan= %d", is_run_backup_plan)
-            /// 开发调试 备用方案强制
-            is_run_backup_plan = true;
-            LOGE("[do_finject] 开发调试 is_run_backup_plan= %d", is_run_backup_plan)
+            plan = select_plan(ir_method);
+            if (plan == HookPlan::None) {
+                LOGE("[do_finject] 该方法框架不允许 hook", plan)
+                return false;
+            }
+            LOGI("[do_finject] select_plan plan= %d", plan)
         }
 
         auto orig_return_type = ir_method->decl->prototype->return_type;
@@ -523,7 +573,7 @@ namespace finject {
             bool res = do_HEnter(
                     transform, hook_info, code_ir,
                     insert_point, num_reg_non_param_new,
-                    is_run_backup_plan);
+                    plan);
 
             if (!res)return false;
         }
@@ -545,7 +595,7 @@ namespace finject {
                     insert_point,
                     reg_return_orig,
                     is_wide_reg_return,
-                    is_run_backup_plan);
+                    plan);
             if (reg_return_dst < 0)return false;
         }
 
@@ -559,6 +609,34 @@ namespace finject {
             if (!res) return false;
         }
 
+        return true;
+    }
+
+    static bool debug_log_2p(lir::CodeIr *code_ir,
+                             std::vector<int> &forbidden_v,
+                             slicer::IntrusiveList<lir::Instruction>::Iterator insert_point) {
+        auto ir_method = code_ir->ir_method;
+
+        lir::Method *f_Log_d = fir_funs_def::get_log_method(code_ir);
+        std::string _text = "[finject] C++ ";
+        _text += ir_method->decl->parent->Decl().c_str();
+        _text += " ";
+        _text += ir_method->decl->name->c_str();
+        _text += " ";
+        _text += ir_method->decl->prototype->Signature().c_str();
+        _text += " ------";
+        std::string tag = "Feadre_fjtik";
+
+        int count = 2;
+        auto regsx = FRegManager::AllocV(
+                code_ir, forbidden_v, count, "regsx");
+
+        CHECK_ALLOC_OR_RET(regsx, count, false, "[finject] regsx 申请寄存器失败 ...");
+        auto reg_tag = regsx[0];
+        auto reg_text = regsx[1];
+
+        fir_funs_do::do_Log_d(f_Log_d, code_ir, reg_tag, reg_text,
+                              tag, _text, insert_point);
         return true;
     }
 }

@@ -20,38 +20,50 @@ public class FHookTool {
         return !Modifier.isAbstract(m);
     }
 
-    public static ArrayList<Method> findMethodAll(Class<?> cls, String methodName) {
-        Method[] methods = cls.getDeclaredMethods(); // 拿到类的 所有方法
-        ArrayList<Method> res_methods = new ArrayList<>();
+    // 查全部同名方法：可选是否包含父类、过滤桥接/合成；并按稳定 key 排序
+    public static java.util.List<Method> findMethodAll(
+            Class<?> cls, String methodName,
+            boolean includeInherited, boolean excludeBridge, boolean excludeSynthetic) {
 
-        for (Method method : methods) {
-            if (!method.getName().equals(methodName)) {
-                continue; // 只 hook 同名方法，避免全部乱 hook
+        if (cls == null || methodName == null) return java.util.Collections.emptyList();
+        java.util.List<Method> out = new java.util.ArrayList<>();
+
+        Class<?> it = cls;
+        while (it != null) {
+            for (Method m : it.getDeclaredMethods()) {
+                if (!m.getName().equals(methodName)) continue;
+                if (excludeBridge && m.isBridge()) continue;
+                if (excludeSynthetic && m.isSynthetic()) continue;
+                // 只在需要调用时再 setAccessible，避免全量设置
+                out.add(m);
             }
-
-            method.setAccessible(true); // 确保私有方法也能访问
-            String methodSignature = method.toGenericString();
-            FLog.d(TAG, "[findMethodAll] 找到方法: " + methodSignature);
-            res_methods.add(method);
+            if (!includeInherited) break;
+            it = it.getSuperclass();
         }
 
-        return res_methods;
+        out.sort((a, b) -> methodStableKey(a).compareTo(methodStableKey(b)));
+        return java.util.Collections.unmodifiableList(out);
     }
 
-    public static Method findMethod4Index(Class<?> cls, String methodName, int index) {
-        FLog.d(TAG, "[findMethod4Index] Class: " + cls.getName() + " methodName: " + methodName);
-        ArrayList<Method> methodAll = findMethodAll(cls, methodName);
-        if (methodAll.size() > index) {
-            Method method = methodAll.get(index);
+    public static ArrayList<Method> findMethodAll(Class<?> cls, String methodName) {
+        java.util.List<Method> list = findMethodAll(cls, methodName, false, false, false);
+        return new ArrayList<>(list);
+    }
 
-            method.setAccessible(true); // 确保私有方法也能访问
-            String methodSignature = method.toGenericString();
-            FLog.w(TAG, "[findMethod4Index] 找到 method: " + methodSignature);
+    // 7) findMethod4Index：先排序，再取 index；并提示“请改用 findMethodExact”
+    public static Method findMethod4Index(Class<?> cls, String methodName, int index) {
+        if (cls == null) return null;
+        FLog.d(TAG, "[findMethod4Index] Class: " + cls.getName() + " methodName: " + methodName);
+        java.util.List<Method> all = findMethodAll(cls, methodName, false, false, false);
+        if (index >= 0 && index < all.size()) {
+            Method method = all.get(index);
+            if (!method.isAccessible()) method.setAccessible(true);
+            FLog.w(TAG, "[findMethod4Index] 命中: " + method.toGenericString()
+                    + "（注意：index 可能不稳定，推荐 findMethodExact）");
             return method;
-        } else {
-            FLog.e(TAG, "[findMethod4Index] 未找到 method: " + methodName + " " + methodAll.size() + " index= " + index);
-            return null;
         }
+        FLog.e(TAG, "[findMethod4Index] 未找到 method: " + methodName + " size=" + all.size() + " index=" + index);
+        return null;
     }
 
     public static Method findMethod4First(Class<?> cls, String methodName) {
@@ -61,10 +73,8 @@ public class FHookTool {
 
 
     /**
-     * 查找实例的方法 对像
-     * 若 method 来自接口/注解接口，则尝试用 instance 的真实类解析实现方法。
-     * 解析成功返回实现类 Method；失败返回 null（内部已打日志）。
-     * 对非接口方法，原样返回 method。
+     * 若传入的是接口方法，基于实例解析真实实现；否则直接返回原 method。
+     * 解析失败返回 null（已打日志）。
      */
     public static Method findMethod4Impl(Object instance, Method method) {
         if (method == null) return null;
@@ -123,6 +133,7 @@ public class FHookTool {
                 + " on impl=" + impl.getName());
         return null;
     }
+
 
     public static void showMethodInfo(Method method) {
         String methodNameStr = method.getName(); // 方法名称
@@ -186,28 +197,113 @@ public class FHookTool {
     }
 
     public static void printStackTrace(String tag, int maxDepth) {
-        // 获取当前线程的调用栈
-        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+        StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+        // 0:getStackTrace,1:printStackTrace,2:重载/调用者，通常从3开始可避开本工具层
+        int start = Math.min(3, stack.length);
+        int end = (maxDepth > 0) ? Math.min(stack.length, start + maxDepth) : stack.length;
 
         FLog.d(TAG, "===== " + tag + " 方法调用栈开始 =====");
-
-        // 计算实际需要打印的深度
-        int printDepth = (maxDepth > 0 && maxDepth < stackTrace.length) ? maxDepth : stackTrace.length;
-
-        // 遍历并打印栈信息，从索引2开始（前两层是系统方法）
-        for (int i = 2; i < printDepth; i++) {
-            StackTraceElement element = stackTrace[i];
-            FLog.d(TAG, String.format("    第%d层: %s.%s(%s:%d)",
-                    i - 1,  // 调整索引，从1开始计数
-                    element.getClassName(),    // 类名
-                    element.getMethodName(),   // 方法名
-                    element.getFileName(),     // 文件名
-                    element.getLineNumber())); // 行号
+        for (int i = start; i < end; i++) {
+            StackTraceElement e = stack[i];
+            FLog.d(TAG, String.format("    #%d %s.%s(%s:%d)",
+                    (i - start + 1), e.getClassName(), e.getMethodName(), e.getFileName(), e.getLineNumber()));
         }
-
         FLog.d(TAG, "===== 方法调用栈结束 =====");
     }
 
+    public static void printStackTrace(Throwable t, String tag, int maxDepth) {
+        if (t == null) {
+            printStackTrace(tag, maxDepth);
+            return;
+        }
+        StackTraceElement[] stack = t.getStackTrace();
+        int end = (maxDepth > 0) ? Math.min(stack.length, maxDepth) : stack.length;
+        FLog.d(TAG, "===== " + tag + " 异常栈开始: " + t + " =====");
+        for (int i = 0; i < end; i++) {
+            StackTraceElement e = stack[i];
+            FLog.d(TAG, String.format("    #%d %s.%s(%s:%d)",
+                    (i + 1), e.getClassName(), e.getMethodName(), e.getFileName(), e.getLineNumber()));
+        }
+        FLog.d(TAG, "===== 异常栈结束 =====");
+    }
+
+
+
+    /**
+     * 逐行打印：方法签名、this、每个参数（期望类型=值 | 实际类型）
+     */
+    /** 逐行打印：方法签名、this、每个参数（期望类型=值 | 实际类型） */
+    public static void showOnEnterArgs(String tag, String name_fun,
+                                       Method m, Object[] rawArgs) {
+        final boolean isStatic = Modifier.isStatic(m.getModifiers());
+        final Class<?>[] ps = m.getParameterTypes();
+        final int len = rawArgs == null ? 0 : rawArgs.length;
+
+        FLog.i(tag, "[" + name_fun + "] 开始 "
+                + m.getDeclaringClass().getName() + "." + m.getName()
+                + " (" + ps.length + " params, static=" + isStatic + "), rawLen=" + len
+                + ", desc=" + jvmMethodDesc(m));
+
+        Object thisObj = (len > 0) ? rawArgs[0] : null;
+        FLog.i(tag, "   --- this = " + (isStatic ? "<static>" : pretty(thisObj))
+                + "  | got=" + gotType(thisObj));
+
+        for (int i = 0; i < ps.length; i++) {
+            Object a = (len > 1 + i) ? rawArgs[1 + i] : null;
+            FLog.i(tag, "   --- #" + i + "  " + ps[i].getName() + " = " + pretty(a)
+                    + "  | got=" + gotType(a));
+        }
+    }
+
+    /** 单行精简：类型=值（便于拼到一条日志） */
+    public static String showOnEnterArgs4line(Method m, Object[] rawArgs) {
+        Class<?>[] ps = m.getParameterTypes();
+        int len = rawArgs == null ? 0 : rawArgs.length;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < ps.length; i++) {
+            if (i > 0) sb.append(",  ");
+            Object a = (len > 1 + i) ? rawArgs[1 + i] : null;
+            sb.append(ps[i].getSimpleName()).append('=').append(' ').append(pretty(a));
+        }
+        return sb.toString();
+    }
+
+    /* -------------------- 内部辅助 -------------------- */
+
+    /** 稳定排序 key：方法名 + 参数类型 + 返回类型 */
+    private static String methodStableKey(Method m) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(m.getName()).append('#');
+        Class<?>[] ps = m.getParameterTypes();
+        for (Class<?> p : ps) sb.append(p.getName()).append(',');
+        sb.append("->").append(m.getReturnType().getName());
+        return sb.toString();
+    }
+
+    /** JVM 方法描述符（适合生成/比对 methodId） */
+    public static String jvmMethodDesc(Method m) {
+        StringBuilder sb = new StringBuilder();
+        sb.append('(');
+        for (Class<?> p : m.getParameterTypes()) sb.append(jvmTypeDesc(p));
+        sb.append(')').append(jvmTypeDesc(m.getReturnType()));
+        return sb.toString();
+    }
+
+    private static String jvmTypeDesc(Class<?> c) {
+        if (c.isPrimitive()) {
+            if (c == void.class) return "V";
+            if (c == int.class) return "I";
+            if (c == boolean.class) return "Z";
+            if (c == byte.class) return "B";
+            if (c == short.class) return "S";
+            if (c == long.class) return "J";
+            if (c == float.class) return "F";
+            if (c == double.class) return "D";
+            if (c == char.class) return "C";
+        }
+        if (c.isArray()) return c.getName().replace('.', '/');
+        return "L" + c.getName().replace('.', '/') + ";";
+    }
 
     private static String pretty(Object a) {
         if (a == null) return "null";
@@ -217,6 +313,26 @@ public class FHookTool {
         }
         if (a instanceof CharSequence || a instanceof Number || a instanceof Boolean) {
             return String.valueOf(a);
+        }
+        if (a instanceof java.util.Collection) {
+            int n = 8, i = 0;
+            StringBuilder sb = new StringBuilder("[");
+            for (Object e : (java.util.Collection<?>) a) {
+                if (i++ > 0) sb.append(", ");
+                if (i > n) { sb.append("…").append(((java.util.Collection<?>) a).size() - n).append(" more"); break; }
+                sb.append(pretty(e));
+            }
+            return sb.append(']').toString();
+        }
+        if (a instanceof java.util.Map) {
+            int n = 8, i = 0;
+            StringBuilder sb = new StringBuilder("{");
+            for (java.util.Map.Entry<?, ?> e : ((java.util.Map<?, ?>) a).entrySet()) {
+                if (i++ > 0) sb.append(", ");
+                if (i > n) { sb.append("…").append(((java.util.Map<?, ?>) a).size() - n).append(" more"); break; }
+                sb.append(pretty(e.getKey())).append('=').append(pretty(e.getValue()));
+            }
+            return sb.append('}').toString();
         }
         Class<?> c = a.getClass();
         if (c.isArray()) {
@@ -237,46 +353,5 @@ public class FHookTool {
         return a == null ? "null" : a.getClass().getName();
     }
 
-    /**
-     * 逐行打印：方法签名、this、每个参数（期望类型=值 | 实际类型）
-     */
-    public static void showOnEnterArgs(String tag, String name_fun,
-                                       java.lang.reflect.Method m, Object[] rawArgs) {
-
-        final boolean isStatic = java.lang.reflect.Modifier.isStatic(m.getModifiers());
-        final Class<?>[] ps = m.getParameterTypes();
-        final int len = rawArgs == null ? 0 : rawArgs.length;
-
-        // Header
-        FLog.i(tag, "[" + name_fun + "] 开始 " + m.getDeclaringClass().getName() + "." + m.getName()
-                + " (" + ps.length + " params, static=" + isStatic + "), rawLen=" + len);
-
-        // this（按你的协议：rawArgs[0] 是 this；静态为 null）
-        Object thisObj = (len > 0) ? rawArgs[0] : null;
-        FLog.i(tag, "   --- this = " + (isStatic ? "<static>" : pretty(thisObj))
-                + "  | got=" + gotType(thisObj));
-
-        // 每个参数：期望类型=值 | 实际类型
-        for (int i = 0; i < ps.length; i++) {
-            Object a = (len > 1 + i) ? rawArgs[1 + i] : null;
-            FLog.i(tag, "   --- #" + i + "  " + ps[i].getName() + " = " + pretty(a)
-                    + "  | got=" + gotType(a));
-        }
-    }
-
-    /**
-     * 单行精简版：只输出“类型=值”，不带 gotType，可直接拼到一条日志里
-     */
-    public static String showOnEnterArgs4line(Method m, Object[] rawArgs) {
-        Class<?>[] ps = m.getParameterTypes();
-        int len = rawArgs == null ? 0 : rawArgs.length;
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < ps.length; i++) {
-            if (i > 0) sb.append(",  ");
-            Object a = (len > 1 + i) ? rawArgs[1 + i] : null;
-            sb.append(ps[i].getSimpleName()).append('=').append(' ').append(pretty(a));
-        }
-        return sb.toString();
-    }
 
 }
