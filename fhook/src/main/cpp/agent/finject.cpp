@@ -561,19 +561,19 @@ namespace finject {
         if (hook_info.isHEnter || hook_info.isHExit) {
             if (transform->is_app_loader()) {
                 // 申请 只调一次，提前确认好
-                num_add_reg = FRegManager::RequestLocals(code_ir, 4); // 应用侧4个
+                num_add_reg = FRegManager::ReqLocalsRegs4Need(code_ir, 4); // 应用侧4个
 
                 // 这是源参数的寄存器索引
                 num_reg_non_param_new = FRegManager::Locals(code_ir);
             } else {
-                num_add_reg = FRegManager::RequestLocals(code_ir, 5); // 系统侧5个
+                num_add_reg = FRegManager::ReqLocalsRegs4Need(code_ir, 5); // 系统侧5个
                 num_reg_non_param_new = FRegManager::Locals(code_ir);
             }
         }
 
         // 如果单清除掉原始方法，也需要申请一个寄存器 用于 cre_return_code 需要1个 如果前面
         if (!hook_info.isRunOrigFun && num_add_reg == 0) {
-            num_add_reg = FRegManager::RequestLocals(code_ir, 1);
+            num_add_reg = FRegManager::ReqLocalsRegs4Need(code_ir, 1);
             num_reg_non_param_new = FRegManager::Locals(code_ir);
         }
 
