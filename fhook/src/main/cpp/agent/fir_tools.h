@@ -51,7 +51,7 @@ namespace fir_tools {
 
     void restore_reg_params4type(lir::CodeIr *code_ir,
                                  dex::u4 reg_args,            // enter 返回的 Object[] 寄存器 (e.g. v0)
-                                 dex::u4 base_param_reg,     // 参数区起始寄存器 (num_reg_non_param)
+                                 dex::u4 num_reg_non_param_new,     // 参数区起始寄存器 (num_reg_non_param)
                                  dex::u4 reg_tmp_obj,       // 临时寄存器存 aget-object 结果 (e.g. v1)
                                  dex::u4 reg_tmp_idx,// 临时寄存器做数组索引 (e.g. v2)
                                  slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point

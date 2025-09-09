@@ -721,13 +721,13 @@ namespace fir_tools {
      * @param code_ir
      * @param insert_point
      * @param reg_args
-     * @param base_param_reg
+     * @param num_reg_non_param_new
      * @param reg_tmp_obj
      * @param reg_tmp_idx
      */
     void restore_reg_params4type(lir::CodeIr *code_ir,
                                  dex::u4 reg_args,            // enter 返回的 Object[] 寄存器 (e.g. v0)
-                                 dex::u4 base_param_reg,     // 参数区起始寄存器 (num_reg_non_param)
+                                 dex::u4 num_reg_non_param_new,     // 参数区起始寄存器 (num_reg_non_param)
                                  dex::u4 reg_tmp_obj,       // 临时寄存器存 aget-object 结果 (e.g. v1)
                                  dex::u4 reg_tmp_idx,// 临时寄存器做数组索引 (e.g. v2)
                                  slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point
@@ -753,7 +753,7 @@ namespace fir_tools {
         const dex::u4 param_count = param_list ? (dex::u4) param_list->types.size() : 0u;
 
         // 槽位游标和数组索引
-        dex::u4 slot = 0;         // 写回参数寄存器槽从 base_param_reg + slot
+        dex::u4 slot = 0;         // 写回参数寄存器槽从 num_reg_non_param_new + slot
         dex::u4 index_arr = 0;    // 从 reg_args[index_arr] 读取
 
         // 如果是实例方法，按你打包约定，index_arr=0 对应 this
@@ -787,11 +787,11 @@ namespace fir_tools {
                 }
             }
 
-            // move-object base_param_reg+slot, reg_tmp_obj
+            // move-object num_reg_non_param_new+slot, reg_tmp_obj
             {
                 auto mv = code_ir->Alloc<lir::Bytecode>();
                 mv->opcode = dex::OP_MOVE_OBJECT;
-                mv->operands.push_back(code_ir->Alloc<lir::VReg>(base_param_reg + slot));
+                mv->operands.push_back(code_ir->Alloc<lir::VReg>(num_reg_non_param_new + slot));
                 mv->operands.push_back(code_ir->Alloc<lir::VReg>(reg_tmp_obj));
                 code_ir->instructions.insert(insert_point, mv);
             }
@@ -836,7 +836,7 @@ namespace fir_tools {
                 // move-object 写回
                 auto mv = code_ir->Alloc<lir::Bytecode>();
                 mv->opcode = dex::OP_MOVE_OBJECT;
-                mv->operands.push_back(code_ir->Alloc<lir::VReg>(base_param_reg + slot));
+                mv->operands.push_back(code_ir->Alloc<lir::VReg>(num_reg_non_param_new + slot));
                 mv->operands.push_back(code_ir->Alloc<lir::VReg>(reg_tmp_obj));
                 code_ir->instructions.insert(insert_point, mv);
 
@@ -845,16 +845,16 @@ namespace fir_tools {
             } else if (cat == ir::Type::Category::Scalar) {
                 // 基本类型（非宽） object -> int
                 unbox_scalar_value(insert_point, code_ir, ptype, reg_tmp_obj,
-                                   base_param_reg + slot);
+                                   num_reg_non_param_new + slot);
                 slot += 1;
                 index_arr += 1;
             } else if (cat == ir::Type::Category::WideScalar) {
                 // 确保不越过参数槽位（ins_count 是“参数区”总槽数）
                 SLICER_CHECK(slot + 2 <= ir_method->code->ins_count);
 
-                // 宽类型 long/double 占两个寄存器槽 (写入 base_param_reg+slot 和 slot+1)
+                // 宽类型 long/double 占两个寄存器槽 (写入 num_reg_non_param_new+slot 和 slot+1)
                 unbox_scalar_value(insert_point, code_ir, ptype, reg_tmp_obj,
-                                   base_param_reg + slot);
+                                   num_reg_non_param_new + slot);
                 slot += 2;   // 宽类型占 2 个槽
                 index_arr += 1;
             } else {

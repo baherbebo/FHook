@@ -32,11 +32,14 @@ int FRegManager::Locals(const lir::CodeIr *code_ir) {
     return static_cast<int>(code->registers - code->ins_count);
 }
 
+// 获取总寄存器数量
 dex::u2 FRegManager::TotalRegs(const lir::CodeIr *code_ir) {
     check_code_ir(code_ir);
     return code_ir->ir_method->code->registers;
 }
 
+
+// 获取参数数量
 dex::u2 FRegManager::InsCount(const lir::CodeIr *code_ir) {
     check_code_ir(code_ir);
     return code_ir->ir_method->code->ins_count;
@@ -106,52 +109,44 @@ std::vector<int> FRegManager::LockOldRegs(int base) {
     return v;
 }
 
-/**
- * 重置“禁止”列表为 [0, base)]
- * @param forbidden_v
- * @param base
- */
-void FRegManager::ResetForbid2Old(std::vector<int> &forbidden_v, int base) {
-    forbidden_v.clear();
-    if (base <= 0) return;
-    forbidden_v.reserve(static_cast<size_t>(base));
-    for (int i = 0; i < base; ++i) forbidden_v.push_back(i);
-    LOGD("[ResetForbid2Old] base=%d, forbid=%s", base, VEC_CSTR(forbidden_v));
+
+std::vector<int> FRegManager::AllocVFromTailWith(lir::CodeIr *code_ir,
+                                                 int num_reg_non_param_orig,
+                                                 const std::vector<int> &extra_forbid,
+                                                 int count,
+                                                 const char *text) {
+    // 基于 num_reg_non_param_orig 锁住旧槽
+    std::vector<int> forbid = LockOldRegs(num_reg_non_param_orig);
+
+    // 叠加外部需要额外锁定的 v（可能是刚分到的临时、或你手动指定）
+    forbid.insert(forbid.end(), extra_forbid.begin(), extra_forbid.end());
+
+    // 去重（可选，但能让日志更干净）
+    std::sort(forbid.begin(), forbid.end());
+    forbid.erase(std::unique(forbid.begin(), forbid.end()), forbid.end());
+
+    // 只从“新段”分配；由于 [0, num_reg_non_param_orig) 已被 forbid，低位优先自然会从 num_reg_non_param_orig 开始取
+    return AllocV(code_ir, forbid, count, text, true);
 }
 
+std::vector<int> FRegManager::AllocWideFromTailWith(lir::CodeIr *code_ir,
+                                                    int num_reg_non_param_orig,
+                                                    const std::vector<int> &extra_forbid,
+                                                    int count,
+                                                    const char *text) {
+    // 同上：先锁旧槽
+    std::vector<int> forbid = LockOldRegs(num_reg_non_param_orig);
 
-static inline std::vector<int> make_forbid_prefix_range(int upto_exclusive) {
-    std::vector<int> f;
-    if (upto_exclusive <= 0) return f;
-    f.reserve(static_cast<size_t>(upto_exclusive));
-    for (int i = 0; i < upto_exclusive; ++i) f.push_back(i);
-    return f;
+    // 叠加外部锁
+    forbid.insert(forbid.end(), extra_forbid.begin(), extra_forbid.end());
+
+    // 去重（可选）
+    std::sort(forbid.begin(), forbid.end());
+    forbid.erase(std::unique(forbid.begin(), forbid.end()), forbid.end());
+
+    // 只从“新段”分配宽寄存器对 (v, v+1)
+    return AllocWide(code_ir, forbid, count, text, true);
 }
-
-/**
- *
- * @param code_ir
- * @param base
- * @param count
- * @param text
- * @return
- */
-std::vector<int> FRegManager::AllocVFromTail(lir::CodeIr *code_ir,
-                                             int base, int count,
-                                             const char *text) {
-    // 锁死 [0, base) 的旧 v 槽，只从尾部分配；低位优先即可（因为 base 之后本身就是新段）
-    auto forbid = make_forbid_prefix_range(base);
-    return AllocV(code_ir, forbid, count, text, /*prefer_low_index=*/true);
-}
-
-std::vector<int> FRegManager::AllocWideFromTail(lir::CodeIr *code_ir,
-                                                int base, int count,
-                                                const char *text) {
-    auto forbid = make_forbid_prefix_range(base);
-    return AllocWide(code_ir, forbid, count, text, /*prefer_low_index=*/true);
-}
-
-/// ---------------------- 锁定 +N 完成 ----------------------
 
 
 

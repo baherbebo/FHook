@@ -3,6 +3,7 @@ package top.feadre.fhook.activitys;
 import android.util.Log;
 
 import java.lang.reflect.Method;
+import java.security.MessageDigest;
 
 import top.feadre.fhook.FCFG_fhook;
 import top.feadre.fhook.FHook;
@@ -251,7 +252,10 @@ android.telephony.TelephonyManager.getSimSerialNumber() → ()Ljava/lang/String;
 //                    String algo = (String) args.get(0);
 //                    Log.i("FHook", "[MessageDigest.getInstance] algo=" + algo);
                 })
-//                .setHookExit((ret, type, hh) -> ret)
+                .setHookExit((ret, type, hh) -> {
+
+                    return ret;
+                })
                 .commit();
     }
 

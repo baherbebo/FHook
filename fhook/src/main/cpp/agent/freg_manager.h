@@ -28,7 +28,7 @@
  */
 class FRegManager {
 public:
-    
+
 
     // ===== 基础查询 =====
     /** @return 本地寄存器个数（= registers - ins_count） */
@@ -62,19 +62,18 @@ public:
     // 只锁住旧槽：[0, base) —— 返回一份新的黑名单
     static std::vector<int> LockOldRegs(int base);
 
-    // 就地重置：把外部传进来的 forbidden_v 改成只锁住旧槽
-    static void ResetForbid2Old(std::vector<int>& forbidden_v, int base);
+    static std::vector<int> AllocVFromTailWith(lir::CodeIr *code_ir,
+                                        int num_reg_non_param_orig,
+                                        const std::vector<int> &extra_forbid,
+                                        int count,
+                                        const char *text);
 
-
-    /** 只从“新段”分配普通寄存器。base = ReqLocalsRegs4Num 返回值 */
-    static std::vector<int> AllocVFromTail(lir::CodeIr *code_ir,
-                                           int base, int count,
+    static std::vector<int> AllocWideFromTailWith(lir::CodeIr *code_ir,
+                                           int num_reg_non_param_orig,
+                                           const std::vector<int> &extra_forbid,
+                                           int count,
                                            const char *text);
 
-    /** 只从“新段”分配宽寄存器（对）。base = ReqLocalsRegs4Num 返回值 */
-    static std::vector<int> AllocWideFromTail(lir::CodeIr *code_ir,
-                                              int base, int count,
-                                              const char *text);
 
     /// ---------------------- 锁定 +N 完成 ----------------------
 
