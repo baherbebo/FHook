@@ -244,16 +244,19 @@ extern "C" void JNICALL HookClassFileLoadHook(
     }
 
     // “全局护栏”，设置黑名单，也不会改这些核心包
-    if (IsBlacklistedClass(name) && g_is_safe_mode) {
+    if (g_is_safe_mode && (name == nullptr || IsBlacklistedClass(name))) {
         LOGW("[HookClassFileLoadHook] skip blacklisted class: %s", name);
         return;
     }
 
+    const char *internal_name = name ? name : "";
+    const std::string want_internal = current_transform->GetClassName();
+
     // 有hook配置后 加载的类，不匹配不处理
-    if (current_transform->GetClassName() != name) {
-        // 通常由系统加载的类，这里需要过滤掉
-//        LOGW("[HookClassFileLoadHook] 不需要配置 %s != %s",
-//             current_transform->GetClassName().c_str(), name)
+    if (internal_name[0] == '\0') {
+        // 不知道类名，用下面的“单类 dex 头里类型 id”兜底再判断（见第4点）
+        // 暂时先别 return，继续读 header 再核对
+    } else if (want_internal != internal_name) {
         return;
     }
 
@@ -265,6 +268,12 @@ extern "C" void JNICALL HookClassFileLoadHook(
     current_transform->set_app_loader(find_app_class_loader(jni, loader, name));
 
     std::string descriptor = current_transform->GetJniClassName(); // "Ltop/feadre/fhook/THook;
+
+    if (class_data_len < 8 || memcmp(class_data, "dex\n", 4) != 0) {
+        LOGE("[HookClassFileLoadHook] Not a DEX image (len=%d, name=%s)", class_data_len,
+             internal_name);
+        return;
+    }
 
     // 定位查找类索引
     dex::Reader reader(class_data, class_data_len);
