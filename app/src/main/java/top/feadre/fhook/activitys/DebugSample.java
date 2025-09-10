@@ -738,20 +738,20 @@ public class DebugSample extends AppCompatActivity {
 //                        })
 //                .commit();
 //
-//        FHook.hook(fun_I_III)
-//                .setHookEnter((thiz, args, types, hh) -> {
-//                    showLog("fun_I_III", thiz, args, types);
-//                    args.set(0, 6666);
-//
-//                })
-//                .setHookExit((ret, type, hh) -> {
-//                    showLog("fun_I_III", hh.thisObject, ret, type);
-//
-//                    ret = 8888;
-//                    return ret;
-//                })
-//                .setOrigFunRun(true)
-//                .commit();
+        FHook.hook(fun_I_III)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    showLog("fun_I_III", thiz, args, types);
+                    args.set(0, 6666);
+
+                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("fun_I_III", hh.thisObject, ret, type);
+
+                    ret = 8888;
+                    return ret;
+                })
+                .setOrigFunRun(true)
+                .commit();
 
         FHook.hook(jtFun_I_II)
                 .setOrigFunRun(false)

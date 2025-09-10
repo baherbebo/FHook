@@ -177,8 +177,6 @@ std::string SmaliPrinter::OpcodeToName(dex::Opcode opcode) {
             return "return-object";
         case dex::OP_RETURN_WIDE:
             return "return-wide";
-        case dex::OP_RETURN_VOID_NO_BARRIER:
-            return "return-void-no-barrier";
 
             // 2. 移动类指令（原有保持不变）
         case dex::OP_MOVE:
@@ -231,10 +229,6 @@ std::string SmaliPrinter::OpcodeToName(dex::Opcode opcode) {
             return "const-string/jumbo";
         case dex::OP_CONST_CLASS:
             return "const-class";
-        case dex::OP_CONST_METHOD_HANDLE:
-            return "const-method-handle";
-        case dex::OP_CONST_METHOD_TYPE:
-            return "const-method-type";
 
             // 4. 类型检查/转换类指令（原有保持不变，补充注释）
         case dex::OP_CHECK_CAST:
@@ -330,14 +324,6 @@ std::string SmaliPrinter::OpcodeToName(dex::Opcode opcode) {
             return "invoke-interface";  // 调用接口方法
         case dex::OP_INVOKE_INTERFACE_RANGE:
             return "invoke-interface/range";  // invoke-interface的range版本
-        case dex::OP_INVOKE_POLYMORPHIC:
-            return "invoke-polymorphic";  // 调用泛型方法（如Method.invoke）
-        case dex::OP_INVOKE_POLYMORPHIC_RANGE:
-            return "invoke-polymorphic/range";  // invoke-polymorphic的range版本
-        case dex::OP_INVOKE_CUSTOM:
-            return "invoke-custom";  // 调用自定义方法（如Lambda、注解处理）
-        case dex::OP_INVOKE_CUSTOM_RANGE:
-            return "invoke-custom/range";  // invoke-custom的range版本
 
             // 8. 跳转类指令（原有保持不变）
         case dex::OP_GOTO:

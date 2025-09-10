@@ -1,7 +1,3 @@
-package {
-    default_applicable_licenses: ["Android-Apache-2.0"],
-}
-
 cc_defaults {
     name: "slicer_defaults",
     srcs: [
@@ -23,6 +19,7 @@ cc_defaults {
     export_include_dirs: ["export"],
     device_supported: true,
     shared_libs: ["libz"],
+    rtti: true,
     cflags: [
         "-Wall",
         "-Werror",
@@ -42,7 +39,6 @@ cc_library_static {
     host_supported: false,
     sdk_version: "current",
     stl: "libc++_static",
-    rtti: true,
 }
 
 cc_library {
@@ -51,23 +47,5 @@ cc_library {
         "slicer_defaults",
     ],
     host_supported: true,
-    rtti: true,
 }
 
-cc_library_static {
-    name: "slicer_ndk_no_rtti",
-    defaults: [
-        "slicer_defaults",
-    ],
-    host_supported: false,
-    sdk_version: "current",
-    stl: "libc++_static",
-}
-
-cc_library {
-    name: "slicer_no_rtti",
-    defaults: [
-        "slicer_defaults",
-    ],
-    host_supported: true,
-}

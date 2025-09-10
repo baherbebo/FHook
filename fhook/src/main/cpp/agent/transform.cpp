@@ -20,37 +20,38 @@ namespace deploy {
     /// 过程
     static bool filter_method_opcode(ir::EncodedMethod *m, // 要检查的方法
                                      std::shared_ptr<ir::DexFile> dex_ir) {
-        if (!m || !m->code) return false;
-        try {
-            lir::CodeIr code_ir(m, dex_ir); // 将方法字节码解析为中间表示(CodeIr)
-
-            // 将方法字节码解析为中间表示(CodeIr)
-            for (auto it = code_ir.instructions.begin();
-                 it != code_ir.instructions.end(); ++it) {
-
-                lir::Instruction *instr = *it;
-                auto bc = dynamic_cast<lir::Bytecode *>(instr);
-                if (!bc) continue;
-
-                switch (bc->opcode) {
-                    case dex::OP_INVOKE_POLYMORPHIC:  // 多态调用指令
-                    case dex::OP_INVOKE_POLYMORPHIC_RANGE:// 多态调用（范围形式）
-                    case dex::OP_CONST_METHOD_HANDLE:// 方法句柄常量指令
-                    case dex::OP_CONST_METHOD_TYPE:// 方法类型常量指令
-                        return true;
-                    default:
-                        break;
-                }
-            }
-            return false;
-        } catch (...) {
-            // 解析失败/遇到未知指令，保守起见认为需要直通
-            LOGW("[filter_method_opcode] 解析失败 %s -> %s %s ",
-                 m->decl->parent->Decl().c_str(),
-                 m->decl->name->c_str(),
-                 m->decl->prototype->Signature().c_str())
-            return true;
-        }
+//        if (!m || !m->code) return false;
+//        try {
+//            lir::CodeIr code_ir(m, dex_ir); // 将方法字节码解析为中间表示(CodeIr)
+//
+//            // 将方法字节码解析为中间表示(CodeIr)
+//            for (auto it = code_ir.instructions.begin();
+//                 it != code_ir.instructions.end(); ++it) {
+//
+//                lir::Instruction *instr = *it;
+//                auto bc = dynamic_cast<lir::Bytecode *>(instr);
+//                if (!bc) continue;
+//
+//                switch (bc->opcode) {
+//                    case dex::OP_INVOKE_POLYMORPHIC:  // 多态调用指令
+//                    case dex::OP_INVOKE_POLYMORPHIC_RANGE:// 多态调用（范围形式）
+//                    case dex::OP_CONST_METHOD_HANDLE:// 方法句柄常量指令
+//                    case dex::OP_CONST_METHOD_TYPE:// 方法类型常量指令
+//                        return true;
+//                    default:
+//                        break;
+//                }
+//            }
+//            return false;
+//        } catch (...) {
+//            // 解析失败/遇到未知指令，保守起见认为需要直通
+//            LOGW("[filter_method_opcode] 解析失败 %s -> %s %s ",
+//                 m->decl->parent->Decl().c_str(),
+//                 m->decl->name->c_str(),
+//                 m->decl->prototype->Signature().c_str())
+//            return true;
+//        }
+        return false;
     }
 
 
@@ -217,8 +218,7 @@ namespace deploy {
             const ir::MethodId orig_method_obj(
                     GetJniClassName().c_str(),
                     hook.method_name.c_str(),
-                    hook.method_signature.c_str(),
-                    hook.is_static
+                    hook.method_signature.c_str()
             );
 
             auto ir_method = builder.FindMethod(orig_method_obj);

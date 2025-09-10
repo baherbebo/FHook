@@ -25,6 +25,7 @@ add_library(
         dexter/dex_ir.cc
         dexter/dex_ir_builder.cc
         dexter/dex_utf8.cc
+        dexter/instrumentation.cc
         dexter/reader.cc
         dexter/tryblocks_encoder.cc
         dexter/writer.cc

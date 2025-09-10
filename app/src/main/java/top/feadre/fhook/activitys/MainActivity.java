@@ -66,7 +66,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-// 04 触发 Runtime.exec("id")
+        // 04 触发 Runtime.exec("id")
         Button bt_main_04 = findViewById(R.id.bt_main_04);
         bt_main_04.setText("04 触发 Runtime.exec(\"id\")");
         bt_main_04.setOnClickListener(v -> {

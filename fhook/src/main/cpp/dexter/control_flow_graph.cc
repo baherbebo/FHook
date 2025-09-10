@@ -56,16 +56,16 @@ bool BasicBlocksVisitor::Visit(Bytecode* bytecode) {
   const auto flags = dex::GetFlagsFromOpcode(bytecode->opcode);
   if (model_exceptions_) {
     constexpr auto exit_instr_flags =
-        dex::kBranch |
-        dex::kSwitch |
-        dex::kThrow |
-        dex::kReturn;
+        dex::kInstrCanBranch |
+        dex::kInstrCanSwitch |
+        dex::kInstrCanThrow |
+        dex::kInstrCanReturn;
     terminate_block = (flags & exit_instr_flags) != 0;
   } else {
     constexpr auto exit_instr_flags =
-        dex::kBranch |
-        dex::kSwitch |
-        dex::kReturn;
+        dex::kInstrCanBranch |
+        dex::kInstrCanSwitch |
+        dex::kInstrCanReturn;
     terminate_block = bytecode->opcode == dex::OP_THROW || (flags & exit_instr_flags) != 0;
   }
   if (terminate_block) {

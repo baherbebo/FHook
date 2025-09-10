@@ -26,214 +26,101 @@
 #include <utility>
 #include <set>
 
-/**
- * Dex 字节码插桩（Instrumentation）的工具类
- */
 namespace slicer {
 
-    void GenerateShiftParamsCode(lir::CodeIr *code_ir, lir::Instruction *position, dex::u4 shift);
-
 // Interface for a single transformation operation
-    class Transformation {
-    public:
-        virtual ~Transformation() = default;
-
-        virtual bool Apply(lir::CodeIr *code_ir) = 0;
-
-        void setOrgRegCount(int org_reg_count);
-
-        int getOrgRegCount() const;
-
-    protected:
-        int orgRegsCount = -1;
-    };
+class Transformation {
+ public:
+  virtual ~Transformation() = default;
+  virtual bool Apply(lir::CodeIr* code_ir) = 0;
+};
 
 // Insert a call to the "entry hook" at the start of the instrumented method:
 // The "entry hook" will be forwarded the original incoming arguments plus
 // an explicit "this" argument for non-static methods.
-    class EntryHook : public Transformation {
-    public:
-        enum class Tweak {
-            None, // 钩子方法已知目标方法的具体类型，能直接处理原始类型的参数
-            // Expose the "this" argument of non-static methods as the "Object" type.
-            // This can be helpful when the code you want to handle the hook doesn't
-            // have access to the actual type in its classpath.
-            ThisAsObject, // 用 Object 类型处理 this 指针
-            // Forward incoming arguments as an array. Zero-th element of the array is
-            // the method signature. First element of the array is
-            // "this" object if instrumented method isn't static.
-            // It is helpul, when you inject the same hook into the different
-            // methods.
-            ArrayParams,
-        };
+class EntryHook : public Transformation {
+ public:
+  explicit EntryHook(
+      const ir::MethodId& hook_method_id,
+      bool use_object_type_for_this_argument = false)
+      : hook_method_id_(hook_method_id),
+        use_object_type_for_this_argument_(use_object_type_for_this_argument) {
+    // hook method signature is generated automatically
+    SLICER_CHECK(hook_method_id_.signature == nullptr);
+  }
 
-        explicit EntryHook(const ir::MethodId &hook_method_id,
-                           long j_method_id,
-                           Tweak tweak)
-                : hook_method_id_(hook_method_id),
-                  tweak_(tweak),
-                  j_method_id_(j_method_id) {
-            // hook method signature is generated automatically
-            SLICER_CHECK(hook_method_id_.signature == nullptr);
-        }
+  virtual bool Apply(lir::CodeIr* code_ir) override;
 
-        // TODO: Delete this legacy constrcutor.
-        // It is left in temporarily so we can move callers away from it to the new
-        // `tweak` constructor.
-        explicit EntryHook(const ir::MethodId &hook_method_id,
-                           long j_method_id,
-                           bool use_object_type_for_this_argument = false)
-                : EntryHook(hook_method_id, j_method_id, use_object_type_for_this_argument
-                                                         ? Tweak::ThisAsObject
-                                                         : Tweak::None) {}
-
-        virtual bool Apply(lir::CodeIr *code_ir) override;
-
-    private:
-        ir::MethodId hook_method_id_;
-        Tweak tweak_;
-        long j_method_id_;
-
-        bool InjectArrayParamsHook(lir::CodeIr *code_ir, lir::Bytecode *bytecode);
-    };
+ private:
+  ir::MethodId hook_method_id_;
+  // If true, "this" argument of non-static methods is forwarded as Object type.
+  // For example "this" argument of OkHttpClient type is forwared as Object and
+  // is used to get OkHttp class loader.
+  bool use_object_type_for_this_argument_;
+};
 
 // Insert a call to the "exit hook" method before every return
 // in the instrumented method. The "exit hook" will be passed the
 // original return value and it may return a new return value.
-    class ExitHook : public Transformation {
-    public:
-        enum class Tweak {
-            None = 0,
-            // return value will be passed as "Object" type.
-            // This can be helpful when the code you want to handle the hook doesn't
-            // have access to the actual type in its classpath or when you want to inject
-            // the same hook in multiple methods.
-            ReturnAsObject = 1 << 0,
-        };
+class ExitHook : public Transformation {
+ public:
+  explicit ExitHook(const ir::MethodId& hook_method_id) : hook_method_id_(hook_method_id) {
+    // hook method signature is generated automatically
+    SLICER_CHECK(hook_method_id_.signature == nullptr);
+  }
 
-        explicit ExitHook(const ir::MethodId &hook_method_id, long jmethod_id, Tweak tweak)
-                : hook_method_id_(hook_method_id), tweak_(tweak), j_method_id_(jmethod_id) {
-            // hook method signature is generated automatically
-            SLICER_CHECK(hook_method_id_.signature == nullptr);
-        }
+  virtual bool Apply(lir::CodeIr* code_ir) override;
 
-        explicit ExitHook(const ir::MethodId &hook_method_id, long jmethod_id) : ExitHook(
-                hook_method_id, jmethod_id, Tweak::None) {}
+ private:
+  ir::MethodId hook_method_id_;
+};
 
-        virtual bool Apply(lir::CodeIr *code_ir) override;
+// Replace every invoke-virtual[/range] to the a specified method with
+// a invoke-static[/range] to the detour method. The detour is a static
+// method which takes the same arguments as the original method plus
+// an explicit "this" argument, and returns the same type as the original method
+class DetourVirtualInvoke : public Transformation {
+ public:
+  DetourVirtualInvoke(const ir::MethodId& orig_method_id, const ir::MethodId& detour_method_id)
+    : orig_method_id_(orig_method_id), detour_method_id_(detour_method_id) {
+    // detour method signature is automatically created
+    // to match the original method and must not be explicitly specified
+    SLICER_CHECK(detour_method_id_.signature == nullptr);
+  }
 
-    private:
-        ir::MethodId hook_method_id_;
-        Tweak tweak_;
-        long j_method_id_;
-    };
+  virtual bool Apply(lir::CodeIr* code_ir) override;
 
-    inline ExitHook::Tweak operator|(ExitHook::Tweak a, ExitHook::Tweak b) {
-        return static_cast<ExitHook::Tweak>(static_cast<int>(a) | static_cast<int>(b));
-    }
+ private:
+  ir::MethodId orig_method_id_;
+  ir::MethodId detour_method_id_;
+};
 
-    inline int operator&(ExitHook::Tweak a, ExitHook::Tweak b) {
-        return static_cast<int>(a) & static_cast<int>(b);
-    }
-
-    // 方法调用替换
-    // Base class for detour hooks. Replace every occurrence of specific opcode with
-    // something else. The detour is a static method which takes the same arguments
-    // as the original method plus an explicit "this" argument and returns the same
-    // type as the original method. Derived classes must implement GetNewOpcode.
-    class DetourHook : public Transformation {
-    public:
-        DetourHook(const ir::MethodId &orig_method_id,
-                   const ir::MethodId &detour_method_id)
-                : orig_method_id_(orig_method_id), detour_method_id_(detour_method_id) {
-//            LOGD("DetourHook: 构造...")
-            // 绕道方法的签名由框架自动生成，禁止手动指定
-            SLICER_CHECK(detour_method_id_.signature == nullptr);
-        }
-
-        virtual bool Apply(lir::CodeIr *code_ir) override;
-
-        ir::MethodId orig_method_id_;
-        ir::MethodId detour_method_id_;
-
-    protected:
-        // 纯虚函数（=0 标记）
-        virtual dex::Opcode GetNewOpcode(dex::Opcode opcode) = 0;
-    };
-
-    /**
-     * 替换虚拟方法调用  invoke-virtual 或 invoke-virtual/range 指令
-     * 普通类的非静态方法 --- invoke-virtual
-     */
-    class DetourVirtualInvoke : public DetourHook {
-    public:
-        DetourVirtualInvoke(const ir::MethodId &orig_method_id,
-                            const ir::MethodId &detour_method_id)
-                : DetourHook(orig_method_id, detour_method_id) {}
-
-    protected:
-        virtual dex::Opcode GetNewOpcode(dex::Opcode opcode) override;
-    };
-
-
-    /**
-     * 替换静态方法调用 invoke-static 或 invoke-static/range 指令
-     */
-    class DetourStaticInvoke : public DetourHook {
-    public:
-        DetourStaticInvoke(const ir::MethodId &orig_method_id,
-                           const ir::MethodId &detour_method_id)
-                : DetourHook(orig_method_id, detour_method_id) {}
-
-    protected:
-        // 实现静态方法调用的指令替换逻辑
-        virtual dex::Opcode GetNewOpcode(dex::Opcode opcode) override;
-    };
-
-    /**
-     * 替换接口方法调用 invoke-interface 或 invoke-interface/range
-     *
-     */
-    class DetourInterfaceInvoke : public DetourHook {
-    public:
-        DetourInterfaceInvoke(const ir::MethodId &orig_method_id,
-                              const ir::MethodId &detour_method_id)
-                : DetourHook(orig_method_id, detour_method_id) {}
-
-    protected:
-        virtual dex::Opcode GetNewOpcode(dex::Opcode opcode) override;
-    };
-
-
-// 分配临时寄存器
 // Allocates scratch registers without doing a full register allocation
-    class AllocateScratchRegs : public Transformation {
-    public:
-        explicit AllocateScratchRegs(int allocate_count, bool allow_renumbering = true)
-                : allocate_count_(allocate_count), allow_renumbering_(allow_renumbering) {
-            SLICER_CHECK(allocate_count > 0);
-        }
+class AllocateScratchRegs : public Transformation {
+ public:
+  explicit AllocateScratchRegs(int allocate_count, bool allow_renumbering = true)
+    : allocate_count_(allocate_count), allow_renumbering_(allow_renumbering) {
+    SLICER_CHECK(allocate_count > 0);
+  }
 
-        virtual bool Apply(lir::CodeIr *code_ir) override;
+  virtual bool Apply(lir::CodeIr* code_ir) override;
 
-        const std::set<dex::u4> &ScratchRegs() const {
-            SLICER_CHECK(scratch_regs_.size() == static_cast<size_t>(allocate_count_));
-            return scratch_regs_;
-        }
+  const std::set<dex::u4>& ScratchRegs() const {
+    SLICER_CHECK(scratch_regs_.size() == static_cast<size_t>(allocate_count_));
+    return scratch_regs_;
+  }
 
-    private:
-        void RegsRenumbering(lir::CodeIr *code_ir);
+ private:
+  void RegsRenumbering(lir::CodeIr* code_ir);
+  void ShiftParams(lir::CodeIr* code_ir);
+  void Allocate(lir::CodeIr* code_ir, dex::u4 first_reg, int count);
 
-        void ShiftParams(lir::CodeIr *code_ir);
-
-        void Allocate(lir::CodeIr *code_ir, dex::u4 first_reg, int count);
-
-    private:
-        const int allocate_count_;
-        const bool allow_renumbering_;
-        int left_to_allocate_ = 0;
-        std::set<dex::u4> scratch_regs_;
-    };
+ private:
+  const int allocate_count_;
+  const bool allow_renumbering_;
+  int left_to_allocate_ = 0;
+  std::set<dex::u4> scratch_regs_;
+};
 
 // A friendly helper for instrumenting existing methods: it allows batching
 // a set of transformations to be applied to method (the batching allow it
@@ -250,32 +137,30 @@ namespace slicer {
 //    SLICER_CHECK(mi.InstrumentMethod(ir::MethodId("LHello;", "Test", "(I)I")));
 //    ...
 //
-    class MethodInstrumenter {
-    public:
-        explicit MethodInstrumenter(std::shared_ptr<ir::DexFile> dex_ir) : dex_ir_(dex_ir) {}
+class MethodInstrumenter {
+ public:
+  explicit MethodInstrumenter(std::shared_ptr<ir::DexFile> dex_ir) : dex_ir_(dex_ir) {}
 
-        // No copy/move semantics
-        MethodInstrumenter(const MethodInstrumenter &) = delete;
+  // No copy/move semantics
+  MethodInstrumenter(const MethodInstrumenter&) = delete;
+  MethodInstrumenter& operator=(const MethodInstrumenter&) = delete;
 
-        MethodInstrumenter &operator=(const MethodInstrumenter &) = delete;
+  // Queue a transformation
+  // (T is a class derived from Transformation)
+  template<class T, class... Args>
+  T* AddTransformation(Args&&... args) {
+    T* transformation = new T(std::forward<Args>(args)...);
+    transformations_.emplace_back(transformation);
+    return transformation;
+  }
 
-        // Queue a transformation
-        // (T is a class derived from Transformation)
-        template<class T, class... Args>
-        T *AddTransformation(Args &&... args) {
-            T *transformation = new T(std::forward<Args>(args)...);
-            transformations_.emplace_back(transformation);
-            return transformation;
-        }
+  // Apply all the queued transformations to the specified method
+  bool InstrumentMethod(ir::EncodedMethod* ir_method);
+  bool InstrumentMethod(const ir::MethodId& method_id);
 
-        // Apply all the queued transformations to the specified method
-        bool InstrumentMethod(ir::EncodedMethod *ir_method);
-
-        bool InstrumentMethod(const ir::MethodId &method_id);
-
-    private:
-        std::shared_ptr<ir::DexFile> dex_ir_;
-        std::vector<std::unique_ptr<Transformation>> transformations_;
-    };
+ private:
+  std::shared_ptr<ir::DexFile> dex_ir_;
+  std::vector<std::unique_ptr<Transformation>> transformations_;
+};
 
 }  // namespace slicer

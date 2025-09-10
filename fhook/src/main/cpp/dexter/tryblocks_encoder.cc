@@ -60,18 +60,12 @@ void TryBlocksEncoder::Encode(ir::Code* ir_code, std::shared_ptr<ir::DexFile> de
   SLICER_CHECK(tries_.empty());
 
   // first, count the number of try blocks
-  struct TryBlockEndVisitor : public Visitor {
-    int tries_count = 0;
-    bool Visit(TryBlockEnd* try_end) override {
-      ++tries_count;
-      return true;
-    }
-  };
-  TryBlockEndVisitor visitor;
+  int tries_count = 0;
   for (auto instr : instructions_) {
-    instr->Accept(&visitor);
+    if (instr->IsA<TryBlockEnd>()) {
+      ++tries_count;
+    }
   }
-  int tries_count = visitor.tries_count;
   SLICER_CHECK(tries_count < (1 << 16));
 
   // no try blocks?
