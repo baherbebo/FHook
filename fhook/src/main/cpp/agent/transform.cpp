@@ -12,8 +12,80 @@
 #include "finject.h"
 #include <algorithm>
 #include <vector>
+#include <unordered_set>
+#include <memory>
 
 namespace deploy {
+
+    /// 过程
+    static bool filter_method_opcode(ir::EncodedMethod *m, // 要检查的方法
+                                     std::shared_ptr<ir::DexFile> dex_ir) {
+        if (!m || !m->code) return false;
+        try {
+            lir::CodeIr code_ir(m, dex_ir); // 将方法字节码解析为中间表示(CodeIr)
+
+            // 将方法字节码解析为中间表示(CodeIr)
+            for (auto it = code_ir.instructions.begin();
+                 it != code_ir.instructions.end(); ++it) {
+
+                lir::Instruction *instr = *it;
+                auto bc = dynamic_cast<lir::Bytecode *>(instr);
+                if (!bc) continue;
+
+                switch (bc->opcode) {
+                    case dex::OP_INVOKE_POLYMORPHIC:  // 多态调用指令
+                    case dex::OP_INVOKE_POLYMORPHIC_RANGE:// 多态调用（范围形式）
+                    case dex::OP_CONST_METHOD_HANDLE:// 方法句柄常量指令
+                    case dex::OP_CONST_METHOD_TYPE:// 方法类型常量指令
+                        return true;
+                    default:
+                        break;
+                }
+            }
+            return false;
+        } catch (...) {
+            // 解析失败/遇到未知指令，保守起见认为需要直通
+            LOGW("[filter_method_opcode] 解析失败 %s -> %s %s ",
+                 m->decl->parent->Decl().c_str(),
+                 m->decl->name->c_str(),
+                 m->decl->prototype->Signature().c_str())
+            return true;
+        }
+    }
+
+
+    /// 遍历直定的的类 直通的方法
+    static std::unordered_set<ir::EncodedMethod *> cre_passthrough4class(
+            std::shared_ptr<ir::DexFile> dex_ir,   // DEX文件的中间表示(IR)
+            const std::string &jni_class   // 目标类名(通常是JNI相关类)
+    ) {
+
+        std::unordered_set<ir::EncodedMethod *> passthrough; // 结果集合
+        for (auto &c_own: dex_ir->classes) {  // 遍历DEX中的所有类
+            auto *c = c_own.get();
+            if (c->type->Decl() != jni_class) continue;  // 只处理目标类
+
+            // 遍历方法列表
+            // 处理直接方法（构造函数、静态方法等）
+            for (auto *m: c->direct_methods) {
+                // 检查方法是否有效、有代码实现、且符合穿透条件
+                if (m != nullptr && m->code != nullptr && filter_method_opcode(m, dex_ir)) {
+                    passthrough.insert(m);  // 加入结果集合
+                }
+            }
+
+            // 处理虚方法（动态绑定的方法）
+            for (auto *m: c->virtual_methods) {
+                // 同样的检查条件
+                if (m != nullptr && m->code != nullptr && filter_method_opcode(m, dex_ir)) {
+                    passthrough.insert(m);  // 加入结果集合
+                }
+            }
+            break;
+        }
+        return passthrough;
+    }
+
 
     static inline bool IsBlacklistedMethod(ir::EncodedMethod *m) {
         if (!m || !m->decl || !m->decl->parent || !m->decl->prototype) return false;
@@ -123,6 +195,11 @@ namespace deploy {
             return;
         };
 
+        // 直通方法白名单 这个类里有任意一个多态调用就整类跳过
+        auto passthrough = cre_passthrough4class(dex_ir, GetJniClassName());
+
+        ir::Builder builder(dex_ir);
+
         int i = 0;
         for (MethodHooks &hook: hooks_) {
             LOGI("[Transform::Apply] 开始修改[%d] %s %s %s isStatic= %d isHEnter= %d, isHEnter= %d, isRunOrigFun= %d",
@@ -144,7 +221,6 @@ namespace deploy {
                     hook.is_static
             );
 
-            ir::Builder builder(dex_ir);
             auto ir_method = builder.FindMethod(orig_method_obj);
             if (ir_method == nullptr) {
                 // we couldn't find the specified method
@@ -152,17 +228,25 @@ namespace deploy {
                 return;
             }
 
-            // 黑名单
-            if (IsBlacklistedMethod(ir_method) && g_is_safe_mode) {
-                LOGW("[Apply] skip blacklisted method: %s#%s %s");
-                continue;
-            }
-
             if (ir_method->code == nullptr) {
                 LOGE("[Transform::Apply] 方法不可修改 ir_method->code 为空")
                 // 不可修改：抽象方法（无实现）、native 方法（实现由虚拟机提供）
                 return;
             }
+
+            // 黑名单
+            if (IsBlacklistedMethod(ir_method) && g_is_safe_mode) {
+                LOGW("[Apply] skip blacklisted method");
+                continue;
+            }
+
+            // 判断方法是否在直通白名单 即多态
+            if (passthrough.count(ir_method) > 0) {
+                LOGW("[Apply] 方法含 invoke-polymorphic/handle，原样直通：%s %s",
+                     hook.method_name.c_str(), hook.method_signature.c_str());
+                continue;
+            }
+
 
             // 拿到这个方法的IR
             lir::CodeIr code_ir(ir_method, dex_ir);
@@ -173,13 +257,13 @@ namespace deploy {
 //                 ir_method->decl->prototype->Signature().c_str())
 
             std::string _text = "修改前";
-            if(gIsShowSmail)SmaliPrinter::CodeIrToSmali4Print(&code_ir, _text);
+            if (gIsShowSmail)SmaliPrinter::CodeIrToSmali4Print(&code_ir, _text);
 
             // do 注入 .... 修改
             bool ret = finject::do_finject(this, hook, &code_ir);
 
             _text = "修改后";
-            if(gIsShowSmail)SmaliPrinter::CodeIrToSmali4Print(&code_ir, _text);
+            if (gIsShowSmail)SmaliPrinter::CodeIrToSmali4Print(&code_ir, _text);
 
             if (ret) {
                 code_ir.Assemble();  // 方法块修改应用

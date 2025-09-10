@@ -264,7 +264,7 @@ extern "C" void JNICALL HookClassFileLoadHook(
     /** ------------- 反射查看类加载器 的类型 ------------- */
     current_transform->set_app_loader(find_app_class_loader(jni, loader, name));
 
-    std::string descriptor = current_transform->GetJniClassName(); // 拿到jni 格式的信息
+    std::string descriptor = current_transform->GetJniClassName(); // "Ltop/feadre/fhook/THook;
 
     // 定位查找类索引
     dex::Reader reader(class_data, class_data_len);

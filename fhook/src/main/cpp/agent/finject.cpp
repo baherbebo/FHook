@@ -549,7 +549,8 @@ namespace finject {
             fir_tools::clear_original_instructions(code_ir);
         } else {
             // 快速查找，原始返回值寄存器编号和类型
-            reg_return_orig = fir_tools::find_return_register(code_ir, &is_wide_reg_return);
+            reg_return_orig = fir_tools::find_return_register(
+                    code_ir, &is_wide_reg_return);
             LOGI("[do_finject] reg_return_orig= %d, is_wide_reg_return= %d", reg_return_orig,
                  is_wide_reg_return);
         }
@@ -563,19 +564,23 @@ namespace finject {
 
         // 没有 hook 方法 不需要申请寄存器
         if (hook_info.isHEnter || hook_info.isHExit) {
-//            if (transform->is_app_loader()) {
-//                // 申请 只调一次，提前确认好
-//                num_add_reg = FRegManager::ReqLocalsRegs4Need(code_ir, 4); // 应用侧4个
-//
-//                // 这是源参数的寄存器索引
-//                num_reg_non_param_new = FRegManager::Locals(code_ir);
-//            } else {
-//                num_add_reg = FRegManager::ReqLocalsRegs4Need(code_ir, 5); // 系统侧5个
-//                num_reg_non_param_new = FRegManager::Locals(code_ir);
-//            }
 
-            // 原参数寄存器索引 如果没申请就不管他
-            int num_reg_non_param_orig = FRegManager::ReqLocalsRegs4Num(code_ir, 5);
+            /*
+                OBJ：对象引用寄存器
+                NAR：I/Z/S/B/C 窄寄存器
+                WIDE：J/D 宽对（连续两格，最好偶数起始）
+
+             本地 +6：总 6 -> 12, 参数=3, num_reg_non_param_orig=3 -> num_reg_non_param_new=9 差参数
+             本地 +6：总 7 -> 13, 参数=4, num_reg_non_param_orig=3 -> num_reg_non_param_new=9 差参数
+             本地 +6：总 5 -> 11, 参数=2, num_reg_non_param_orig=3 -> num_reg_non_param_new=9 正常
+             本地 +6：总 10 -> 16, 参数=2, num_reg_non_param_orig=8 -> num_reg_non_param_new=14
+             
+             总=5, 参数=2, 本地=3 (need=1)
+
+             * */
+
+            // 原参数寄存器索引 如果没申请就不管他 申请寄存器
+            int num_reg_non_param_orig = FRegManager::ReqLocalsRegs4Num(code_ir, 6);
             num_reg_non_param_new = FRegManager::Locals(code_ir);
             num_add_reg = num_reg_non_param_new - num_reg_non_param_orig;
 

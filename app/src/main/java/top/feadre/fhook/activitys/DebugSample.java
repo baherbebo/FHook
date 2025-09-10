@@ -1,20 +1,45 @@
 package top.feadre.fhook.activitys;
 
+import static top.feadre.fhook.THook.fun_fz01;
+import static top.feadre.fhook.THook.fun_fz02;
+import static top.feadre.fhook.THook.fun_fz03;
+
+import android.annotation.SuppressLint;
+import android.content.ContentProviderOperation;
+import android.content.ContentProviderResult;
 import android.content.ContentResolver;
+import android.content.Context;
+import android.content.OperationApplicationException;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.RemoteException;
 import android.provider.Settings;
+import android.system.ErrnoException;
+import android.system.Os;
+import android.system.StructTimeval;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.io.FileDescriptor;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.InetAddress;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
+import java.util.Random;
 
 import top.feadre.fhook.CLinker;
 import top.feadre.fhook.FCFG_fhook;
@@ -23,6 +48,7 @@ import top.feadre.fhook.FHookTool;
 import top.feadre.fhook.R;
 import top.feadre.fhook.THook;
 import top.feadre.fhook.TObject;
+import top.feadre.fhook.flibs.fsys.FLog;
 import top.feadre.fhook.tools.FFunsUI;
 
 public class DebugSample extends AppCompatActivity {
@@ -76,9 +102,9 @@ public class DebugSample extends AppCompatActivity {
         Button bt_main_01 = findViewById(R.id.bt_main_01);
         bt_main_01.setText("01 hook普通方法");
         bt_main_01.setOnClickListener(v -> {
-//            doAppHook01();
+            doAppHook01();
 //            doAppHook02();
-            doAppHook03();
+//            doAppHook03();
 
             FFunsUI.toast(this, "hook普通方法 点击");
         });
@@ -192,11 +218,134 @@ public class DebugSample extends AppCompatActivity {
     private void initAppBt() {
         THook tHook = new THook();
 
-//        initAppBt01(tHook);
-//        initAppBt02(tHook);
+        initAppBt01(tHook);
+        initAppBt02(tHook);
         initAppBt03(tHook);
 
         initSysBt();
+
+        initFZBt();
+
+    }
+
+    private void initFZBt() {
+        Button bt_main_29 = findViewById(R.id.bt_main_29);
+        bt_main_29.setText("29 fz1");
+        bt_main_29.setOnClickListener(v -> {
+            int result = fun_fz01(1, 2, "tag");
+            FLog.d(TAG, "fun_fz01 result=" + result);
+            FFunsUI.toast(this, "fun_fz01 result=" + result);
+        });
+
+        Button bt_main_33 = findViewById(R.id.bt_main_33);
+        bt_main_33.setText("33 h_fz1");
+        bt_main_33.setOnClickListener(v -> {
+            Method method = null;
+            try {
+                method = THook.class.getMethod("fun_fz01", int.class, int.class, String.class);
+            } catch (NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            }
+            FHook.hook(method)
+                    .setOrigFunRun(true)
+                    .setHookEnter((thiz, args, types, hh) -> {
+                        Log.i(TAG, "fun_fz02 args=" + args);
+                    })
+                    .setHookExit((ret, returnType, hh) -> {
+                        Log.i(TAG, "fun_fz02 ret=" + ret);
+                        return ret;
+                    })
+                    .commit();
+        });
+
+        Button bt_main_30 = findViewById(R.id.bt_main_30);
+        bt_main_30.setText("30 fz2");
+        bt_main_30.setOnClickListener(v -> {
+            long result = fun_fz02(this, 1, new ContentResolver(this) {
+                @NonNull
+                @Override
+                public ContentProviderResult[] applyBatch(@NonNull String authority, @NonNull ArrayList<ContentProviderOperation> operations) throws OperationApplicationException, RemoteException {
+                    return super.applyBatch(authority, operations);
+                }
+            });
+
+            FLog.d(TAG, "fun_fz02 result=" + result);
+            FFunsUI.toast(this, "fun_fz02 result=" + result);
+        });
+
+        Button bt_main_34 = findViewById(R.id.bt_main_34);
+        bt_main_34.setText("34 h_fz1");
+        bt_main_34.setOnClickListener(v -> {
+            Method method = null;
+            try {
+                method = THook.class.getMethod("fun_fz02", Context.class, int.class, ContentResolver.class);
+            } catch (NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            }
+            FHook.hook(method)
+                    .setOrigFunRun(true)
+                    .setHookEnter((thiz, args, types, hh) -> {
+                        Log.i(TAG, "fun_fz02 args=" + args);
+                    })
+                    .setHookExit((ret, returnType, hh) -> {
+                        Log.i(TAG, "fun_fz02 ret=" + ret);
+                        return ret;
+                    })
+                    .commit();
+        });
+
+        Button bt_main_31 = findViewById(R.id.bt_main_31);
+        bt_main_31.setText("31 fz3");
+        bt_main_31.setOnClickListener(v -> {
+            double result = fun_fz03(
+                    11L, 2.2,
+                    33L, 4.4,
+                    55L, 6.6,
+                    77L, 8.8,
+                    99L, 10.10,
+                    111L, 12.12,
+                    133L, 14.14,
+                    // 窄寄存器参数
+                    7, 8,    // int i1, i2
+                    1.5f, 2.5f, // float f1, f2
+                    9           // int i3
+            );
+
+            FLog.d(TAG, "fun_fz03 result=" + result);
+            FFunsUI.toast(this, "fun_fz03 result=" + result);
+        });
+
+        Button bt_main_35 = findViewById(R.id.bt_main_35);
+        bt_main_35.setText("35 h_fz3");
+        bt_main_35.setOnClickListener(v -> {
+            Method method = null;
+            try {
+                method = THook.class.getMethod("fun_fz03",
+                        long.class, double.class,
+                        long.class, double.class,
+                        long.class, double.class,
+                        long.class, double.class,
+                        long.class, double.class,
+                        long.class, double.class,
+                        long.class, double.class,
+                        int.class, int.class,
+                        float.class, float.class,
+                        int.class
+                );
+            } catch (NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            }
+            FHook.hook(method)
+                    .setOrigFunRun(true)
+                    .setHookEnter((thiz, args, types, hh) -> {
+                        Log.i(TAG, "fun_fz03 args=" + args);
+                    })
+                    .setHookExit((ret, returnType, hh) -> {
+                        Log.i(TAG, "fun_fz03 ret=" + ret);
+                        return ret;
+                    })
+                    .commit();
+        });
 
     }
 
@@ -334,133 +483,71 @@ public class DebugSample extends AppCompatActivity {
 
     private void doSysHook01() throws Throwable {
 
-        /*
-         [canHook] native 不支持: public native java.lang.Object java.lang.reflect.Method.invoke
-         */
-//        Method fun_TObject_TObject = FHookTool.findMethod4First(THook.class, "fun_TObject_TObject");
-//        Method method_invoke_O_OArr = FHookTool.findMethod4First(Method.class, "invoke");
-//        Method method4Impl = FHookTool.findMethod4Impl(fun_TObject_TObject, method_invoke_O_OArr);
-//        Log.d(TAG, "[method_invoke_O_OArr] method4Impl=" + method4Impl);
-//        FHook.hook(method_invoke_O_OArr)
-//                .setOrigFunRun(false)
-//                .setHookEnter((thiz, args, types, hh) -> {
-//                    Log.d(TAG, "[method_invoke_O_OArr] start ....");
-//                    args.set(0, "java.lang.Integer");
-//                })
-////                .setHookExit((ret, type, hh) -> {
-////                    Log.d(TAG, "[method_invoke_O_OArr] start ....");
-////                    return ret;
-////                })
-//                .commit();
+        h_method_invoke();
 
+        h_class_getDeclareMethod();
 
-        // 这个不能用 --------
-//        method = clazz.getDeclaredMethod("printStackTrace", int.class);
-//        Method class_getDeclaredMethod_M_SC = FHookTool.findMethod4First(
-//                Class.class, "getDeclaredMethod");
-//        FHook.hook(class_getDeclaredMethod_M_SC)
-//                .setOrigFunRun(true)
-//                .setHookEnter((thiz, args, types, hh) -> {
-//                    Log.d(TAG, "[class_getDeclaredMethod_M_SC] start ....");
-//                })
-//                .setHookExit((ret, type, hh) -> {
-//                    Log.d(TAG, "[class_getDeclaredMethod_M_SC] start ....");
-//                    return ret;
-//                })
-//                .commit();
+        h_Class_forName();
 
+        h_class_loadClass();
 
-//        // 这个能用
-        // Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool");
-//        Method Class_forName = FHookTool.findMethod4First(Class.class, "forName");
-//        Method Class_forName = FHookTool.findMethod4Index(Class.class, "forName", 1);
-//        FHook.hook(Class_forName)
-//                .setOrigFunRun(true)
-//                .setHookEnter((thiz, args, types, hh) -> {
-//                    Log.d(TAG, "[Class_forName_Class_S] start ....");
-////                    args.set(0, "java.lang.Integer");
-//                })
-//                .setHookExit((ret, type, hh) -> {
-//                    if (ret != null) {
-//                        Class<?> _ret = (Class<?>) ret;
-//                        Log.d(TAG, "[Class_forName_Class_S] end ....ret= " + _ret.getName());
-//                    }
-//                    return ret;
-//                })
-//                .commit();
+        h_Settings_getString();
 
+        h_SP_putString();
 
-        // Class<?> clazz = classLoader.loadClass("java.lang.String");
-        /// 支持 hook  这个能用 ************
-//        FHook.hookOverloads(ClassLoader.class, "loadClass");
-//        Method classLoader_loadClass_Class_S = FHookTool.findMethod4First(ClassLoader.class, "loadClass");
-//        FHook.hook(classLoader_loadClass_Class_S)
-//        FHook.hookOverloads(ClassLoader.class, "loadClass")
-//                .setOrigFunRun(true)
-//                .setHookEnter((thiz, args, types, hh) -> {
-//                    Log.d(TAG, "[classLoader_loadClass_Class_S] start ....");
-//                    args.set(0, "java.lang.Integer");
-//                })
-//                .setHookExit((ret, type, hh) -> {
-//                    Log.d(TAG, "[classLoader_loadClass_Class_S] end .... ");
-//                    ret = Thread.class;
-//                    return ret;
-//                })
-//                .commit();
+    }
 
-
-//        // String res = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
-//        {
-//            Method Settings_Secure_getString_S_OS =
-//                    android.provider.Settings.Secure.class.getMethod(
-//                            "getString", android.content.ContentResolver.class, String.class);
-//
-//            FHook.hook(Settings_Secure_getString_S_OS)
-//                    .setOrigFunRun(true)
-//                    .setHookEnter((thiz, args, types, hh) -> {
-//                        // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
-//                        showLog("Settings_Secure_getString_S_OS", thiz, args, types);
-////                        args.set(1, "input_method_selector_visibility");
-//
-//                    })
-//                    .setHookExit((ret, type, hh) -> {
-//                        showLog("Settings_Secure_getString_S_OS", hh.thisObject, ret, type);
-//                        // 演示：在返回值后面加标记，肉眼可见 hook 生效
-//                        if (ret instanceof String) {
-//                            ret = ret + "_HOOK";
-//                        } else {
-//                            ret = "null_null_";
-//                        }
-//                        return ret;
-//                    })
-//                    .commit();
-//        }
-
-
-//        // boolean ok = sp.edit().putString(key, "时间" + System.currentTimeMillis()).commit();
+    private void h_SP_putString() throws NoSuchMethodException {
+        //        // boolean ok = sp.edit().putString(key, "时间" + System.currentTimeMillis()).commit();
 //        // 从实现类上取真实的 commit()（不是接口上的）
 //        //  boolean commit();
-//        Method sp_putString_S_SS = SharedPreferences.Editor.class.getMethod("putString", String.class, String.class);
-//        SharedPreferences.Editor editor = this.getSharedPreferences("demo", MODE_PRIVATE).edit();
-//        // 这里 hook的是 sp_putString_S_SS
-//        Method mCommitImpl = FHookTool.findMethod4Impl(editor, sp_putString_S_SS);
-//
-//        FHook.hook(mCommitImpl)
-//                .setOrigFunRun(true)
-//                .setHookEnter((thiz, args, types, hh) -> {
-//                    // thiz 是具体 Editor 实例；无参数
-//                    showLog("SharedPreferences.Editor.commit", thiz, args, types);
-//                })
-//                .setHookExit((ret, type, hh) -> {
-//                    // ret 是 Boolean（primitive boolean 会被装箱）
-//                    showLog("SharedPreferences.Editor.commit", hh.thisObject, ret, type);
-//                    // 你也可以强制返回 true 观测效果：
-//                    // 运行出错: java.lang.ClassCastException: java.lang.Boolean cannot be cast to android.content.SharedPreferences$Editor
-//                    ret = false;
-//                    return ret;
-//                })
-//                .commit();
+        Method sp_putString_S_SS = SharedPreferences.Editor.class.getMethod("putString", String.class, String.class);
+        SharedPreferences.Editor editor = this.getSharedPreferences("demo", MODE_PRIVATE).edit();
+        // 这里 hook的是 sp_putString_S_SS
+        Method mCommitImpl = FHookTool.findMethod4Impl(editor, sp_putString_S_SS);
 
+        FHook.hook(mCommitImpl)
+                .setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    // thiz 是具体 Editor 实例；无参数
+                    showLog("SharedPreferences.Editor.commit", thiz, args, types);
+                })
+                .setHookExit((ret, type, hh) -> {
+                    // ret 是 Boolean（primitive boolean 会被装箱）
+                    showLog("SharedPreferences.Editor.commit", hh.thisObject, ret, type);
+                    // 你也可以强制返回 true 观测效果：
+                    // 运行出错: java.lang.ClassCastException: java.lang.Boolean cannot be cast to android.content.SharedPreferences$Editor
+                    ret = false;
+                    return ret;
+                })
+                .commit();
+    }
+
+    private void h_Settings_getString() throws NoSuchMethodException {
+        //        // String res = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+        Method Settings_Secure_getString_S_OS =
+                Settings.Secure.class.getMethod(
+                        "getString", ContentResolver.class, String.class);
+
+        FHook.hook(Settings_Secure_getString_S_OS)
+                .setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
+                    showLog("Settings_Secure_getString_S_OS", thiz, args, types);
+//                        args.set(1, "input_method_selector_visibility");
+
+                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("Settings_Secure_getString_S_OS", hh.thisObject, ret, type);
+                    // 演示：在返回值后面加标记，肉眼可见 hook 生效
+                    if (ret instanceof String) {
+                        ret = ret + "_HOOK";
+                    } else {
+                        ret = "null_null_";
+                    }
+                    return ret;
+                })
+                .commit();
     }
 
     private void doAppHook03() {
@@ -633,56 +720,56 @@ public class DebugSample extends AppCompatActivity {
         Method fun_String_String2 = FHookTool.findMethod4First(THook.class, "fun_String_String2");
         Method fun_I_III = FHookTool.findMethod4First(THook.class, "fun_I_III");
         Method jtFun_I_II = FHookTool.findMethod4First(THook.class, "jtFun_I_II");
-
-        FHook.hook(fun_String_String2).setOrigFunRun(true)
-                .setHookEnter((thiz, args, types, hh) -> {
-                    showLog("fun_String_String2", thiz, args, types);
-                    String args0 = (String) args.set(0, "111");
-                    String args1 = (String) args.get(1);
-                    args1 = "9999" + args0;
-                    args.set(1, args1);
-                })
-                .setHookExit(
-                        (ret, type, hh) -> {
-                            showLog("fun_String_String2", hh.thisObject, ret, type);
-
-                            ret = "11111";
-                            return ret;
-                        })
-                .commit();
-
-        FHook.hook(fun_I_III)
-                .setHookEnter((thiz, args, types, hh) -> {
-                    showLog("fun_I_III", thiz, args, types);
-                    args.set(0, 6666);
-
-                })
-                .setHookExit((ret, type, hh) -> {
-                    showLog("fun_I_III", hh.thisObject, ret, type);
-
-                    ret = 8888;
-                    return ret;
-                })
-                .setOrigFunRun(true)
-                .commit();
+//
+//        FHook.hook(fun_String_String2).setOrigFunRun(true)
+//                .setHookEnter((thiz, args, types, hh) -> {
+//                    showLog("fun_String_String2", thiz, args, types);
+//                    String args0 = (String) args.set(0, "111");
+//                    String args1 = (String) args.get(1);
+//                    args1 = "9999" + args0;
+//                    args.set(1, args1);
+//                })
+//                .setHookExit(
+//                        (ret, type, hh) -> {
+//                            showLog("fun_String_String2", hh.thisObject, ret, type);
+//
+//                            ret = "11111";
+//                            return ret;
+//                        })
+//                .commit();
+//
+//        FHook.hook(fun_I_III)
+//                .setHookEnter((thiz, args, types, hh) -> {
+//                    showLog("fun_I_III", thiz, args, types);
+//                    args.set(0, 6666);
+//
+//                })
+//                .setHookExit((ret, type, hh) -> {
+//                    showLog("fun_I_III", hh.thisObject, ret, type);
+//
+//                    ret = 8888;
+//                    return ret;
+//                })
+//                .setOrigFunRun(true)
+//                .commit();
 
         FHook.hook(jtFun_I_II)
                 .setOrigFunRun(false)
-                .setHookEnter((thiz, args, types, hh) -> {
-                    showLog("jtFun_I_II", thiz, args, types);
-                    args.set(0, 8888);
-
-                })
-                .setHookExit((ret, type, hh) -> {
-                    showLog("jtFun_I_II", hh.thisObject, ret, type);
-
-                    ret = 99999;
-                    return ret;
-                })
+//                .setHookEnter((thiz, args, types, hh) -> {
+//                    showLog("jtFun_I_II", thiz, args, types);
+//                    args.set(0, 8888);
+//
+//                })
+//                .setHookExit((ret, type, hh) -> {
+//                    showLog("jtFun_I_II", hh.thisObject, ret, type);
+//
+//                    ret = 99999;
+//                    return ret;
+//                })
                 .commit();
     }
-    // 替换你的 initViews()
 
+    // 替换你的 initViews()
     private void initAppBt03(THook tHook) {
         Button bt_main_14 = findViewById(R.id.bt_main_14);
         bt_main_14.setText("14 fun_TObject_TObject");
@@ -766,6 +853,85 @@ public class DebugSample extends AppCompatActivity {
 
         });
     }
+
+    private static void h_class_loadClass() {
+        // Class<?> clazz = classLoader.loadClass("java.lang.String");
+        /// 支持 hook  这个能用 ************
+        FHook.hookOverloads(ClassLoader.class, "loadClass");
+        Method classLoader_loadClass_Class_S = FHookTool.findMethod4First(ClassLoader.class, "loadClass");
+//        FHook.hook(classLoader_loadClass_Class_S);
+        FHook.hookOverloads(ClassLoader.class, "loadClass")
+                .setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    Log.d(TAG, "[classLoader_loadClass_Class_S] start ....");
+                    args.set(0, "java.lang.Integer");
+                })
+                .setHookExit((ret, type, hh) -> {
+                    Log.d(TAG, "[classLoader_loadClass_Class_S] end .... ");
+                    ret = Thread.class;
+                    return ret;
+                })
+                .commit();
+    }
+
+    private static void h_Class_forName() {
+        // Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool");
+//        Method Class_forName = FHookTool.findMethod4First(Class.class, "forName");
+        Method Class_forName = FHookTool.findMethod4Index(Class.class, "forName", 1);
+        FHook.hook(Class_forName)
+                .setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    Log.d(TAG, "[Class_forName_Class_S] start ....");
+//                    args.set(0, "java.lang.Integer");
+                })
+                .setHookExit((ret, type, hh) -> {
+                    if (ret != null) {
+                        Class<?> _ret = (Class<?>) ret;
+                        Log.d(TAG, "[Class_forName_Class_S] end ....ret= " + _ret.getName());
+                    }
+                    return ret;
+                })
+                .commit();
+    }
+
+    /// 这个框架不能用 --------
+    private static void h_class_getDeclareMethod() {
+        //        method = clazz.getDeclaredMethod("printStackTrace", int.class);
+        Method class_getDeclaredMethod_M_SC = FHookTool.findMethod4First(
+                Class.class, "getDeclaredMethod");
+        FHook.hook(class_getDeclaredMethod_M_SC)
+                .setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    Log.d(TAG, "[class_getDeclaredMethod_M_SC] start ....");
+                })
+                .setHookExit((ret, type, hh) -> {
+                    Log.d(TAG, "[class_getDeclaredMethod_M_SC] start ....");
+                    return ret;
+                })
+                .commit();
+    }
+
+    /*
+         [canHook] native 不支持: public native java.lang.Object java.lang.reflect.Method.invoke
+         */
+    private static void h_method_invoke() {
+        Method fun_TObject_TObject = FHookTool.findMethod4First(THook.class, "fun_TObject_TObject");
+        Method method_invoke_O_OArr = FHookTool.findMethod4First(Method.class, "invoke");
+        Method method4Impl = FHookTool.findMethod4Impl(fun_TObject_TObject, method_invoke_O_OArr);
+        Log.d(TAG, "[method_invoke_O_OArr] method4Impl=" + method4Impl);
+        FHook.hook(method_invoke_O_OArr)
+                .setOrigFunRun(false)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    Log.d(TAG, "[method_invoke_O_OArr] start ....");
+                    args.set(0, "java.lang.Integer");
+                })
+//                .setHookExit((ret, type, hh) -> {
+//                    Log.d(TAG, "[method_invoke_O_OArr] start ....");
+//                    return ret;
+//                })
+                .commit();
+    }
+
 
 
 }

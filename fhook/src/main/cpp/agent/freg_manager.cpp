@@ -81,7 +81,7 @@ int FRegManager::ReqLocalsRegs4Num(lir::CodeIr *code_ir, dex::u2 add) {
     const dex::u2 orig_locals = static_cast<dex::u2>(orig_total - ins_size);
 
     if (add == 0) {
-        LOGI("[ReqLocalsRegs4Num] +0，无需扩容，总=%u, 参数=%u, 本地=%u",
+        LOGI("[ReqLocalsRegs4Num] +0，无需扩容，总=%u, 参数=%u, num_reg_non_param_orig=%u",
              orig_total, ins_size, orig_locals);
         return static_cast<int>(orig_locals);
     }
@@ -89,8 +89,8 @@ int FRegManager::ReqLocalsRegs4Num(lir::CodeIr *code_ir, dex::u2 add) {
     code->registers = static_cast<dex::u2>(orig_total + add);
     const dex::u2 new_locals = static_cast<dex::u2>(code->registers - ins_size);
 
-    LOGI("[ReqLocalsRegs4Num] 本地 +%u：总 %u -> %u, 参数=%u, 本地 %u -> %u (base=%u)",
-         add, orig_total, code->registers, ins_size, orig_locals, new_locals, orig_locals);
+    LOGI("[ReqLocalsRegs4Num] 本地 +%u：总 %u -> %u, 参数=%u, num_reg_non_param_orig=%u -> num_reg_non_param_new=%u",
+         add, orig_total, code->registers, ins_size, orig_locals, new_locals);
 
     // 返回“新段起始 v 下标”，后续只从 [base, new_locals) 里分配
     return static_cast<int>(orig_locals);

@@ -43,6 +43,7 @@ void SmaliPrinter::CodeIrToSmali4Print(lir::CodeIr *code_ir, std::string &text) 
     size_t index = 0;
     for (auto it = code_ir->instructions.begin();
          it != code_ir->instructions.end(); ++it, ++index) {
+
         lir::Instruction *instr = *it;  // 通过迭代器获取当前元素
         // 处理字节码指令
         if (auto bytecode = dynamic_cast<lir::Bytecode *>(instr)) {
