@@ -166,276 +166,310 @@ std::string SmaliPrinter::BytecodeToSmali(lir::Bytecode *bytecode) {
 }
 
 // 转换 opcode 为 Smali 指令名（补充常见指令）
+#include <sstream>
+#include <iomanip>
+#include <cstdint>
+
 std::string SmaliPrinter::OpcodeToName(dex::Opcode opcode) {
-    switch (opcode) {
-        // 1. 返回类指令（原有保持不变）
-        case dex::OP_RETURN_VOID:
-            return "return-void";
-        case dex::OP_RETURN:
-            return "return";
-        case dex::OP_RETURN_OBJECT:
-            return "return-object";
-        case dex::OP_RETURN_WIDE:
-            return "return-wide";
+    const uint8_t op = static_cast<uint8_t>(opcode);
+    switch (op) {
+        // 0x00 - 0x0F
+        case 0x00: return "nop";
+        case 0x01: return "move";
+        case 0x02: return "move/from16";
+        case 0x03: return "move/16";
+        case 0x04: return "move-wide";
+        case 0x05: return "move-wide/from16";
+        case 0x06: return "move-wide/16";
+        case 0x07: return "move-object";
+        case 0x08: return "move-object/from16";
+        case 0x09: return "move-object/16";
+        case 0x0A: return "move-result";
+        case 0x0B: return "move-result-wide";
+        case 0x0C: return "move-result-object";
+        case 0x0D: return "move-exception";
+        case 0x0E: return "return-void";
+        case 0x0F: return "return";
 
-            // 2. 移动类指令（原有保持不变）
-        case dex::OP_MOVE:
-            return "move";
-        case dex::OP_MOVE_FROM16:
-            return "move/from16";
-        case dex::OP_MOVE_16:
-            return "move/16";
-        case dex::OP_MOVE_WIDE:
-            return "move-wide";
-        case dex::OP_MOVE_WIDE_FROM16:
-            return "move-wide/from16";
-        case dex::OP_MOVE_WIDE_16:
-            return "move-wide/16";
-        case dex::OP_MOVE_OBJECT:
-            return "move-object";  // 非静态方法用的关键指令
-        case dex::OP_MOVE_OBJECT_FROM16:
-            return "move-object/from16";
-        case dex::OP_MOVE_OBJECT_16:
-            return "move-object/16";
-        case dex::OP_MOVE_RESULT:
-            return "move-result";
-        case dex::OP_MOVE_RESULT_WIDE:
-            return "move-result-wide";
-        case dex::OP_MOVE_RESULT_OBJECT:
-            return "move-result-object";
-        case dex::OP_MOVE_EXCEPTION:
-            return "move-exception";
+            // 0x10 - 0x1F
+        case 0x10: return "return-wide";
+        case 0x11: return "return-object";
+        case 0x12: return "const/4";
+        case 0x13: return "const/16";
+        case 0x14: return "const";
+        case 0x15: return "const/high16";
+        case 0x16: return "const-wide/16";
+        case 0x17: return "const-wide/32";
+        case 0x18: return "const-wide";
+        case 0x19: return "const-wide/high16";
+        case 0x1A: return "const-string";
+        case 0x1B: return "const-string/jumbo";
+        case 0x1C: return "const-class";
+        case 0x1D: return "monitor-enter";
+        case 0x1E: return "monitor-exit";
+        case 0x1F: return "check-cast";
 
-            // 3. 常量类指令（原有保持不变）
-        case dex::OP_CONST_4:
-            return "const/4";  // 静态方法设null用的关键指令
-        case dex::OP_CONST_16:
-            return "const/16";
-        case dex::OP_CONST:
-            return "const";
-        case dex::OP_CONST_HIGH16:
-            return "const/high16";
-        case dex::OP_CONST_WIDE_16:
-            return "const-wide/16";
-        case dex::OP_CONST_WIDE_32:
-            return "const-wide/32";
-        case dex::OP_CONST_WIDE:
-            return "const-wide";
-        case dex::OP_CONST_WIDE_HIGH16:
-            return "const-wide/high16";
-        case dex::OP_CONST_STRING:
-            return "const-string";
-        case dex::OP_CONST_STRING_JUMBO:
-            return "const-string/jumbo";
-        case dex::OP_CONST_CLASS:
-            return "const-class";
+            // 0x20 - 0x2F
+        case 0x20: return "instance-of";
+        case 0x21: return "array-length";
+        case 0x22: return "new-instance";
+        case 0x23: return "new-array";
+        case 0x24: return "filled-new-array";
+        case 0x25: return "filled-new-array/range";
+        case 0x26: return "fill-array-data";
+        case 0x27: return "throw";
+        case 0x28: return "goto";
+        case 0x29: return "goto/16";
+        case 0x2A: return "goto/32";
+        case 0x2B: return "packed-switch";
+        case 0x2C: return "sparse-switch";
+        case 0x2D: return "cmpl-float";
+        case 0x2E: return "cmpg-float";
+        case 0x2F: return "cmpl-double";
 
-            // 4. 类型检查/转换类指令（原有保持不变，补充注释）
-        case dex::OP_CHECK_CAST:
-            return "check-cast";  // 类型强转（如null转Object）
-        case dex::OP_INSTANCE_OF:
-            return "instance-of";  // 判断对象是否为某类实例
-        case dex::OP_INT_TO_DOUBLE:
-            return "int-to-double";  // 0x83：int → double
-        case dex::OP_INT_TO_FLOAT:
-            return "int-to-float";   // 可选补充：int → float（避免后续类似问题）
-        case dex::OP_LONG_TO_DOUBLE:
-            return "long-to-double"; // 可选补充：long → double
-        case dex::OP_FLOAT_TO_DOUBLE:
-            return "float-to-double";// 可选补充：float → double
-            // int ↔ double
-        case dex::OP_DOUBLE_TO_INT:    // 0x8C：double → int
-            return "double-to-int";
-            // long ↔ double
-        case dex::OP_DOUBLE_TO_LONG:   // 0x8B：double → long（解决0x8B识别）
-            return "double-to-long";
-            // float ↔ double
-        case dex::OP_DOUBLE_TO_FLOAT:  // 0x8D：double → float
-            return "double-to-float";
-            // int ↔ long/float
-        case dex::OP_INT_TO_LONG:      // 0x80：int → long
-            return "int-to-long";
-        case dex::OP_LONG_TO_INT:      // 0x84：long → int
-            return "long-to-int";
-        case dex::OP_LONG_TO_FLOAT:    // 0x85：long → float
-            return "long-to-float";
-        case dex::OP_FLOAT_TO_INT:     // 0x87：float → int
-            return "float-to-int";
-        case dex::OP_FLOAT_TO_LONG:    // 0x88：float → long
-            return "float-to-long";
+            // 0x30 - 0x3F
+        case 0x30: return "cmpg-double";
+        case 0x31: return "cmp-long";
+        case 0x32: return "if-eq";
+        case 0x33: return "if-ne";
+        case 0x34: return "if-lt";
+        case 0x35: return "if-ge";
+        case 0x36: return "if-gt";
+        case 0x37: return "if-le";
+        case 0x38: return "if-eqz";
+        case 0x39: return "if-nez";
+        case 0x3A: return "if-ltz";
+        case 0x3B: return "if-gez";
+        case 0x3C: return "if-gtz";
+        case 0x3D: return "if-lez";
+        case 0x3E: return "unused-3e";
+        case 0x3F: return "unused-3f";
 
+            // 0x40 - 0x4F
+        case 0x40: return "unused-40";
+        case 0x41: return "unused-41";
+        case 0x42: return "unused-42";
+        case 0x43: return "unused-43";
+        case 0x44: return "aget";
+        case 0x45: return "aget-wide";
+        case 0x46: return "aget-object";
+        case 0x47: return "aget-boolean";
+        case 0x48: return "aget-byte";
+        case 0x49: return "aget-char";
+        case 0x4A: return "aget-short";
+        case 0x4B: return "aput";
+        case 0x4C: return "aput-wide";
+        case 0x4D: return "aput-object";
+        case 0x4E: return "aput-boolean";
+        case 0x4F: return "aput-byte";
 
-            // 5. 对象创建类指令（新增：解决new-instance问题，补充相关指令）
-        case dex::OP_NEW_INSTANCE:
-            return "new-instance";  // 核心补充：创建对象实例（如new Object()）
-        case dex::OP_NEW_ARRAY:
-            return "new-array";  // 创建数组（如new int[5]）
-        case dex::OP_FILLED_NEW_ARRAY:
-            return "filled-new-array";  // 创建数组并初始化元素（如new int[]{1,2}）
-        case dex::OP_FILLED_NEW_ARRAY_RANGE:
-            return "filled-new-array/range";  // filled-new-array的range版本（多参数优化）
-        case dex::OP_FILL_ARRAY_DATA:
-            return "fill-array-data";  // 用预定义数据填充数组（配合.fill-array-data指令块）
+            // 0x50 - 0x5F
+        case 0x50: return "aput-char";
+        case 0x51: return "aput-short";
+        case 0x52: return "iget";
+        case 0x53: return "iget-wide";
+        case 0x54: return "iget-object";
+        case 0x55: return "iget-boolean";
+        case 0x56: return "iget-byte";
+        case 0x57: return "iget-char";
+        case 0x58: return "iget-short";
+        case 0x59: return "iput";
+        case 0x5A: return "iput-wide";
+        case 0x5B: return "iput-object";
+        case 0x5C: return "iput-boolean";
+        case 0x5D: return "iput-byte";
+        case 0x5E: return "iput-char";
+        case 0x5F: return "iput-short";
 
-            // 6. 数组访问类指令（原有保持不变，归类调整）
-        case dex::OP_ARRAY_LENGTH:
-            return "array-length";  // 获取数组长度
-        case dex::OP_AGET:
-            return "aget";  // 取数组元素（int/short等基本类型）
-        case dex::OP_AGET_WIDE:
-            return "aget-wide";  // 取数组元素（long/double）
-        case dex::OP_AGET_OBJECT:
-            return "aget-object";  // 取数组元素（对象类型）
-        case dex::OP_AGET_BOOLEAN:
-            return "aget-boolean";  // 取数组元素（boolean）
-        case dex::OP_AGET_BYTE:
-            return "aget-byte";  // 取数组元素（byte）
-        case dex::OP_AGET_CHAR:
-            return "aget-char";  // 取数组元素（char）
-        case dex::OP_AGET_SHORT:
-            return "aget-short";  // 取数组元素（short）
-        case dex::OP_APUT:
-            return "aput";  // 存数组元素（int/short等基本类型）
-        case dex::OP_APUT_WIDE:
-            return "aput-wide";  // 存数组元素（long/double）
-        case dex::OP_APUT_OBJECT:
-            return "aput-object";  // 存数组元素（对象类型）
-        case dex::OP_APUT_BOOLEAN:
-            return "aput-boolean";  // 存数组元素（boolean）
-        case dex::OP_APUT_BYTE:
-            return "aput-byte";  // 存数组元素（byte）
-        case dex::OP_APUT_CHAR:
-            return "aput-char";  // 存数组元素（char）
-        case dex::OP_APUT_SHORT:
-            return "aput-short";  // 存数组元素（short）
+            // 0x60 - 0x6F
+        case 0x60: return "sget";
+        case 0x61: return "sget-wide";
+        case 0x62: return "sget-object";
+        case 0x63: return "sget-boolean";
+        case 0x64: return "sget-byte";
+        case 0x65: return "sget-char";
+        case 0x66: return "sget-short";
+        case 0x67: return "sput";
+        case 0x68: return "sput-wide";
+        case 0x69: return "sput-object";
+        case 0x6A: return "sput-boolean";
+        case 0x6B: return "sput-byte";
+        case 0x6C: return "sput-char";
+        case 0x6D: return "sput-short";
+        case 0x6E: return "invoke-virtual";
+        case 0x6F: return "invoke-super";
 
-            // 7. 方法调用类指令（原有保持不变）
-        case dex::OP_INVOKE_VIRTUAL:
-            return "invoke-virtual";  // 调用非静态方法（如obj.method()）
-        case dex::OP_INVOKE_SUPER:
-            return "invoke-super";  // 调用父类方法（如super.method()）
-        case dex::OP_INVOKE_DIRECT:
-            return "invoke-direct";  // 调用构造方法或私有方法
-        case dex::OP_INVOKE_STATIC:
-            return "invoke-static";  // 调用静态方法（如Class.method()）
-        case dex::OP_INVOKE_STATIC_RANGE:
-            return "invoke-static/range";  // invoke-static的range版本（多参数优化）
-        case dex::OP_INVOKE_INTERFACE:
-            return "invoke-interface";  // 调用接口方法
-        case dex::OP_INVOKE_INTERFACE_RANGE:
-            return "invoke-interface/range";  // invoke-interface的range版本
+            // 0x70 - 0x7F
+        case 0x70: return "invoke-direct";
+        case 0x71: return "invoke-static";
+        case 0x72: return "invoke-interface";
+        case 0x73: return "return-void-no-barrier";
+        case 0x74: return "invoke-virtual/range";
+        case 0x75: return "invoke-super/range";
+        case 0x76: return "invoke-direct/range";
+        case 0x77: return "invoke-static/range";
+        case 0x78: return "invoke-interface/range";
+        case 0x79: return "unused-79";
+        case 0x7A: return "unused-7a";
+        case 0x7B: return "neg-int";
+        case 0x7C: return "not-int";
+        case 0x7D: return "neg-long";
+        case 0x7E: return "not-long";
+        case 0x7F: return "neg-float";
 
-            // 8. 跳转类指令（原有保持不变）
-        case dex::OP_GOTO:
-            return "goto";  // 无条件跳转
-        case dex::OP_GOTO_16:
-            return "goto/16";  // 短距离跳转（16位偏移）
-        case dex::OP_GOTO_32:
-            return "goto/32";  // 长距离跳转（32位偏移）
-        case dex::OP_PACKED_SWITCH:
-            return "packed-switch";  // 连续值switch（如case 1,2,3）
-        case dex::OP_SPARSE_SWITCH:
-            return "sparse-switch";  // 离散值switch（如case 1,5,10）
-        case dex::OP_IF_EQ:
-            return "if-eq";  // 等于则跳转（对比两个寄存器）
-        case dex::OP_IF_NE:
-            return "if-ne";  // 不等于则跳转
-        case dex::OP_IF_LT:
-            return "if-lt";  // 小于则跳转
-        case dex::OP_IF_GE:
-            return "if-ge";  // 大于等于则跳转
-        case dex::OP_IF_GT:
-            return "if-gt";  // 大于则跳转
-        case dex::OP_IF_LE:
-            return "if-le";  // 小于等于则跳转
-        case dex::OP_IF_EQZ:
-            return "if-eqz";  // 等于0/ null则跳转（单寄存器判断）
-        case dex::OP_IF_NEZ:
-            return "if-nez";  // 不等于0/ null则跳转
-        case dex::OP_IF_LTZ:
-            return "if-ltz";  // 小于0则跳转
-        case dex::OP_IF_GEZ:
-            return "if-gez";  // 大于等于0则跳转
-        case dex::OP_IF_GTZ:
-            return "if-gtz";  // 大于0则跳转
-        case dex::OP_IF_LEZ:
-            return "if-lez";  // 小于等于0则跳转
+            // 0x80 - 0x8F
+        case 0x80: return "neg-double";
+        case 0x81: return "int-to-long";
+        case 0x82: return "int-to-float";
+        case 0x83: return "int-to-double";
+        case 0x84: return "long-to-int";
+        case 0x85: return "long-to-float";
+        case 0x86: return "long-to-double";
+        case 0x87: return "float-to-int";
+        case 0x88: return "float-to-long";
+        case 0x89: return "float-to-double";
+        case 0x8A: return "double-to-int";
+        case 0x8B: return "double-to-long";
+        case 0x8C: return "double-to-float";
+        case 0x8D: return "int-to-byte";
+        case 0x8E: return "int-to-char";
+        case 0x8F: return "int-to-short";
 
-            // 9. 其他常用指令（原有保持不变）
-        case dex::OP_NOP:
-            return "nop";  // 空指令（占位用）
-        case dex::OP_MONITOR_ENTER:
-            return "monitor-enter";  // 加锁（synchronized块进入）
-        case dex::OP_MONITOR_EXIT:
-            return "monitor-exit";  // 解锁（synchronized块退出）
-        case dex::OP_THROW:
-            return "throw";  // 抛出异常
+            // 0x90 - 0x9F
+        case 0x90: return "add-int";
+        case 0x91: return "sub-int";
+        case 0x92: return "mul-int";
+        case 0x93: return "div-int";
+        case 0x94: return "rem-int";
+        case 0x95: return "and-int";
+        case 0x96: return "or-int";
+        case 0x97: return "xor-int";
+        case 0x98: return "shl-int";
+        case 0x99: return "shr-int";
+        case 0x9A: return "ushr-int";
+        case 0x9B: return "add-long";
+        case 0x9C: return "sub-long";
+        case 0x9D: return "mul-long";
+        case 0x9E: return "div-long";
+        case 0x9F: return "rem-long";
 
-            // 10. 字段访问类指令（原有保持不变）
-        case dex::OP_IGET:
-            return "iget";  // 取实例字段（int/short等基本类型）
-        case dex::OP_IGET_WIDE:
-            return "iget-wide";  // 取实例字段（long/double）
-        case dex::OP_IGET_OBJECT:
-            return "iget-object";  // 取实例字段（对象类型）
-        case dex::OP_IGET_BOOLEAN:
-            return "iget-boolean";  // 取实例字段（boolean）
-        case dex::OP_IGET_BYTE:
-            return "iget-byte";  // 取实例字段（byte）
-        case dex::OP_IGET_CHAR:
-            return "iget-char";  // 取实例字段（char）
-        case dex::OP_IGET_SHORT:
-            return "iget-short";  // 取实例字段（short）
-        case dex::OP_IPUT:
-            return "iput";  // 存实例字段（int/short等基本类型）
-        case dex::OP_IPUT_WIDE:
-            return "iput-wide";  // 存实例字段（long/double）
-        case dex::OP_IPUT_OBJECT:
-            return "iput-object";  // 存实例字段（对象类型）
-        case dex::OP_SGET:
-            return "sget";  // 取静态字段（int/short等基本类型）
-        case dex::OP_SGET_WIDE:
-            return "sget-wide";  // 取静态字段（long/double）
-        case dex::OP_SGET_OBJECT:
-            return "sget-object";  // 取静态字段（对象类型）
+            // 0xA0 - 0xAF
+        case 0xA0: return "and-long";
+        case 0xA1: return "or-long";
+        case 0xA2: return "xor-long";
+        case 0xA3: return "shl-long";
+        case 0xA4: return "shr-long";
+        case 0xA5: return "ushr-long";
+        case 0xA6: return "add-float";
+        case 0xA7: return "sub-float";
+        case 0xA8: return "mul-float";
+        case 0xA9: return "div-float";
+        case 0xAA: return "rem-float";
+        case 0xAB: return "add-double";
+        case 0xAC: return "sub-double";
+        case 0xAD: return "mul-double";
+        case 0xAE: return "div-double";
+        case 0xAF: return "rem-double";
 
-            // double 类型运算指令
-        case dex::OP_MUL_DOUBLE:
-            return "mul-double";     // 0xCD：double * double
-        case dex::OP_ADD_DOUBLE:
-            return "add-double";     // 可选补充：double + double
-        case dex::OP_SUB_DOUBLE:
-            return "sub-double";     // 可选补充：double - double
-        case dex::OP_DIV_DOUBLE:
-            return "div-double";     // 可选补充：double / double
-        case dex::OP_REM_DOUBLE:       // 0xCE：double % double
-            return "rem-double";
-        case dex::OP_NEG_DOUBLE:       // 0xCF：-double（取反）
-            return "neg-double";
+            // 0xB0 - 0xBF
+        case 0xB0: return "add-int/2addr";
+        case 0xB1: return "sub-int/2addr";
+        case 0xB2: return "mul-int/2addr";
+        case 0xB3: return "div-int/2addr";
+        case 0xB4: return "rem-int/2addr";
+        case 0xB5: return "and-int/2addr";
+        case 0xB6: return "or-int/2addr";
+        case 0xB7: return "xor-int/2addr";
+        case 0xB8: return "shl-int/2addr";
+        case 0xB9: return "shr-int/2addr";
+        case 0xBA: return "ushr-int/2addr";
+        case 0xBB: return "add-long/2addr";
+        case 0xBC: return "sub-long/2addr";
+        case 0xBD: return "mul-long/2addr";
+        case 0xBE: return "div-long/2addr";
+        case 0xBF: return "rem-long/2addr";
 
-            // long 类型运算指令
-        case dex::OP_ADD_LONG:         // 0xB8：long + long
-            return "add-long";
-        case dex::OP_SUB_LONG:         // 0xBA：long - long
-            return "sub-long";
-        case dex::OP_MUL_LONG:         // 0xBB：long * long
-            return "mul-long";
-        case dex::OP_DIV_LONG:         // 0xB9：long / long
-            return "div-long";
-        case dex::OP_REM_LONG:         // 0xBC：long % long
-            return "rem-long";
-        case dex::OP_NEG_LONG:         // 0xBD：-long
-            return "neg-long";
+            // 0xC0 - 0xCF
+        case 0xC0: return "and-long/2addr";
+        case 0xC1: return "or-long/2addr";
+        case 0xC2: return "xor-long/2addr";
+        case 0xC3: return "shl-long/2addr";
+        case 0xC4: return "shr-long/2addr";
+        case 0xC5: return "ushr-long/2addr";
+        case 0xC6: return "add-float/2addr";
+        case 0xC7: return "sub-float/2addr";
+        case 0xC8: return "mul-float/2addr";
+        case 0xC9: return "div-float/2addr";
+        case 0xCA: return "rem-float/2addr";
+        case 0xCB: return "add-double/2addr";
+        case 0xCC: return "sub-double/2addr";
+        case 0xCD: return "mul-double/2addr";
+        case 0xCE: return "div-double/2addr";
+        case 0xCF: return "rem-double/2addr";
 
+            // 0xD0 - 0xDF
+        case 0xD0: return "add-int/lit16";
+        case 0xD1: return "rsub-int";
+        case 0xD2: return "mul-int/lit16";
+        case 0xD3: return "div-int/lit16";
+        case 0xD4: return "rem-int/lit16";
+        case 0xD5: return "and-int/lit16";
+        case 0xD6: return "or-int/lit16";
+        case 0xD7: return "xor-int/lit16";
+        case 0xD8: return "add-int/lit8";
+        case 0xD9: return "rsub-int/lit8";
+        case 0xDA: return "mul-int/lit8";
+        case 0xDB: return "div-int/lit8";
+        case 0xDC: return "rem-int/lit8";
+        case 0xDD: return "and-int/lit8";
+        case 0xDE: return "or-int/lit8";
+        case 0xDF: return "xor-int/lit8";
 
-            // 11. 默认情况（优化：用十六进制格式化，避免十进制显示混乱）
-        default:
-            // 补充：用std::hex确保 opcode 以十六进制输出（符合Dex指令习惯）
-            std::stringstream ss;
-            ss << "unknown-opcode-0x" << std::hex << std::uppercase << static_cast<int>(opcode);
-            return ss.str();
+            // 0xE0 - 0xEF
+        case 0xE0: return "shl-int/lit8";
+        case 0xE1: return "shr-int/lit8";
+        case 0xE2: return "ushr-int/lit8";
+        case 0xE3: return "iget-quick";
+        case 0xE4: return "iget-wide-quick";
+        case 0xE5: return "iget-object-quick";
+        case 0xE6: return "iput-quick";
+        case 0xE7: return "iput-wide-quick";
+        case 0xE8: return "iput-object-quick";
+        case 0xE9: return "invoke-virtual-quick";
+        case 0xEA: return "invoke-virtual/range-quick";
+        case 0xEB: return "iput-boolean-quick";
+        case 0xEC: return "iput-byte-quick";
+        case 0xED: return "iput-char-quick";
+        case 0xEE: return "iput-short-quick";
+        case 0xEF: return "iget-boolean-quick";
+
+            // 0xF0 - 0xFF
+        case 0xF0: return "iget-byte-quick";
+        case 0xF1: return "iget-char-quick";
+        case 0xF2: return "iget-short-quick";
+        case 0xF3: return "unused-f3";
+        case 0xF4: return "unused-f4";
+        case 0xF5: return "unused-f5";
+        case 0xF6: return "unused-f6";
+        case 0xF7: return "unused-f7";
+        case 0xF8: return "unused-f8";
+        case 0xF9: return "unused-f9";
+        case 0xFA: return "invoke-polymorphic";
+        case 0xFB: return "invoke-polymorphic/range";
+        case 0xFC: return "invoke-custom";
+        case 0xFD: return "invoke-custom/range";
+        case 0xFE: return "const-method-handle";
+        case 0xFF: return "const-method-type";
+
+        default: break;
     }
+
+    // 未知兜底（十六进制大写）
+    std::ostringstream oss;
+    oss << "unknown-opcode-0x" << std::hex << std::uppercase << static_cast<unsigned int>(op);
+    return oss.str();
 }
+
 
 // 转换方法为 Smali 格式
 std::string SmaliPrinter::MethodToSmali(ir::MethodDecl *method_decl) {

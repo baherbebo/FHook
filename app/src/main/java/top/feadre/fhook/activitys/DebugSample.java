@@ -739,35 +739,35 @@ public class DebugSample extends AppCompatActivity {
 //                .commit();
 //
         FHook.hook(fun_I_III)
+                .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
                     showLog("fun_I_III", thiz, args, types);
                     args.set(0, 6666);
 
                 })
-                .setHookExit((ret, type, hh) -> {
-                    showLog("fun_I_III", hh.thisObject, ret, type);
-
-                    ret = 8888;
-                    return ret;
-                })
-                .setOrigFunRun(true)
+//                .setHookExit((ret, type, hh) -> {
+//                    showLog("fun_I_III", hh.thisObject, ret, type);
+//
+//                    ret = 8888;
+//                    return ret;
+//                })
                 .commit();
 
-        FHook.hook(jtFun_I_II)
-                .setOrigFunRun(false)
-                .setHookEnter((thiz, args,
-                               types, hh) -> {
-                    showLog("jtFun_I_II", thiz, args, types);
-                    args.set(0, 8888);
-
-                })
-                .setHookExit((ret, type, hh) -> {
-                    showLog("jtFun_I_II", hh.thisObject, ret, type);
-
-                    ret = 99999;
-                    return ret;
-                })
-                .commit();
+//        FHook.hook(jtFun_I_II)
+//                .setOrigFunRun(false)
+//                .setHookEnter((thiz, args,
+//                               types, hh) -> {
+//                    showLog("jtFun_I_II", thiz, args, types);
+//                    args.set(0, 8888);
+//
+//                })
+//                .setHookExit((ret, type, hh) -> {
+//                    showLog("jtFun_I_II", hh.thisObject, ret, type);
+//
+//                    ret = 99999;
+//                    return ret;
+//                })
+//                .commit();
     }
 
     // 替换你的 initViews()

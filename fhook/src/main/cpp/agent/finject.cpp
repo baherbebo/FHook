@@ -574,13 +574,14 @@ namespace finject {
              本地 +6：总 7 -> 13, 参数=4, num_reg_non_param_orig=3 -> num_reg_non_param_new=9 差参数
              本地 +6：总 5 -> 11, 参数=2, num_reg_non_param_orig=3 -> num_reg_non_param_new=9 正常
              本地 +6：总 10 -> 16, 参数=2, num_reg_non_param_orig=8 -> num_reg_non_param_new=14
-             
+
              总=5, 参数=2, 本地=3 (need=1)
 
              * */
 
             // 原参数寄存器索引 如果没申请就不管他 申请寄存器
-            int num_reg_non_param_orig = FRegManager::ReqLocalsRegs4Num(code_ir, 6);
+            auto ins_count = FRegManager::InsCount(code_ir);
+            int num_reg_non_param_orig = FRegManager::ReqLocalsRegs4Num(code_ir, 6 + ins_count);
             num_reg_non_param_new = FRegManager::Locals(code_ir);
             num_add_reg = num_reg_non_param_new - num_reg_non_param_orig;
 
