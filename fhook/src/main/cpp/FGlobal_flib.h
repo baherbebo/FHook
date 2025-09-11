@@ -97,4 +97,17 @@ inline bool StartsWith(const char *s, const char *p) noexcept {
     if (!(val)) { LOGE("%s", msg); return (ret); } \
 } while (0)
 
+#ifndef CHECK_BOOL_EXPR
+#define CHECK_BOOL_EXPR(expr, msg)                                                     \
+    do {                                                                               \
+        if ((expr)) {                                                                  \
+            /* 先打错误日志，再抛异常 */                                               \
+            LOGE("[CHECK_BOOL_EXPR] (%s) %s @%s:%d", #expr, (msg), __FILE__, __LINE__);\
+            /* 条件满足 -> 抛异常中止 */                                                \
+            throw std::runtime_error((msg));                                           \
+        }                                                                              \
+    } while (0)
+#endif
+
+
 #endif // PJ02_FGLOBAL_FLIB_H

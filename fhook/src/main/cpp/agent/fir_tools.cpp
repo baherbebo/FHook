@@ -231,21 +231,7 @@ namespace fir_tools {
     // ---------------------------------------
 
 
-    /**
-      * const/4 v2 #0x0 创建一个null引用
-      * @param code_ir
-      * @param reg1
-      */
-    void cre_null_reg(lir::CodeIr *code_ir, int reg1,
-                      slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
-
-        auto const_null1 = code_ir->Alloc<lir::Bytecode>();
-        const_null1->opcode = dex::OP_CONST_4;
-        const_null1->operands.push_back(code_ir->Alloc<lir::VReg>(reg1)); // v2 = null
-        const_null1->operands.push_back(code_ir->Alloc<lir::Const32>(0));
-        code_ir->instructions.insert(insert_point, const_null1);
-    }
-
+    // ************************  越界处理
     /**
      * 普通
      * 主要用于index 赋值指令
@@ -279,6 +265,111 @@ namespace fir_tools {
         bc->operands.push_back(code_ir->Alloc<lir::Const32>((dex::u4) value));
         code_ir->instructions.insert(insert_point, bc);
     }
+
+    /**
+      * const/4 v2 #0x0 创建一个null引用
+      * @param code_ir
+      * @param reg1
+      */
+    void cre_null_reg(lir::CodeIr *code_ir, int reg1,
+                      slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
+        emitValToReg(code_ir, insert_point, reg1, 0);
+    }
+
+    void emitValToRegWide(lir::CodeIr *code_ir,
+                          slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point,
+                          dex::u4 reg_dst_base,   // 宽寄存器起点 vX（会写 vX / vX+1）
+                          int64_t value) {
+        // DEX vA 8-bit 限制
+        if (reg_dst_base >= 256) {
+            LOGE("[emitValToRegWide] unsupported: dest base v%u >= 256 (DEX vA is 8-bit)", reg_dst_base);
+            return;
+        }
+
+        // 确保 v(base+1) 存在
+        if (code_ir && code_ir->ir_method && code_ir->ir_method->code) {
+            dex::u2 regs_size = code_ir->ir_method->code->registers;
+            if (reg_dst_base + 1 >= regs_size) {
+                LOGE("[emitValToRegWide] out of range: v%u/v%u, total regs=%u",
+                     reg_dst_base, reg_dst_base + 1, regs_size);
+                return;
+            }
+        }
+
+        // —— 这里改为 VRegPair（关键修复点）——
+        auto dst_pair = code_ir->Alloc<lir::VRegPair>(reg_dst_base);
+
+        auto bc = code_ir->Alloc<lir::Bytecode>();
+
+        const bool fit16  = (value >= INT16_MIN && value <= INT16_MAX);
+        const bool fit32  = (value >= INT32_MIN && value <= INT32_MAX);
+        const bool fitHigh = ((value & 0x0000FFFFFFFFFFFFLL) == 0); // 低 48 位为 0
+
+        if (fit16) {
+            // 21s
+            bc->opcode = dex::OP_CONST_WIDE_16;
+            bc->operands.push_back(dst_pair);                                    // 必须是 VRegPair
+            bc->operands.push_back(code_ir->Alloc<lir::Const32>((dex::s4)value)); // 16-bit 会由编码器截取
+        } else if (fit32) {
+            // 31i
+            bc->opcode = dex::OP_CONST_WIDE_32;
+            bc->operands.push_back(dst_pair);
+            bc->operands.push_back(code_ir->Alloc<lir::Const32>((dex::s4)value));
+        } else if (fitHigh) {
+            // 21h：仅高 16 位，其余 48 位为 0
+            bc->opcode = dex::OP_CONST_WIDE_HIGH16;
+            bc->operands.push_back(dst_pair);
+            dex::s4 high16 = (dex::s4)((value >> 48) & 0xFFFF);
+            bc->operands.push_back(code_ir->Alloc<lir::Const32>(high16)); // 放 Const32 即可，编码器取 16bit
+        } else {
+            // 51l：完整 64 位
+            bc->opcode = dex::OP_CONST_WIDE;
+            bc->operands.push_back(dst_pair);
+            bc->operands.push_back(code_ir->Alloc<lir::Const64>((dex::u8)value));
+        }
+
+        code_ir->instructions.insert(insert_point, bc);
+    }
+
+
+    void emit_move_obj(lir::CodeIr *ir, int dst, int src,
+                       slicer::IntrusiveList<lir::Instruction>::Iterator &it) {
+        auto bc = ir->Alloc<lir::Bytecode>();
+        if (dst <= 0x0F && src <= 0x0F) {
+            bc->opcode = dex::OP_MOVE_OBJECT;            // 12x: A(4), B(4)
+        } else if (dst <= 0xFF) {
+            bc->opcode = dex::OP_MOVE_OBJECT_FROM16;     // 22x: A(8), B(16)
+        } else {
+            bc->opcode = dex::OP_MOVE_OBJECT_16;         // 32x: A(16), B(16)
+        }
+        bc->operands.push_back(ir->Alloc<lir::VReg>(dst));
+        bc->operands.push_back(ir->Alloc<lir::VReg>(src));
+        ir->instructions.insert(it, bc);
+    }
+
+    void emit_move(lir::CodeIr *ir, int dst, int src,
+                   slicer::IntrusiveList<lir::Instruction>::Iterator &it) {
+        auto bc = ir->Alloc<lir::Bytecode>();
+        if (dst <= 0x0F && src <= 0x0F) bc->opcode = dex::OP_MOVE;
+        else if (dst <= 0xFF) bc->opcode = dex::OP_MOVE_FROM16;
+        else bc->opcode = dex::OP_MOVE_16;
+        bc->operands.push_back(ir->Alloc<lir::VReg>(dst));
+        bc->operands.push_back(ir->Alloc<lir::VReg>(src));
+        ir->instructions.insert(it, bc);
+    }
+
+    void emit_move_wide(lir::CodeIr *ir, int dst, int src,
+                        slicer::IntrusiveList<lir::Instruction>::Iterator &it) {
+        auto bc = ir->Alloc<lir::Bytecode>();
+        if (dst <= 0x0F && src <= 0x0F) bc->opcode = dex::OP_MOVE_WIDE;
+        else if (dst <= 0xFF) bc->opcode = dex::OP_MOVE_WIDE_FROM16;
+        else bc->opcode = dex::OP_MOVE_WIDE_16;
+        bc->operands.push_back(ir->Alloc<lir::VReg>(dst));
+        bc->operands.push_back(ir->Alloc<lir::VReg>(src));
+        ir->instructions.insert(it, bc);
+    }
+
+    // ************************  越界处理 over
 
     /// 强转操作
     void emitCheckCast(lir::CodeIr *code_ir,
@@ -348,7 +439,7 @@ namespace fir_tools {
         SLICER_CHECK(code_ir && type);
         ir::Builder builder(code_ir->dex_ir);
 
-        bool is_wide = (type->GetCategory() == ir::Type::Category::WideScalar);
+        const bool is_wide = (type->GetCategory() == ir::Type::Category::WideScalar);
 
         // --- 范围检查：确保不越界 ---
         const dex::u2 regs_size = code_ir->ir_method->code->registers;
@@ -389,14 +480,7 @@ namespace fir_tools {
         // --- 非 null 正常路径：check-cast -> invoke-virtual xxxValue() -> move-result* ---
         {
             // 1) check-cast v<reg_src>, <BoxedType> (告诉 verifier 这是 Integer/Long/...)
-            auto cc = code_ir->Alloc<lir::Bytecode>();
-            cc->opcode = dex::OP_CHECK_CAST;
-            cc->operands.push_back(code_ir->Alloc<lir::VReg>(reg_src));
-            cc->operands.push_back(code_ir->Alloc<lir::Type>(
-                    boxed_ir_type,
-                    boxed_ir_type->orig_index));
-            code_ir->instructions.insert(insert_point, cc);
-
+            emitCheckCast(code_ir, boxed_name.c_str(), reg_src, insert_point);
 
             // 2) invoke-virtual { v<reg_src> }, <BoxedType>-><unbox_name>()<prim>
             auto proto = builder.GetProto(type, nullptr); // no params
@@ -406,55 +490,63 @@ namespace fir_tools {
                     boxed_ir_type);
             auto lir_method = code_ir->Alloc<lir::Method>(method_decl, method_decl->orig_index);
 
-            // 执行对象方法转换
-            // INVOKE_VIRTUAL expects a VRegList (not a single VReg).
-            // 构造 VRegList 并把 reg_src 放进去（this）
-            auto args_list = code_ir->Alloc<lir::VRegList>();
-            args_list->registers.push_back(reg_src);
+            const bool need_range = (reg_src >= 16);
 
-            auto invoke = code_ir->Alloc<lir::Bytecode>();
-            invoke->opcode = dex::OP_INVOKE_VIRTUAL; // invoke-virtual { v_src }, Ljava/lang/Integer;->intValue()I
-            invoke->operands.push_back(args_list);
-            invoke->operands.push_back(lir_method);
-            code_ir->instructions.insert(insert_point, invoke);
-
+            if (need_range) {
+                // invoke-virtual/range { v<reg_src> .. v<reg_src> }
+                auto rng = code_ir->Alloc<lir::VRegRange>(reg_src, 1);
+                auto inv = code_ir->Alloc<lir::Bytecode>();
+                inv->opcode = dex::OP_INVOKE_VIRTUAL_RANGE; // 3rc
+                inv->operands.push_back(rng);
+                inv->operands.push_back(lir_method);
+                code_ir->instructions.insert(insert_point, inv);
+            } else {
+                // invoke-virtual { v<reg_src> }
+                auto lst = code_ir->Alloc<lir::VRegList>();
+                lst->registers.push_back((dex::u2)reg_src);
+                auto inv = code_ir->Alloc<lir::Bytecode>();
+                inv->opcode = dex::OP_INVOKE_VIRTUAL;       // 35c
+                inv->operands.push_back(lst);
+                inv->operands.push_back(lir_method);
+                code_ir->instructions.insert(insert_point, inv);
+            }
 
             // 3) move-result / move-result-wide 到 reg_dst
-            auto move_res = code_ir->Alloc<lir::Bytecode>();
-            if (!is_wide) {
-                move_res->opcode = dex::OP_MOVE_RESULT;
-                move_res->operands.push_back(code_ir->Alloc<lir::VReg>(reg_dst));
-            } else {
-                // 宽类型要用 VRegPair 作为目标操作数 宽类型一定要用 偶数寄存器，需要在调用时处理
-                move_res->opcode = dex::OP_MOVE_RESULT_WIDE;
-                move_res->operands.push_back(code_ir->Alloc<lir::VRegPair>(reg_dst));
+            {
+                auto move_res = code_ir->Alloc<lir::Bytecode>();
+                if (!is_wide) {
+                    move_res->opcode = dex::OP_MOVE_RESULT;
+                    move_res->operands.push_back(code_ir->Alloc<lir::VReg>(reg_dst));
+                } else {
+                    // 宽类型要用 VRegPair 作为目标操作数 宽类型一定要用 偶数寄存器，需要在调用时处理
+                    move_res->opcode = dex::OP_MOVE_RESULT_WIDE;
+                    move_res->operands.push_back(code_ir->Alloc<lir::VRegPair>(reg_dst));
+                }
+                code_ir->instructions.insert(insert_point, move_res);
             }
-            code_ir->instructions.insert(insert_point, move_res);
 
-            // 跳过 null 分支
-            auto go = code_ir->Alloc<lir::Bytecode>();
-            go->opcode = dex::OP_GOTO;
-            go->operands.push_back(code_ir->Alloc<lir::CodeLocation>(lbl_after));
-            code_ir->instructions.insert(insert_point, go);
+            // goto :after  跳过 null 分支
+            {
+                auto go = code_ir->Alloc<lir::Bytecode>();
+                go->opcode = dex::OP_GOTO;
+                go->operands.push_back(code_ir->Alloc<lir::CodeLocation>(lbl_after));
+                code_ir->instructions.insert(insert_point, go);
+            }
+
         }
 
         // --- :is_null 分支：写入默认零值 ---
         code_ir->instructions.insert(insert_point, lbl_is_null); // 放置标签
+
         if (!is_wide) {
             // const/4 v<dst>, #0
-            auto c0 = code_ir->Alloc<lir::Bytecode>();
-            c0->opcode = dex::OP_CONST_4;
-            c0->operands.push_back(code_ir->Alloc<lir::VReg>(reg_dst));
-            c0->operands.push_back(code_ir->Alloc<lir::Const32>(0));
-            code_ir->instructions.insert(insert_point, c0);
+            emitValToReg(code_ir, insert_point, reg_dst, 0);
         } else {
-            // const-wide v<dst..dst+1>, #0L
-            auto c0w = code_ir->Alloc<lir::Bytecode>();
-            c0w->opcode = dex::OP_CONST_WIDE;
-            c0w->operands.push_back(code_ir->Alloc<lir::VRegPair>(reg_dst));
-            c0w->operands.push_back(code_ir->Alloc<lir::Const64>(0));
-            code_ir->instructions.insert(insert_point, c0w);
+            // long/double -> 0L
+            emitValToRegWide(code_ir, insert_point, reg_dst, 0LL);
         }
+
+        // :after
         code_ir->instructions.insert(insert_point, lbl_after); // 放置标签
     }
 
@@ -471,6 +563,7 @@ namespace fir_tools {
                           ir::Type *type,
                           dex::u4 reg_src,
                           dex::u4 reg_dst) {
+
         // 前置条件检查：确保只处理非引用类型（与调用方逻辑呼应）
         SLICER_CHECK(type != nullptr);
         SLICER_CHECK(code_ir != nullptr);
@@ -496,37 +589,52 @@ namespace fir_tools {
             return;
         }
 
-        std::string orig_return_desc = type->descriptor->c_str();
 
         // 拿到基础的类型 如 "Ljava/lang/Integer;"
-        std::string boxed_type_name = get_scalar_type(orig_return_desc);
+        std::string boxed_type_name = get_scalar_type(type->descriptor->c_str());
         SLICER_CHECK(!boxed_type_name.empty() && "未识别的基本类型");
 
         ir::Builder builder(code_ir->dex_ir);
         auto boxed_type = builder.GetType(boxed_type_name.c_str());
 
 
+        // 拿到装箱方法
         std::vector<ir::Type *> param_types;
         param_types.push_back(type);
         auto ir_proto = builder.GetProto(boxed_type,
                                          builder.GetTypeList(param_types));
-
         // 统一调用 静态的 valueOf
         auto ir_method_decl = builder.GetMethodDecl(
                 builder.GetAsciiString("valueOf"), ir_proto, boxed_type);
-
         auto boxing_method = code_ir->Alloc<lir::Method>(
                 ir_method_decl, ir_method_decl->orig_index);
 
-        // invoke-static/range {reg_src ..} -> Boxed.valueOf
-        auto args = code_ir->Alloc<lir::VRegRange>(reg_src, 1 + is_wide);
-        auto boxing_invoke = code_ir->Alloc<lir::Bytecode>();
-        boxing_invoke->opcode = dex::OP_INVOKE_STATIC_RANGE;
-        boxing_invoke->operands.push_back(args);
-        boxing_invoke->operands.push_back(boxing_method);
-        code_ir->instructions.insert(insert_point, boxing_invoke);
+        const bool need_range = (reg_src >= 16) || (is_wide && (reg_src + 1 >= 16));
 
-        // move-result-object vX
+        // invoke-static/range {reg_src ..} -> Boxed.valueOf
+        if (need_range) {
+            // invoke-static/range {vX .. vX(+1)}
+            auto args = code_ir->Alloc<lir::VRegRange>(reg_src, is_wide ? 2 : 1);
+            auto bc = code_ir->Alloc<lir::Bytecode>();
+            bc->opcode = dex::OP_INVOKE_STATIC_RANGE;   // 3rc
+            bc->operands.push_back(args);
+            bc->operands.push_back(boxing_method);
+            code_ir->instructions.insert(insert_point, bc);
+        } else {
+            // 普通 invoke-static {vA(,vB)}
+            auto regs = code_ir->Alloc<lir::VRegList>();
+            regs->registers.push_back((dex::u2) reg_src);
+            if (is_wide) regs->registers.push_back((dex::u2) (reg_src + 1));
+
+            auto bc = code_ir->Alloc<lir::Bytecode>();
+            bc->opcode = dex::OP_INVOKE_STATIC;         // 35c
+            bc->operands.push_back(regs);
+            bc->operands.push_back(boxing_method);
+            code_ir->instructions.insert(insert_point, bc);
+        }
+
+
+        // move-result-object v(reg_dst)  只有一种寄存器
         auto move_result = code_ir->Alloc<lir::Bytecode>();
         move_result->opcode = dex::OP_MOVE_RESULT_OBJECT;
         move_result->operands.push_back(code_ir->Alloc<lir::VReg>(reg_dst));
@@ -603,7 +711,7 @@ namespace fir_tools {
                 return false;
             }
 
-            // 选最后一个索引作为起点： base = regs - ins_count - 1
+            // 选最后本地最后一个起点： base = regs - ins_count - 1
             reg_num = (int) (regs - ins_count - 1);
             if (is_wide) {
                 // 宽类型需偶数对齐（退位以保证不越界）
@@ -739,14 +847,10 @@ namespace fir_tools {
 
         // 先把onenter的返回强转为 Object[]
         auto arr_type = builder.GetType("[Ljava/lang/Object;");
-        auto check_cast_arr = code_ir->Alloc<lir::Bytecode>();
-        check_cast_arr->opcode = dex::OP_CHECK_CAST;
-        check_cast_arr->operands.push_back(code_ir->Alloc<lir::VReg>(reg_args));
-        check_cast_arr->operands.push_back(
-                code_ir->Alloc<lir::Type>(arr_type, arr_type->orig_index));
-        code_ir->instructions.insert(insert_point, check_cast_arr);
 
-        // 开始恢复参数数组
+        emitCheckCast(code_ir, "[Ljava/lang/Object;", reg_args, insert_point);
+
+        // 方法签名信息 开始恢复参数数组
         const bool is_static = (ir_method->access_flags & dex::kAccStatic) != 0;
         const auto &proto = ir_method->decl->prototype; // 方法的签名
         const auto param_list = proto->param_types;     // 参数类型列表 (不含 this)
@@ -775,26 +879,15 @@ namespace fir_tools {
             {
                 ir::Type *this_type = ir_method->decl->parent;
                 if (this_type) {
-                    auto this_ir_type = builder.GetType(this_type->descriptor->c_str());
-                    auto cc = code_ir->Alloc<lir::Bytecode>();
-                    cc->opcode = dex::OP_CHECK_CAST;
-                    cc->operands.push_back(code_ir->Alloc<lir::VReg>(reg_tmp_obj));
-                    cc->operands.push_back(
-                            code_ir->Alloc<lir::Type>(this_ir_type, this_ir_type->orig_index));
-                    code_ir->instructions.insert(insert_point, cc);
+                    emitCheckCast(code_ir, this_type->descriptor->c_str(), reg_tmp_obj,
+                                  insert_point);
                 } else {
                     LOGW("[restore_reg_params4type] this_type is 不存在，需要实")
                 }
             }
 
             // move-object num_reg_non_param_new+slot, reg_tmp_obj
-            {
-                auto mv = code_ir->Alloc<lir::Bytecode>();
-                mv->opcode = dex::OP_MOVE_OBJECT;
-                mv->operands.push_back(code_ir->Alloc<lir::VReg>(num_reg_non_param_new + slot));
-                mv->operands.push_back(code_ir->Alloc<lir::VReg>(reg_tmp_obj));
-                code_ir->instructions.insert(insert_point, mv);
-            }
+            emit_move_obj(code_ir, (int)(num_reg_non_param_new + slot), (int)reg_tmp_obj, insert_point);
 
             slot += 1;
             index_arr += 1;
@@ -834,11 +927,7 @@ namespace fir_tools {
                 code_ir->instructions.insert(insert_point, cc);
 
                 // move-object 写回
-                auto mv = code_ir->Alloc<lir::Bytecode>();
-                mv->opcode = dex::OP_MOVE_OBJECT;
-                mv->operands.push_back(code_ir->Alloc<lir::VReg>(num_reg_non_param_new + slot));
-                mv->operands.push_back(code_ir->Alloc<lir::VReg>(reg_tmp_obj));
-                code_ir->instructions.insert(insert_point, mv);
+                emit_move_obj(code_ir, (int)(num_reg_non_param_new + slot), (int)reg_tmp_obj, insert_point);
 
                 slot += 1;
                 index_arr += 1;
@@ -946,18 +1035,17 @@ namespace fir_tools {
             auto &p = plans[i];
             if (p.src == p.dst) continue; // 无需移动
 
-            auto op = pick_move_op(p.cat, p.dst, p.src);
-            auto *bc = code_ir->Alloc<lir::Bytecode>();
-            bc->opcode = op;
-
-            if (p.cat == ir::Type::Category::WideScalar) {
-                bc->operands.push_back(code_ir->Alloc<lir::VRegPair>(p.dst));
-                bc->operands.push_back(code_ir->Alloc<lir::VRegPair>(p.src));
-            } else {
-                bc->operands.push_back(code_ir->Alloc<lir::VReg>(p.dst));
-                bc->operands.push_back(code_ir->Alloc<lir::VReg>(p.src));
+            switch (p.cat) {
+                case ir::Type::Category::WideScalar:
+                    emit_move_wide(code_ir, p.dst, p.src, insert_point);
+                    break;
+                case ir::Type::Category::Reference:
+                    emit_move_obj(code_ir, p.dst, p.src, insert_point);
+                    break;
+                default:
+                    emit_move(code_ir, p.dst, p.src, insert_point);
+                    break;
             }
-            code_ir->instructions.insert(insert_point, bc);
 
             // 5) （可选）在 shift>0 且“下一参数为单槽，且它的目标正好落在本宽参的源 high-half”时，
             //    先对该 high-half 显式写 0（32-bit 定义），以解除 wide 标记，避免随后的单槽类型冲突。
@@ -966,7 +1054,7 @@ namespace fir_tools {
                 if ((i + 1) < (int) plans.size()
                     && plans[i + 1].width == 1
                     && plans[i + 1].dst == src_hi) {
-                    emitValToReg(code_ir, insert_point, /*reg_det=*/src_hi, /*value=*/0);
+                    emitValToReg(code_ir, insert_point, src_hi, 0);
                 }
             }
         }

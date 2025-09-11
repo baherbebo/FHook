@@ -53,9 +53,10 @@ namespace fir_impl {
 
     void cre_arr_do_args4onEnter(
             lir::CodeIr *code_ir,
-            dex::u2 reg1_tmp_idx, // 这里避开了宽 array_size 也是索引
-            dex::u2 reg2_tmp_value, // value
-            dex::u2 reg3_arr, // array 这个 object[] 对象
+            dex::u2 reg1_size_22c,       // 数组大小 也是索引 必须小于16 22c指令
+            dex::u2 reg2_tmp_value,     // value
+            dex::u2 reg3_arr_22c,           // array 这个 object[] 对象
+            dex::u2 reg3_arr_return,  // 最终接收
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
     bool cre_arr_do_args4onExit(

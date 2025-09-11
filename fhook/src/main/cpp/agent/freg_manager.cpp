@@ -201,7 +201,8 @@ std::vector<int> FRegManager::AllocV(lir::CodeIr *code_ir,
         LOGW("[AllocV] %s 仅分配到 %d/%d 个 (locals=%d), forbid=%s",
              text, (int) out.size(), count, locals, VEC_CSTR(forbidden_v));
     } else {
-        LOGD("[AllocV] %s 成功分配 %d 个, starts=%s", text, count, VEC_CSTR(out));
+        LOGD("[AllocV] %s 成功分配 %d 个, starts=%s, forbid=%s", text, count,
+             VEC_CSTR(out), VEC_CSTR(forbidden_v));
     }
     return out;
 }
@@ -234,7 +235,11 @@ std::vector<int> FRegManager::AllocWide(lir::CodeIr *code_ir,
 
     auto try_scan = [&](int from, int to, int step) {
         for (int v = from; v != to && (int) out.size() < count; v += step) {
+            // 跳过跨 4bit 边界的宽寄存器对：v=15 -> v+1=16
+            if (v == 0x0F) continue;
+
             if (v < 0 || v + 1 >= locals) continue;
+
             if (!used[(size_t) v] && !used[(size_t) (v + 1)]) {
                 out.push_back(v);
                 used[(size_t) v] = 1;
@@ -250,7 +255,8 @@ std::vector<int> FRegManager::AllocWide(lir::CodeIr *code_ir,
         LOGW("[AllocWide] %s 仅分配到 %d/%d 对 (locals=%d), forbid=%s",
              text, (int) out.size(), count, locals, VEC_CSTR(forbidden_v));
     } else {
-        LOGD("[AllocWide] %s 成功分配 %d 对, starts=%s", text, count, VEC_CSTR(out));
+        LOGD("[AllocWide] %s 成功分配 %d 个, starts=%s, forbid=%s", text, count,
+             VEC_CSTR(out), VEC_CSTR(forbidden_v));
     }
     return out;
 }

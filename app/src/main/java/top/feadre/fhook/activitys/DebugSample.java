@@ -103,8 +103,8 @@ public class DebugSample extends AppCompatActivity {
         bt_main_01.setText("01 hook普通方法");
         bt_main_01.setOnClickListener(v -> {
             doAppHook01();
-//            doAppHook02();
-//            doAppHook03();
+            doAppHook02();
+            doAppHook03();
 
             FFunsUI.toast(this, "hook普通方法 点击");
         });
@@ -249,13 +249,15 @@ public class DebugSample extends AppCompatActivity {
             FHook.hook(method)
                     .setOrigFunRun(true)
                     .setHookEnter((thiz, args, types, hh) -> {
-                        Log.i(TAG, "fun_fz02 args=" + args);
+                        Log.i(TAG, "h_fz1 args=" + args);
+                        args.set(0, 9999);
                     })
-                    .setHookExit((ret, returnType, hh) -> {
-                        Log.i(TAG, "fun_fz02 ret=" + ret);
-                        return ret;
-                    })
+//                    .setHookExit((ret, returnType, hh) -> {
+//                        Log.i(TAG, "h_fz1 ret=" + ret);
+//                        return ret;
+//                    })
                     .commit();
+            FFunsUI.toast(this, "h_fz1");
         });
 
         Button bt_main_30 = findViewById(R.id.bt_main_30);
@@ -560,16 +562,16 @@ public class DebugSample extends AppCompatActivity {
                     TObject o1 = (TObject) args.get(0);
                     o1.setAge(9999);
                 })
-                .setHookExit((ret, type, hh) -> {
-                    showLog("fun_TObject_TObject", hh.thisObject, ret, type);
-                    if (ret == null) {
-                        ret = new TObject("bbbbbbbbbbb", 8888);
-                        return ret;
-                    }
-                    TObject o1 = (TObject) ret;
-                    o1.setName("aaaaaabbb");
-                    return ret;
-                })
+//                .setHookExit((ret, type, hh) -> {
+//                    showLog("fun_TObject_TObject", hh.thisObject, ret, type);
+//                    if (ret == null) {
+//                        ret = new TObject("bbbbbbbbbbb", 8888);
+//                        return ret;
+//                    }
+//                    TObject o1 = (TObject) ret;
+//                    o1.setName("aaaaaabbb");
+//                    return ret;
+//                })
                 .commit();
 
 
@@ -581,12 +583,12 @@ public class DebugSample extends AppCompatActivity {
                     int[] arr = (int[]) args.get(0);
                     arr[0] = 666;
                 })
-                .setHookExit((ret, type, hh) -> {
-                    showLog("fun_I_IArr", hh.thisObject, ret, type);
-
-                    ret = 999;
-                    return ret;
-                })
+//                .setHookExit((ret, type, hh) -> {
+//                    showLog("fun_I_IArr", hh.thisObject, ret, type);
+//
+//                    ret = 999;
+//                    return ret;
+//                })
                 .commit();
 
 
@@ -599,12 +601,12 @@ public class DebugSample extends AppCompatActivity {
                     arg0[2] = 999.99999;
 
                 })
-                .setHookExit((ret, type, hh) -> {
-                    showLog("fun_IArr_DArr", hh.thisObject, ret, type);
-                    int[] ret1 = (int[]) ret;
-                    ret1[0] = 666;
-                    return ret;
-                })
+//                .setHookExit((ret, type, hh) -> {
+//                    showLog("fun_IArr_DArr", hh.thisObject, ret, type);
+//                    int[] ret1 = (int[]) ret;
+//                    ret1[0] = 666;
+//                    return ret;
+//                })
                 .commit();
 
 
@@ -617,19 +619,19 @@ public class DebugSample extends AppCompatActivity {
                     o[0] = 999.9999;
 
                 })
-                .setHookExit((ret, type, hh) -> {
-                    showLog("fun_TObjectArr_DArr", hh.thisObject, ret, type);
-                    if (ret == null) {
-                        TObject[] out = new TObject[2];
-                        out[0] = new TObject("_new_" + 999, 999);
-                        return out; // 一定要返回 TObject[]，与原方法签名匹配
-                    }
-
-                    TObject[] oarr = (TObject[]) ret;
-                    oarr[0].setName("_new_" + 999);
-                    return ret;
-
-                })
+//                .setHookExit((ret, type, hh) -> {
+//                    showLog("fun_TObjectArr_DArr", hh.thisObject, ret, type);
+//                    if (ret == null) {
+//                        TObject[] out = new TObject[2];
+//                        out[0] = new TObject("_new_" + 999, 999);
+//                        return out; // 一定要返回 TObject[]，与原方法签名匹配
+//                    }
+//
+//                    TObject[] oarr = (TObject[]) ret;
+//                    oarr[0].setName("_new_" + 999);
+//                    return ret;
+//
+//                })
                 .commit();
 
 
@@ -642,15 +644,15 @@ public class DebugSample extends AppCompatActivity {
                     o[0] = 5555.555;
 
                 })
-                .setHookExit((ret, type, hh) -> {
-                    showLog("fun_double_DArr", hh.thisObject, ret, type);
-                    if (ret == null) {
-                        double out = 456.6666;
-                        return out;
-                    }
-                    ret = 22.2;
-                    return ret;
-                })
+//                .setHookExit((ret, type, hh) -> {
+//                    showLog("fun_double_DArr", hh.thisObject, ret, type);
+//                    if (ret == null) {
+//                        double out = 456.6666;
+//                        return out;
+//                    }
+//                    ret = 22.2;
+//                    return ret;
+//                })
                 .commit();
 
 
@@ -663,29 +665,28 @@ public class DebugSample extends AppCompatActivity {
                     o[0] = 999;
                     hh.extras.put("args", new java.util.ArrayList<>(args));// 这里要再包一层
                 })
-
-                .setHookExit((ret, type, hh) -> {
-                    showLog("jtFun_JArr_JArr", hh.thisObject, ret, type);
-                    if (ret == null) {
-                        long[] out = new long[2];
-                        out[0] = 6666;
-                        return out;
-                    }
-                    ArrayList<long[]> args = (ArrayList<long[]>) hh.extras.get("args");
-                    for (int i = 0; i < args.size(); i++) {
-                        Log.d(TAG, "jtFun_JArr_JArr ... args[" + i + "]=" + Arrays.toString(args.get(i)));
-                    }
-                    long[] r = (long[]) ret;
-                    r[1] = 99;
-                    return ret;
-                })
+//                .setHookExit((ret, type, hh) -> {
+//                    showLog("jtFun_JArr_JArr", hh.thisObject, ret, type);
+//                    if (ret == null) {
+//                        long[] out = new long[2];
+//                        out[0] = 6666;
+//                        return out;
+//                    }
+//                    ArrayList<long[]> args = (ArrayList<long[]>) hh.extras.get("args");
+//                    for (int i = 0; i < args.size(); i++) {
+//                        Log.d(TAG, "jtFun_JArr_JArr ... args[" + i + "]=" + Arrays.toString(args.get(i)));
+//                    }
+//                    long[] r = (long[]) ret;
+//                    r[1] = 99;
+//                    return ret;
+//                })
                 .commit();
 
     }
 
     private void doAppHook02() {
         Method fun_V_V = FHookTool.findMethod4First(THook.class, "fun_V_V");
-        Method jcFun_V_V = FHookTool.findMethod4First(THook.class, "jcFun_V_V");
+        Method jtFun_V_V = FHookTool.findMethod4First(THook.class, "jtFun_V_V");
 
 
         FHook.hook(fun_V_V)
@@ -694,24 +695,24 @@ public class DebugSample extends AppCompatActivity {
                     showLog("fun_V_V", thiz, args, types);
 
                 })
-                .setHookExit((ret, type, hh) -> {
-                    showLog("fun_V_V", hh.thisObject, ret, type);
-
-                    return ret;
-                })
+//                .setHookExit((ret, type, hh) -> {
+//                    showLog("fun_V_V", hh.thisObject, ret, type);
+//
+//                    return ret;
+//                })
                 .commit();
 
-        FHook.hook(jcFun_V_V)
-                .setOrigFunRun(false)
+        FHook.hook(jtFun_V_V)
+                .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
                     showLog("jcFun_V_V", thiz, args, types);
 
                 })
-                .setHookExit((ret, type, hh) -> {
-                    showLog("jcFun_V_V", hh.thisObject, ret, type);
-
-                    return ret;
-                })
+//                .setHookExit((ret, type, hh) -> {
+//                    showLog("jcFun_V_V", hh.thisObject, ret, type);
+//
+//                    return ret;
+//                })
                 .commit();
 
     }
@@ -720,15 +721,16 @@ public class DebugSample extends AppCompatActivity {
         Method fun_String_String2 = FHookTool.findMethod4First(THook.class, "fun_String_String2");
         Method fun_I_III = FHookTool.findMethod4First(THook.class, "fun_I_III");
         Method jtFun_I_II = FHookTool.findMethod4First(THook.class, "jtFun_I_II");
-//
-//        FHook.hook(fun_String_String2).setOrigFunRun(true)
-//                .setHookEnter((thiz, args, types, hh) -> {
-//                    showLog("fun_String_String2", thiz, args, types);
-//                    String args0 = (String) args.set(0, "111");
-//                    String args1 = (String) args.get(1);
-//                    args1 = "9999" + args0;
-//                    args.set(1, args1);
-//                })
+
+        FHook.hook(fun_String_String2)
+//                .setOrigFunRun(true)
+                .setHookEnter((thiz, args, types, hh) -> {
+                    showLog("fun_String_String2", thiz, args, types);
+                    String args0 = (String) args.set(0, "111");
+                    String args1 = (String) args.get(1);
+                    args1 = "9999" + args0;
+                    args.set(1, args1);
+                })
 //                .setHookExit(
 //                        (ret, type, hh) -> {
 //                            showLog("fun_String_String2", hh.thisObject, ret, type);
@@ -736,8 +738,8 @@ public class DebugSample extends AppCompatActivity {
 //                            ret = "11111";
 //                            return ret;
 //                        })
-//                .commit();
-//
+                .commit();
+
         FHook.hook(fun_I_III)
                 .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
@@ -753,21 +755,21 @@ public class DebugSample extends AppCompatActivity {
 //                })
                 .commit();
 
-//        FHook.hook(jtFun_I_II)
-//                .setOrigFunRun(false)
-//                .setHookEnter((thiz, args,
-//                               types, hh) -> {
-//                    showLog("jtFun_I_II", thiz, args, types);
-//                    args.set(0, 8888);
-//
-//                })
+        FHook.hook(jtFun_I_II)
+                .setOrigFunRun(true)
+                .setHookEnter((thiz, args,
+                               types, hh) -> {
+                    showLog("jtFun_I_II", thiz, args, types);
+                    args.set(0, 8888);
+
+                })
 //                .setHookExit((ret, type, hh) -> {
 //                    showLog("jtFun_I_II", hh.thisObject, ret, type);
 //
 //                    ret = 99999;
 //                    return ret;
 //                })
-//                .commit();
+                .commit();
     }
 
     // 替换你的 initViews()
@@ -932,7 +934,6 @@ public class DebugSample extends AppCompatActivity {
 //                })
                 .commit();
     }
-
 
 
 }

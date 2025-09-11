@@ -239,43 +239,61 @@ namespace fir_funs_do {
     ) {
         ir::Builder builder(code_ir->dex_ir);
 
-        // 1) const-wide v<reg_id_lo>, 123456L
-        auto cst = code_ir->Alloc<lir::Bytecode>();
-        cst->opcode = dex::OP_CONST_WIDE; // 写入 v<reg_id_lo> 与 v<reg_id_lo+1>
-        cst->operands.push_back(code_ir->Alloc<lir::VRegPair>(reg_tmp_long));
-        cst->operands.push_back(code_ir->Alloc<lir::Const64>(static_cast<uint64_t>(method_id)));
-        code_ir->instructions.insert(insert_point, cst);
+        // 1) const-wide v(reg_tmp_long/reg_tmp_long+1), method_id
+        fir_tools::emitValToRegWide(code_ir, insert_point, reg_tmp_long, (int64_t) method_id);
 
-        // 构建 invoke-static（void，无参数）
-        auto invoke = code_ir->Alloc<lir::Bytecode>();
-        invoke->opcode = dex::OP_INVOKE_STATIC;
-        auto regs = code_ir->Alloc<lir::VRegList>();
-        regs->registers.clear();
-        regs->registers.push_back(reg_arg);   // 传入 Object[] 实参
-        regs->registers.push_back(reg_tmp_long);
-        regs->registers.push_back(reg_tmp_long + 1);
+        // 2) 选择调用形式
+        const bool all_small =
+                (reg_arg <= 15) && (reg_tmp_long <= 15) && ((reg_tmp_long + 1) <= 15);
+        const bool contiguous = (reg_arg + 1 == reg_tmp_long);
 
-        invoke->operands.push_back(regs);                // 先参数列表
-        invoke->operands.push_back(f_THook_onEnter);     // 再方法引用
-        code_ir->instructions.insert(insert_point, invoke);
+        if (all_small) {
+            // --- 方案 A：非 range（35c） ---
+            auto rlist = code_ir->Alloc<lir::VRegList>();
+            rlist->registers.push_back(reg_arg);
+            rlist->registers.push_back(reg_tmp_long);
+            rlist->registers.push_back((dex::u2) (reg_tmp_long + 1));
 
-        // move-result-object v<reg_arg>
-        auto mres = code_ir->Alloc<lir::Bytecode>();
-        mres->opcode = dex::OP_MOVE_RESULT_OBJECT;
-        mres->operands.push_back(code_ir->Alloc<lir::VReg>(reg_return));
-        code_ir->instructions.insert(insert_point, mres);
+            auto bc = code_ir->Alloc<lir::Bytecode>();
+            bc->opcode = dex::OP_INVOKE_STATIC;      // 35c：寄存器号均需 ≤15
+            bc->operands.push_back(rlist);
+            bc->operands.push_back(f_THook_onEnter);
+            code_ir->instructions.insert(insert_point, bc);
+        } else if (contiguous) {
+            // --- 方案 B：range（3rc）---
+            // 形参连续且顺序为 arg, long_lo, long_hi
+            auto rrange = code_ir->Alloc<lir::VRegRange>(reg_arg, 3);
+            auto bc = code_ir->Alloc<lir::Bytecode>();
+            bc->opcode = dex::OP_INVOKE_STATIC_RANGE; // 3rc：需要连续窗口
+            bc->operands.push_back(rrange);
+            bc->operands.push_back(f_THook_onEnter);
+            code_ir->instructions.insert(insert_point, bc);
+        } else {
+            // 其它情况：既不全 ≤15，也不连续，不能合法编码
+            LOGE("[do_frame_hfun] illegal arg regs for invoke: reg_arg=%u, reg_tmp_long=%u. "
+                 "Need either all <=15 (35c) or contiguous {arg, long_lo, long_hi} (3rc).",
+                 reg_arg, reg_tmp_long);
+            return false;
+        }
 
         {
-            // long 临时必须恢复宽寄存器
-            // 先清高半 v+1
-            fir_tools::emitValToReg(code_ir, insert_point, reg_tmp_long + 1, 0);
-            // 再清低半 v
-            fir_tools::emitValToReg(code_ir, insert_point, reg_tmp_long, 0);
+            // move-result-object v<reg_arg>
+            auto mres = code_ir->Alloc<lir::Bytecode>();
+            mres->opcode = dex::OP_MOVE_RESULT_OBJECT;
+            mres->operands.push_back(code_ir->Alloc<lir::VReg>(reg_return));
+            code_ir->instructions.insert(insert_point, mres);
         }
+
+//        {
+//            // long 临时必须恢复宽寄存器
+//            // 先清高半 v+1
+//            fir_tools::emitValToReg(code_ir, insert_point, reg_tmp_long + 1, 0);
+//            // 再清低半 v
+//            fir_tools::emitValToReg(code_ir, insert_point, reg_tmp_long, 0);
+//        }
 
         return true;
     }
-
 
 
     /// Class.forName("xxxxx", true, ClassLoader.getSystemClassLoader)
@@ -584,7 +602,7 @@ namespace fir_funs_do {
     /// 用 Object[Object[],Long] 把指定的参数 放入
     void cre_arr_do_arg_2p(
             lir::CodeIr *code_ir,
-            dex::u2 reg1_tmp_idx, // 索引寄存器（也临时承接 String/Long）
+            dex::u2 reg1_tmp_idx, // 数组大小 也是索引 必须小于16 22c指令
             dex::u2 reg2_value, // 需要打包的第一个参数     临时（用作 aput 索引=1 等）
             dex::u2 reg3_arr, // 外层 Object[] 数组寄存器（输出）
             uint64_t method_id, // 要写入的 methodId  打包的第二个参数

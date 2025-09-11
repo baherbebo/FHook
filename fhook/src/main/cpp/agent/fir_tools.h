@@ -18,6 +18,23 @@ namespace fir_tools {
                       dex::u4 reg_det,
                       dex::s4 value);
 
+
+    void emitValToRegWide(lir::CodeIr *code_ir,
+                          slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point,
+                          dex::u4 reg_det,   // 宽寄存器起点 vX（会写 vX / vX+1）
+                          int64_t value);
+
+    void emitValToRegWide(lir::CodeIr *code_ir,
+                          slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point,
+                          dex::u4 reg_det,   // 宽寄存器起点 vX（会写 vX / vX+1）
+                          int64_t value);
+
+    void emit_move_obj(lir::CodeIr *ir, int dst, int src,
+                       slicer::IntrusiveList<lir::Instruction>::Iterator &it);
+
+    void emit_move(lir::CodeIr *ir, int dst, int src,
+                   slicer::IntrusiveList<lir::Instruction>::Iterator &it);
+
     void emitCheckCast(lir::CodeIr *code_ir,
                        const char *type_desc,
                        dex::u2 reg_dst,

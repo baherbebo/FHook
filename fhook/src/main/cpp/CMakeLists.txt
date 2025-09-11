@@ -70,6 +70,7 @@ add_library(
         agent/fsmali_printer.cpp
         agent/transform.cpp
         agent/freg_manager.cpp
+        agent/freg_allocator.cpp
 
 )
 

@@ -313,7 +313,7 @@ namespace fir_impl {
     /// 生成的参数类型数组（Class[]{Object.class,Long.class}） （Class[]{Object[].class,Long.class}）
     void cre_arr_class_args4frame(
             lir::CodeIr *code_ir,
-            dex::u2 reg1, // index 与 array_size 复用
+            dex::u2 reg1, // 数组大小 也是索引 必须小于16 22c指令
             dex::u2 reg2, // value 临时（存放 Class 对象）
             dex::u2 reg3_arr, // array 目标寄存器（Class[]）
             std::string &name_class_arg,
@@ -376,9 +376,10 @@ namespace fir_impl {
     /// 自动找到参数寄存器 把方法的参数强转object 放在 object[arg0,arg1...] 数组中
     void cre_arr_do_args4onEnter(
             lir::CodeIr *code_ir,
-            dex::u2 reg1_tmp_idx, // 这里避开了宽 array_size 也是索引
-            dex::u2 reg2_tmp_value, // value
-            dex::u2 reg3_arr, // array 这个 object[] 对象
+            dex::u2 reg1_size_22c,       // 数组大小 也是索引 必须小于16 22c指令
+            dex::u2 reg2_tmp_value,     // value
+            dex::u2 reg3_arr_22c,           // array 这个 object[] 对象
+            dex::u2 reg3_arr_return,  // 最终接收
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
         ir::Builder builder(code_ir->dex_ir);
@@ -386,50 +387,48 @@ namespace fir_impl {
 
         bool is_static = (ir_method->access_flags & dex::kAccStatic) != 0;
 
-        // 判断有没有参数，没有参数就新建一个空参数列表
+        // 判断有没有参数，新建一个空参数列表
         auto param_types_list = ir_method->decl->prototype->param_types;
         auto param_types =
                 param_types_list != nullptr ? param_types_list->types : std::vector<ir::Type *>();
 
-        //  const v0 #0x2  定义原函数参数 +1 无论是否静态
-        auto const_size_op = code_ir->Alloc<lir::Bytecode>(); //  分配一条字节码指令
-        const_size_op->opcode = dex::OP_CONST; // 将32位常量存入寄存器
-        const_size_op->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_tmp_idx)); // 存数组大小
-        const_size_op->operands.push_back(code_ir->Alloc<lir::Const32>(
-                1 + param_types.size()));
-        code_ir->instructions.insert(insert_point, const_size_op);
-//        LOGD("[cre_arr_do_args4onEnter] %s",
-//             SmaliPrinter::ToSmali(dynamic_cast<lir::Bytecode *>(*insert_point)).c_str())
+        // === 1) 计算数组大小并 new-array === 设计：数组长度 = 参数个数 + （实例方法时的 this 1 位；静态时占位留空）
+        const int arr_size = 1 + (int) param_types.size();
+        LOGI("[cre_arr_do_args4onEnter] arr_size = %d", arr_size)
+        fir_tools::emitValToReg(code_ir, insert_point, reg1_size_22c, arr_size);
+
+        // 这里判断 22c
+        dex::u2 reg_arr = reg3_arr_return < 16 ? reg3_arr_return : reg3_arr_22c;
 
         // 创建Object[]数组对象,大小由 v0 决定 new-array v2 v0 [Ljava/lang/Object;
         const auto obj_array_type = builder.GetType("[Ljava/lang/Object;");
-        auto allocate_array_op = code_ir->Alloc<lir::Bytecode>();
-        allocate_array_op->opcode = dex::OP_NEW_ARRAY;
-        allocate_array_op->operands.push_back(code_ir->Alloc<lir::VReg>(reg3_arr)); // 数组对象
-        allocate_array_op->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_tmp_idx)); // 数组大小
-        allocate_array_op->operands.push_back(
-                code_ir->Alloc<lir::Type>(obj_array_type, obj_array_type->orig_index));
-        code_ir->instructions.insert(insert_point, allocate_array_op);
-//        LOGD("[cre_arr_do_args4onEnter] %s",
-//             SmaliPrinter::ToSmali(dynamic_cast<lir::Bytecode *>(*insert_point)).c_str())
+        {
+            auto allocate_array_op = code_ir->Alloc<lir::Bytecode>();
+            allocate_array_op->opcode = dex::OP_NEW_ARRAY;
+            allocate_array_op->operands.push_back(code_ir->Alloc<lir::VReg>(reg_arr)); // 数组对象
+            allocate_array_op->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_size_22c)); // 数组大小
+            allocate_array_op->operands.push_back(
+                    code_ir->Alloc<lir::Type>(obj_array_type, obj_array_type->orig_index));
+            code_ir->instructions.insert(insert_point, allocate_array_op);
+        }
 
-        // 数组是4个 类型是3个
+        // 填充数组  数组是4个 类型是3个
         std::vector<ir::Type *> types;
         if (!is_static) {
-            // 前面 是直接加1的
+            // 例方法：index 0 填 this
             types.push_back(ir_method->decl->parent);
         }
-        // parameters
+        //  静态方法：index 0 已插入
         types.insert(types.end(), param_types.begin(), param_types.end());
 
-        // 这个是参数寄存器初始 *****
+        // 这个是参数寄存器初始 位置 （第一个参数/this）
         dex::u4 reg_arg = ir_method->code->registers - ir_method->code->ins_count;
-        int i = 0;
+
+        int arr_idx = is_static ? 1 : 0;
+
         // 构建参数数组赋值 --------------
         for (auto type: types) {
             dex::u4 src_reg = 0; // 临时寄存
-
-            if (i == 0 && is_static) i++; // 如果是静态，第一个不处理，为空
 
             // Void, Scalar, WideScalar, Reference
             if (type->GetCategory() != ir::Type::Category::Reference) {
@@ -449,8 +448,7 @@ namespace fir_impl {
             }
 
             //  定义数组索引 const v0 #0x1
-            fir_tools::emitValToReg(code_ir, insert_point, reg1_tmp_idx, i);
-            i++;
+            fir_tools::emitValToReg(code_ir, insert_point, reg1_size_22c, arr_idx);
 //            LOGD("[cre_arr_do_args4onEnter] %s",
 //                 SmaliPrinter::ToSmali(dynamic_cast<lir::Bytecode *>(*insert_point)).c_str())
 
@@ -458,13 +456,18 @@ namespace fir_impl {
             auto aput_op = code_ir->Alloc<lir::Bytecode>();
             aput_op->opcode = dex::OP_APUT_OBJECT;
             aput_op->operands.push_back(code_ir->Alloc<lir::VReg>(src_reg)); // 原参数或用v1存放的包箱对象
-            aput_op->operands.push_back(code_ir->Alloc<lir::VReg>(reg3_arr)); // 数组对象
-            aput_op->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_tmp_idx)); // 动态索引
+            aput_op->operands.push_back(code_ir->Alloc<lir::VReg>(reg_arr)); // 数组对象
+            aput_op->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_size_22c)); // 动态索引
             code_ir->instructions.insert(insert_point, aput_op);
 //            LOGD("[cre_arr_do_args4onEnter] %s",
 //                 SmaliPrinter::ToSmali(dynamic_cast<lir::Bytecode *>(*insert_point)).c_str())
-
+            arr_idx++;
         }
+
+        if (reg3_arr_return >= 16) {
+            fir_tools::emit_move_obj(code_ir, reg3_arr_return, reg_arr, insert_point);
+        }
+
     }
 
     /**
