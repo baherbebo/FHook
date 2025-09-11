@@ -53,7 +53,7 @@ public class FHookTool {
     // 7) findMethod4Index：先排序，再取 index；并提示“请改用 findMethodExact”
     public static Method findMethod4Index(Class<?> cls, String methodName, int index) {
         if (cls == null) return null;
-        FLog.d(TAG, "[findMethod4Index] Class: " + cls.getName() + " methodName: " + methodName);
+//        FLog.d(TAG, "[findMethod4Index] Class: " + cls.getName() + " methodName: " + methodName);
         java.util.List<Method> all = findMethodAll(cls, methodName, false, false, false);
         if (index >= 0 && index < all.size()) {
             Method method = all.get(index);
@@ -67,7 +67,7 @@ public class FHookTool {
     }
 
     public static Method findMethod4First(Class<?> cls, String methodName) {
-        FLog.d(TAG, "[findMethod4First] Class: " + cls.getName() + " methodName: " + methodName);
+//        FLog.d(TAG, "[findMethod4First] Class: " + cls.getName() + " methodName: " + methodName);
         return findMethod4Index(cls, methodName, 0);
     }
 

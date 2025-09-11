@@ -318,7 +318,7 @@ namespace fir_impl {
             dex::u2 reg1_size_22c, // 数组大小 也是索引 必须小于16 22c指令
             dex::u2 reg2, // value 临时（存放 Class 对象）
             dex::u2 reg3_arr_22c, // array 目标寄存器（Class[]）
-            dex::u2 reg3_arr_return,  // 最终接收
+            dex::u2 reg3_arr_return,  // 这里不能重复 最终接收
             std::string &name_class_arg,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
@@ -336,7 +336,7 @@ namespace fir_impl {
             auto new_arr = code_ir->Alloc<lir::Bytecode>();
             new_arr->opcode = dex::OP_NEW_ARRAY;
             new_arr->operands.push_back(
-                    code_ir->Alloc<lir::VReg>(reg3_arr_22c)); // 结果 Class[] 存到 reg3_arr_22c
+                    code_ir->Alloc<lir::VReg>(reg_arr)); // 结果 Class[] 存到 reg3_arr_22c
             new_arr->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_size_22c)); // 长度=2
             new_arr->operands.push_back(
                     code_ir->Alloc<lir::Type>(class_array_type, class_array_type->orig_index));

@@ -34,7 +34,7 @@ public class MainActivity extends AppCompatActivity {
         bt_main_01.setText("01 启动 DebugSample");
         bt_main_01.setOnClickListener(v -> {
 
-            Intent intent = new Intent(this, DebugSampleActivity.class);
+            Intent intent = new Intent(this, DebugActivity.class);
             startActivity(intent);
 
         });

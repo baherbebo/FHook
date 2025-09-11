@@ -45,7 +45,8 @@ namespace feadre {
         void AddGlobalForbid(const std::vector<int> &forbidden);
 
 
-        std::vector<int> GetRegs22c(int count, const std::string &text="") const;
+        std::vector<int> GetRegs22c4Count(int count, const std::string &text="") const;
+        std::vector<int> GetRegs22c4All(const std::string &text="") const;
 
         // 任意可用段分配
         std::vector<int> AllocSingles(const std::string &owner,

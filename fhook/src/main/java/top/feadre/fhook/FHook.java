@@ -338,7 +338,7 @@ public class FHook {
     }
 
     public static void showHookInfo() {
-        FLog.d(TAG, "[showHookInfo] start ...");
+//        FLog.d(TAG, "[showHookInfo] start ...");
         if (sHandles.isEmpty()) {
             FLog.w(TAG, "[showHookInfo] no hook ...");
             return;
@@ -677,9 +677,16 @@ public class FHook {
             return true;
         }
 
-        // Thread.getContextClassLoader()
+        // thread.getContextClassLoader()
         if (cn.equals("java.lang.Thread") && mn.equals("getContextClassLoader") && ps.length == 0) {
             FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn);
+            return true;
+        }
+
+        // class.getDeclaredMethod(String, Class[])
+        if (cn.equals("java.lang.Class") && mn.equals("getDeclaredMethod")
+                && ps.length == 2 && ps[0] == String.class && ps[1] == Class[].class) {
+            FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn + "(String,Class[])");
             return true;
         }
 
@@ -690,12 +697,7 @@ public class FHook {
 //            return true;
 //        }
 //
-//        // Class.getDeclaredMethod(String, Class[])
-//        if (cn.equals("java.lang.Class") && mn.equals("getDeclaredMethod")
-//                && ps.length == 2 && ps[0] == String.class && ps[1] == Class[].class) {
-//            FLog.e(TAG, "[isBridgeCritical] 桥接方法：" + cn + "#" + mn + "(String,Class[])");
-//            return true;
-//        }
+
 //
 //        // Method.invoke(Object, Object[])  native 方法，不支持 JVMTI
 //        if (cn.equals("java.lang.reflect.Method") && mn.equals("invoke")

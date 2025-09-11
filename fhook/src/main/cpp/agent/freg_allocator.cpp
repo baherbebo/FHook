@@ -179,20 +179,26 @@ void FRegAllocator::AddGlobalForbid(const std::vector<int> &forbidden) {
          VEC_CSTR(to_sorted_vec(global_forbid_)));
 }
 
-std::vector<int> FRegAllocator::GetRegs22c(int count, const std::string &text) const {
+std::vector<int> FRegAllocator::GetRegs22c4Count(int count, const std::string &text) const {
     std::vector<int> out;
     int sz = (int) regs_22c_.size();
     if (count < 0 || count > sz) {
-        LOGE("[GetRegs22c] %s count=%d > size=%d", text.c_str(), count, sz);
+        LOGE("[GetRegs22c4Count] %s count=%d > size=%d", text.c_str(), count, sz);
         return out;
     }
 
     auto vec = to_sorted_vec(regs_22c_);
     out.assign(vec.begin(), vec.begin() + count);
-    LOGD("[GetRegs22c] %s count=%d out=%s all=%s",
+    LOGD("[GetRegs22c4Count] %s count=%d out=%s all=%s",
          text.c_str(), count, VEC_CSTR(out), VEC_CSTR(vec));
     return out;
 }
+
+std::vector<int> FRegAllocator::GetRegs22c4All(const std::string &text) const {
+    int sz = (int) regs_22c_.size();
+    return GetRegs22c4Count(sz, text);
+}
+
 
 /**
  * 构建单寄存器 forbid mask（含锁旧段/全局禁用/已占用/宽对占两格/本次额外）

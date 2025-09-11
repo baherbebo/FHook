@@ -19,7 +19,7 @@
 namespace finject {
     enum class HookPlan : uint8_t {
         None = 0,
-        PlanA,   // 方案 A：ClassLoader + Class.getDeclaredMethod + Method.invoke
+        PlanA,   // 方案 A：ClassLoader + Class.getDeclaredMethod + Method.invoke + Class.loadClass
         PlanB,   // 方案 B：MethodHandles + MethodType + Lookup.findStatic（动态查找静态 MH）
         PlanC,   // 方案 C：Class.forName + 直接取 public 静态字段 MethodHandle（如 MH_ENTER/MH_EXIT）
     };
@@ -28,8 +28,9 @@ namespace finject {
 
 
     /**
+     * 这是最后的防线
      * 方案 A：ClassLoader + Class.getDeclaredMethod + Method.invoke
-     * 方案 B：MethodHandles + MethodType + Lookup.findStatic（动态查找静态 MH）
+     * 方案 B：MethodHandles + MethodType + Lookup.findStatic（动态查找静态 MH）  --- Class.forName
      * 方案 C：Class.forName + 直接取 public 静态字段 MethodHandle（如 MH_ENTER/MH_EXIT）
      * @param m
      * @return
@@ -64,7 +65,7 @@ namespace finject {
         }
 
 
-        // ---- 规则 X：Class.forName → 用 PlanB
+        // ---- 规则 X：Class.forName → 用 PlanA  间接调用 ClassLoader.loadClass
         if (cls == "java/lang/Class" &&
             std::strcmp(mn, "forName") == 0 &&
             (sig == "(Ljava/lang/String;)Ljava/lang/Class;" ||  // Class.forName(String)
@@ -81,12 +82,12 @@ namespace finject {
         // }
 
         // ---- 规则 1：ClassLoader.loadClass → 用 PlanB C都可用
-//        if (cls == "java/lang/ClassLoader" &&
-//            std::strcmp(mn, "loadClass") == 0 &&
-//            (sig == "(Ljava/lang/String;)Ljava/lang/Class;" ||
-//             sig == "(Ljava/lang/String;Z)Ljava/lang/Class;")) {
-//            return HookPlan::PlanB;
-//        }
+        if (cls == "java/lang/ClassLoader" &&
+            std::strcmp(mn, "loadClass") == 0 &&
+            (sig == "(Ljava/lang/String;)Ljava/lang/Class;" ||
+             sig == "(Ljava/lang/String;Z)Ljava/lang/Class;")) {
+            return HookPlan::PlanC;
+        }
 
         return HookPlan::PlanC;
     }
@@ -102,7 +103,7 @@ namespace finject {
         LOGD("[do_HEnter] 运行 isHEnter ......")
 
         int count;
-        dex::u4 reg_do_return = 0; //执行后的返回值所有的寄存器用于恢复
+        dex::u4 reg_do_return = 9999; //必须要处理 执行后的返回值所有的寄存器用于恢复
 
         // --------------------- 1 参数包装成 object[object arg0,object arg1...]
         count = 2;
@@ -110,7 +111,7 @@ namespace finject {
         CHECK_ALLOC_OR_RET(regs1, count, false, "[do_HEnter] regs1 申请寄存器失败 ...");
 
         count = 2;
-        auto regs_arr1 = fRegs.get()->GetRegs22c(count, "regs_arr1");
+        auto regs_arr1 = fRegs.get()->GetRegs22c4Count(count, "regs_arr1");
         CHECK_ALLOC_OR_RET(regs_arr1, count, false, "[do_HEnter] regs_arr1 申请寄存器失败 ...");
 
         // 这里参数来源 自动读 p指针 object[arg0,arg1...]
@@ -157,15 +158,17 @@ namespace finject {
             CHECK_ALLOC_OR_RET(regs5, count, false, "[do_HEnter] regs5 申请寄存器失败 ...");
 
             count = 2;
-            auto regs_arr5_1 = fRegs.get()->GetRegs22c(count, "regs_arr5_1");
+            // 前两个第一个可以复用,第二个不能用,这里要用第三个, 这里多少个需要手动管理 前面的要申请
+            auto regs_arr5_1 = fRegs.get()->GetRegs22c4All("regs_arr5_1");
             CHECK_ALLOC_OR_RET(regs_arr5_1, count, false,
                                "[do_HEnter] regs_arr5_1 申请寄存器失败 ...");
 
             // public final static Object[] onEnter4fhook(Object[] rawArgs, long methodId)
-            // Object[Object[arg0,arg1...],Long] 再包一层对象 reg_do_args 完成
+            /// Object[Object[arg0,arg1...],Long] 再包一层对象 reg_do_args 完成
+            // 这里 reg_do_args 很可能 == reg3_arr_22c 所以要一个新的 GetRegs22c4All 所以要申请新增时就要至少3个
             fir_funs_do::cre_arr_do_arg_2p(code_ir,
                                            regs_arr1[0], reg_do_args,
-                                           regs_arr1[1],
+                                           regs_arr5_1[2],
                                            regs5[0], hook_info.j_method_id, insert_point);
             reg_do_args = regs5[0]; // Object[ Object[arg0,arg1...],Long]
 
@@ -180,8 +183,9 @@ namespace finject {
                             "regs6", count, "regs6");
                     CHECK_ALLOC_OR_RET(regs6, count, false, "[do_HEnter] regs6 申请寄存器失败 ...");
 
+                    // 这里可以复用了 22C
                     count = 2;
-                    auto regs_arr6_1 = fRegs.get()->GetRegs22c(
+                    auto regs_arr6_1 = fRegs.get()->GetRegs22c4Count(
                             count, "regs_arr6_1");
                     CHECK_ALLOC_OR_RET(regs_arr6_1, count, false,
                                        "[do_HEnter] regs_arr6_1 申请寄存器失败 ...");
@@ -191,7 +195,7 @@ namespace finject {
                     std::string name_class_arg = "[Ljava/lang/Object;";  // 普通obj
                     fir_impl::cre_arr_class_args4frame(
                             code_ir,
-                            regs_arr6_1[0], regs6[1],
+                            regs_arr6_1[0], regs6[0],
                             regs_arr6_1[1], regs6[1],
                             name_class_arg, insert_point);
                     auto reg_method_args = regs6[1];
@@ -226,7 +230,7 @@ namespace finject {
                     std::string rtype_name = "[Ljava/lang/Object;";
 
                     count = 2;
-                    auto regs_arr8_1 = fRegs.get()->GetRegs22c(count, "regs8");
+                    auto regs_arr8_1 = fRegs.get()->GetRegs22c4Count(count, "regs8");
                     CHECK_ALLOC_OR_RET(regs_arr8_1, count, false,
                                        "[do_HEnter] regs_arr8_1 申请寄存器失败 ...");
 
@@ -322,7 +326,7 @@ namespace finject {
         LOGI("[doHExit] 原最后一个返回值的寄存器 reg_return_orig= %d", reg_return_orig)
 
         // 如果有返回值 则锁定 没有就不管
-        if (reg_return_orig >=0) {
+        if (reg_return_orig >= 0) {
             // 直接取用原函数的最后一个返回值寄存器  锁住
             if (is_wide_reg_return) {
                 fRegs.get()->AddGlobalForbid({reg_return_orig, reg_return_orig + 1});
@@ -388,7 +392,7 @@ namespace finject {
 
 
             count = 2;
-            auto regs_arr9_1 = fRegs.get()->GetRegs22c(count, "regs9");
+            auto regs_arr9_1 = fRegs.get()->GetRegs22c4Count(count, "regs9");
             CHECK_ALLOC_OR_RET(regs_arr9_1, count, false,
                                "[doHExit] regs_arr9_1 申请22c寄存器失败 ...");
 
@@ -412,7 +416,7 @@ namespace finject {
                     CHECK_ALLOC_OR_RET(regs10, count, -1, "[doHExit] regs10 申请寄存器失败 ...");
 
                     count = 2;
-                    auto regs_arr10_1 = fRegs.get()->GetRegs22c(count, "regs_arr10_1");
+                    auto regs_arr10_1 = fRegs.get()->GetRegs22c4Count(count, "regs_arr10_1");
                     CHECK_ALLOC_OR_RET(regs_arr10_1, count, false,
                                        "[doHExit] regs_arr10_1 申请22c寄存器失败 ...");
 
@@ -454,7 +458,7 @@ namespace finject {
                     std::string rtype_name = "Ljava/lang/Object;";
 
                     count = 2;
-                    auto regs_arr8_1 = fRegs.get()->GetRegs22c(count, "regs_arr8_1");
+                    auto regs_arr8_1 = fRegs.get()->GetRegs22c4Count(count, "regs_arr8_1");
                     CHECK_ALLOC_OR_RET(regs_arr8_1, count, false,
                                        "[doHExit] regs_arr8_1 申请寄存器失败 ...");
 
@@ -566,9 +570,13 @@ namespace finject {
         if (hook_info.isHEnter || hook_info.isHExit) {
 
             auto ins_count = fRegs.get()->InsCount();
-            // onEnter  --- 7 个
+            // 普通方法  --- 7 个 +  2个22c
+//            int num_reg_non_param_orig = fRegs.get()->GrowLocals(
+//                    7 + ins_count + 2, 2);  // 3个 22c 支持2组连续使用
+
+            // 系统该方法   --- 8 个 +  3个22c
             int num_reg_non_param_orig = fRegs.get()->GrowLocals(
-                    7 + ins_count + 2, 2);
+                    9 + ins_count + 2, 3);  // 3个 22c 支持2组连续使用
             fRegs.get()->LockOldBase(num_reg_non_param_orig); // 锁定旧寄存器
             num_reg_non_param_new = fRegs.get()->Locals();
             num_add_reg = num_reg_non_param_new - num_reg_non_param_orig;

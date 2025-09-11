@@ -36,7 +36,7 @@ import top.feadre.fhook.TObject;
 import top.feadre.fhook.flibs.fsys.FLog;
 import top.feadre.fhook.tools.FFunsUI;
 
-public class DebugSampleActivity extends AppCompatActivity {
+public class DebugActivity extends AppCompatActivity {
     private static final String TAG = FCFG_fhook.TAG_PREFIX + "DebugSample";
 
 
@@ -473,16 +473,16 @@ public class DebugSampleActivity extends AppCompatActivity {
 
     private void doSysHook01() throws Throwable {
 
-        h_method_invoke();
+        h_method_invoke(); // 不支持
 
         h_class_getDeclareMethod();
 
-        h_Class_forName();
+//        h_class_loadClass(); // 这两个不能同时hook 会锁死
 
-        h_class_loadClass();
+//        h_Class_forName();
 
-        h_Settings_getString();
-
+//        h_Settings_getString();
+//
         h_SP_putString();
 
     }
@@ -497,19 +497,19 @@ public class DebugSampleActivity extends AppCompatActivity {
         Method mCommitImpl = FHookTool.findMethod4Impl(editor, sp_putString_S_SS);
 
         FHook.hook(mCommitImpl)
-                .setOrigFunRun(true)
-                .setHookEnter((thiz, args, types, hh) -> {
-                    // thiz 是具体 Editor 实例；无参数
-                    showLog("SharedPreferences.Editor.commit", thiz, args, types);
-                })
-                .setHookExit((ret, type, hh) -> {
-                    // ret 是 Boolean（primitive boolean 会被装箱）
-                    showLog("SharedPreferences.Editor.commit", hh.thisObject, ret, type);
-                    // 你也可以强制返回 true 观测效果：
-                    // 运行出错: java.lang.ClassCastException: java.lang.Boolean cannot be cast to android.content.SharedPreferences$Editor
-                    ret = false;
-                    return ret;
-                })
+                .setOrigFunRun(false)
+//                .setHookEnter((thiz, args, types, hh) -> {
+//                    // thiz 是具体 Editor 实例；无参数
+//                    showLog("SharedPreferences.Editor.commit", thiz, args, types);
+//                })
+//                .setHookExit((ret, type, hh) -> {
+//                    // ret 是 Boolean（primitive boolean 会被装箱）
+//                    showLog("SharedPreferences.Editor.commit", hh.thisObject, ret, type);
+//                    // 你也可以强制返回 true 观测效果：
+//                    // 运行出错: java.lang.ClassCastException: java.lang.Boolean cannot be cast to android.content.SharedPreferences$Editor
+//                    ret = false;
+//                    return ret;
+//                })
                 .commit();
     }
 
@@ -527,16 +527,16 @@ public class DebugSampleActivity extends AppCompatActivity {
 //                        args.set(1, "input_method_selector_visibility");
 
                 })
-                .setHookExit((ret, type, hh) -> {
-                    showLog("Settings_Secure_getString_S_OS", hh.thisObject, ret, type);
-                    // 演示：在返回值后面加标记，肉眼可见 hook 生效
-                    if (ret instanceof String) {
-                        ret = ret + "_HOOK";
-                    } else {
-                        ret = "null_null_";
-                    }
-                    return ret;
-                })
+//                .setHookExit((ret, type, hh) -> {
+//                    showLog("Settings_Secure_getString_S_OS", hh.thisObject, ret, type);
+//                    // 演示：在返回值后面加标记，肉眼可见 hook 生效
+//                    if (ret instanceof String) {
+//                        ret = ret + "_HOOK";
+//                    } else {
+//                        ret = "null_null_";
+//                    }
+//                    return ret;
+//                })
                 .commit();
     }
 
@@ -857,31 +857,40 @@ public class DebugSampleActivity extends AppCompatActivity {
                     Log.d(TAG, "[classLoader_loadClass_Class_S] start ....");
                     args.set(0, "java.lang.Integer");
                 })
-                .setHookExit((ret, type, hh) -> {
-                    Log.d(TAG, "[classLoader_loadClass_Class_S] end .... ");
-                    ret = Thread.class;
-                    return ret;
-                })
+//                .setHookExit((ret, type, hh) -> {
+//                    Log.d(TAG, "[classLoader_loadClass_Class_S] end .... ");
+//                    ret = Thread.class;
+//                    return ret;
+//                })
                 .commit();
     }
 
     private static void h_Class_forName() {
+        /*
+        public static Class<?> forName(String className) throws ClassNotFoundException {
+            // 最终调用当前线程上下文类加载器的 loadClass 方法
+            return forName(className, true, Thread.currentThread().getContextClassLoader());
+        }
+        间接调用 ClassLoader.loadClass
+
+
+         */
         // Class<?> clazz = Class.forName("top.feadre.fhook.FHookTool");
 //        Method Class_forName = FHookTool.findMethod4First(Class.class, "forName");
         Method Class_forName = FHookTool.findMethod4Index(Class.class, "forName", 1);
         FHook.hook(Class_forName)
                 .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
-                    Log.d(TAG, "[Class_forName_Class_S] start ....");
+//                    Log.d(TAG, "[Class_forName_Class_S] start ....");
 //                    args.set(0, "java.lang.Integer");
                 })
-                .setHookExit((ret, type, hh) -> {
-                    if (ret != null) {
-                        Class<?> _ret = (Class<?>) ret;
-                        Log.d(TAG, "[Class_forName_Class_S] end ....ret= " + _ret.getName());
-                    }
-                    return ret;
-                })
+//                .setHookExit((ret, type, hh) -> {
+//                    if (ret != null) {
+//                        Class<?> _ret = (Class<?>) ret;
+//                        Log.d(TAG, "[Class_forName_Class_S] end ....ret= " + _ret.getName());
+//                    }
+//                    return ret;
+//                })
                 .commit();
     }
 

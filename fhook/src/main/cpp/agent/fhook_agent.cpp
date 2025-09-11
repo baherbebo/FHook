@@ -45,19 +45,20 @@ static int is_frame_methods(const std::string &targetClassName,
 
     // ---- B/C组：允许 hook，但强制保留原实现（不可清空）----
     // ClassLoader.loadClass(String)
-    if (SigEq(targetClassName, "Ljava/lang/ClassLoader;")
-        && targetMethodName == "loadClass"
-        && SigEq(targetMethodSignature, "(Ljava/lang/String;)Ljava/lang/Class;")) {
-//        isRunOrigFun = JNI_TRUE;
-        return 1;
-    }
+//    if (SigEq(targetClassName, "Ljava/lang/ClassLoader;")
+//        && targetMethodName == "loadClass"
+//        && SigEq(targetMethodSignature, "(Ljava/lang/String;)Ljava/lang/Class;")) {
+////        isRunOrigFun = JNI_TRUE;
+//        return 1;
+//    }
+
     // Class.getDeclaredMethod(String, Class[])
     if (SigEq(targetClassName, "Ljava/lang/Class;")
         && targetMethodName == "getDeclaredMethod"
         && SigEq(targetMethodSignature,
                  "(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;")) {
 //        isRunOrigFun = JNI_TRUE;
-        return 1;
+        return -1;
     }
 
     // Method.invoke(Object, Object[])  这个是native 方法  其它已处理
@@ -70,13 +71,13 @@ static int is_frame_methods(const std::string &targetClassName,
 //    }
 
     // Class.forName(String, boolean, ClassLoader)
-    if (SigEq(targetClassName, "Ljava/lang/Class;")
-        && targetMethodName == "forName"
-        && SigEq(targetMethodSignature,
-                 "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;")) {
-//        isRunOrigFun = JNI_TRUE;
-        return 1;
-    }
+//    if (SigEq(targetClassName, "Ljava/lang/Class;")
+//        && targetMethodName == "forName"
+//        && SigEq(targetMethodSignature,
+//                 "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;")) {
+////        isRunOrigFun = JNI_TRUE;
+//        return 1;
+//    }
 
     return 0; // 不命中，啥也不做
 }
@@ -408,7 +409,7 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
                               isRunOrigFun);
 
     if (sg == -1) {
-        LOGW("[agent_do_transform] BLOCK by simple_guard: %s#%s %s",
+        LOGE("[agent_do_transform] 框架不允许hook该方法: %s#%s %s",
              targetClassName.c_str(), targetMethodName.c_str(), targetMethodSignature.c_str());
         if (nativeClass) env->DeleteLocalRef(nativeClass);
         return -1; // 按你的要求：直接返回失败
@@ -489,8 +490,8 @@ extern "C" JNIEXPORT jlong JNICALL agent_do_transform(
     auto it = fClassTransforms.find(targetClassName);
     if (it == fClassTransforms.end()) {
         // 创建新的 HookTransform
-        LOGD("[agent_do_transform] 该类没有被hook 创建新的 %s %s",
-             targetClassName.c_str(), targetMethodName.c_str())
+//        LOGD("[agent_do_transform] 该类没有被hook 创建新的配置 %s %s",
+//             targetClassName.c_str(), targetMethodName.c_str())
 
         fClassTransforms[targetClassName] = std::make_unique<deploy::Transform>(
                 targetClassName,
