@@ -4,20 +4,15 @@ import static top.feadre.fhook.THook.fun_fz01;
 import static top.feadre.fhook.THook.fun_fz02;
 import static top.feadre.fhook.THook.fun_fz03;
 
-import android.annotation.SuppressLint;
 import android.content.ContentProviderOperation;
 import android.content.ContentProviderResult;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.OperationApplicationException;
 import android.content.SharedPreferences;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.RemoteException;
 import android.provider.Settings;
-import android.system.ErrnoException;
-import android.system.Os;
-import android.system.StructTimeval;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.Toast;
@@ -25,21 +20,11 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-import java.io.FileDescriptor;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.net.InetAddress;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
-import java.util.Random;
 
 import top.feadre.fhook.CLinker;
 import top.feadre.fhook.FCFG_fhook;
@@ -51,7 +36,7 @@ import top.feadre.fhook.TObject;
 import top.feadre.fhook.flibs.fsys.FLog;
 import top.feadre.fhook.tools.FFunsUI;
 
-public class DebugSample extends AppCompatActivity {
+public class DebugSampleActivity extends AppCompatActivity {
     private static final String TAG = FCFG_fhook.TAG_PREFIX + "DebugSample";
 
 
@@ -339,9 +324,10 @@ public class DebugSample extends AppCompatActivity {
                 throw new RuntimeException(e);
             }
             FHook.hook(method)
-                    .setOrigFunRun(false)
+                    .setOrigFunRun(true)
                     .setHookEnter((thiz, args, types, hh) -> {
                         Log.i(TAG, "fun_fz03 args=" + args);
+                        args.set(3, 888.888);
                     })
 //                    .setHookExit((ret, returnType, hh) -> {
 //                        Log.i(TAG, "fun_fz03 ret=" + ret);

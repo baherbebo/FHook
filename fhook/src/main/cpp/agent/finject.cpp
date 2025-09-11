@@ -565,7 +565,7 @@ namespace finject {
         if (hook_info.isHEnter || hook_info.isHExit) {
 
             auto ins_count = fRegs.get()->InsCount();
-            // onEnter
+            // onEnter  --- 7 个
             int num_reg_non_param_orig = fRegs.get()->GrowLocals(
                     7 + ins_count + 2, 2);
             fRegs.get()->LockOldBase(num_reg_non_param_orig); // 锁定旧寄存器
@@ -589,6 +589,14 @@ namespace finject {
             //扩展了几个寄存器 = 需要多少本地寄存器 - 原有多少个本地寄存器
             fir_tools::restore_reg_params4shift(code_ir, insert_point, num_add_reg);
         }
+
+
+        /// 开发调试 用于测试恢复函数
+//        LOGE("[do_finject] 开启了反向调试 强制清函数 ... ")
+//        fir_tools::clear_original_instructions(code_ir);
+//        hook_info.isRunOrigFun = false;
+//        insert_point = fir_tools::find_first_code(code_ir);
+//        fir_tools::restore_reg_params4shift(code_ir, insert_point, num_add_reg);
 
 
         // ------------------ Enter ------------------

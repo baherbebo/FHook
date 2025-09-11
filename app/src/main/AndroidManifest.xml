@@ -23,7 +23,7 @@
         </activity>
 
         <activity
-            android:name=".activitys.DebugSample"
+            android:name=".activitys.DebugSampleActivity"
             android:exported="true"
             tools:ignore="ExportedActivity"></activity>
     </application>

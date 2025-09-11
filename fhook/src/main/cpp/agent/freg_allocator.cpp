@@ -118,8 +118,8 @@ int FRegAllocator::GrowLocals(dex::u2 add, uint16_t num_22c) {
 
     code->registers = static_cast<dex::u2>(orig_total + add);
     const dex::u2 new_locals = static_cast<dex::u2>(code->registers - ins_size);
-    LOGI("[GrowLocals] add= %u， total:%u->%u ins= %u，locals:%u->%u",
-         add, orig_total, code->registers, ins_size, orig_locals, new_locals);
+    LOGI("[GrowLocals] add= %u，total:%u->%u ins= %u，locals:%u->%u",
+         add,num_22c, orig_total, code->registers, ins_size, orig_locals, new_locals);
 
     regs_22c_.clear();
     int need = (int) num_22c;

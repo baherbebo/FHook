@@ -364,8 +364,8 @@ namespace fir_tools {
         if (dst <= 0x0F && src <= 0x0F) bc->opcode = dex::OP_MOVE_WIDE;
         else if (dst <= 0xFF) bc->opcode = dex::OP_MOVE_WIDE_FROM16;
         else bc->opcode = dex::OP_MOVE_WIDE_16;
-        bc->operands.push_back(ir->Alloc<lir::VReg>(dst));
-        bc->operands.push_back(ir->Alloc<lir::VReg>(src));
+        bc->operands.push_back(ir->Alloc<lir::VRegPair>(dst));
+        bc->operands.push_back(ir->Alloc<lir::VRegPair>(src));
         ir->instructions.insert(it, bc);
     }
 
