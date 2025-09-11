@@ -288,11 +288,12 @@ public class DebugSample extends AppCompatActivity {
                     .setOrigFunRun(true)
                     .setHookEnter((thiz, args, types, hh) -> {
                         Log.i(TAG, "fun_fz02 args=" + args);
+                        args.set(1, 8888);
                     })
-                    .setHookExit((ret, returnType, hh) -> {
-                        Log.i(TAG, "fun_fz02 ret=" + ret);
-                        return ret;
-                    })
+//                    .setHookExit((ret, returnType, hh) -> {
+//                        Log.i(TAG, "fun_fz02 ret=" + ret);
+//                        return ret;
+//                    })
                     .commit();
         });
 
@@ -338,14 +339,14 @@ public class DebugSample extends AppCompatActivity {
                 throw new RuntimeException(e);
             }
             FHook.hook(method)
-                    .setOrigFunRun(true)
+                    .setOrigFunRun(false)
                     .setHookEnter((thiz, args, types, hh) -> {
                         Log.i(TAG, "fun_fz03 args=" + args);
                     })
-                    .setHookExit((ret, returnType, hh) -> {
-                        Log.i(TAG, "fun_fz03 ret=" + ret);
-                        return ret;
-                    })
+//                    .setHookExit((ret, returnType, hh) -> {
+//                        Log.i(TAG, "fun_fz03 ret=" + ret);
+//                        return ret;
+//                    })
                     .commit();
         });
 

@@ -150,16 +150,22 @@ namespace finject {
 
             // reg_do_args  Object[arg0,arg1...]
             // --------------------- 1
-            count = 2;
+            count = 1;
             auto regs5 = fRegs.get()->AllocSinglesTail("regs5", count);
             CHECK_ALLOC_OR_RET(regs5, count, false, "[do_HEnter] regs5 申请寄存器失败 ...");
+
+            count = 2;
+            auto regs_arr5_1 = fRegs.get()->GetRegs22c(count);
+            CHECK_ALLOC_OR_RET(regs_arr5_1, count, false,
+                               "[do_HEnter] regs_arr5_1 申请寄存器失败 ...");
 
             // public final static Object[] onEnter4fhook(Object[] rawArgs, long methodId)
             // Object[Object[arg0,arg1...],Long] 再包一层对象 reg_do_args 完成
             fir_funs_do::cre_arr_do_arg_2p(code_ir,
-                                           regs5[0], reg_do_args,
-                                           regs5[1], hook_info.j_method_id, insert_point);
-            reg_do_args = regs5[1]; // Object[ Object[arg0,arg1...],Long]
+                                           regs_arr1[0], reg_do_args,
+                                           regs_arr1[1],
+                                           regs5[0], hook_info.j_method_id, insert_point);
+            reg_do_args = regs5[0]; // Object[ Object[arg0,arg1...],Long]
 
             // --------------------- 3
             switch (plan) {
@@ -167,16 +173,24 @@ namespace finject {
                     LOGI("[do_HEnter] 运行方案A ...")
 
                     // --------------------- 2
-                    count = 3;
+                    count = 2;
                     auto regs6 = fRegs.get()->AllocSinglesTail("regs6", count);
                     CHECK_ALLOC_OR_RET(regs6, count, false, "[do_HEnter] regs6 申请寄存器失败 ...");
+
+                    count = 2;
+                    auto regs_arr6_1 = fRegs.get()->GetRegs22c(count);
+                    CHECK_ALLOC_OR_RET(regs_arr6_1, count, false,
+                                       "[do_HEnter] regs_arr6_1 申请寄存器失败 ...");
+
                     // 调用 onEnter 函数
                     // 创建参数 Class[] 在 v2 （Class[]{Object[].class,Long.class}）
                     std::string name_class_arg = "[Ljava/lang/Object;";  // 普通obj
                     fir_impl::cre_arr_class_args4frame(
-                            code_ir, regs6[0], regs6[1], regs6[2],
+                            code_ir,
+                            regs_arr6_1[0], regs6[1],
+                            regs_arr6_1[1], regs6[1],
                             name_class_arg, insert_point);
-                    auto reg_method_args = regs6[2];
+                    auto reg_method_args = regs6[1];
 
                     count = 3;
                     auto regs7 = fRegs.get()->AllocSinglesTail("regs7", count);
@@ -205,8 +219,14 @@ namespace finject {
                     std::string name_class_arg = "[Ljava/lang/Object;";
                     std::string rtype_name = "[Ljava/lang/Object;";
 
+                    count = 2;
+                    auto regs_arr8_1 = fRegs.get()->GetRegs22c(count);
+                    CHECK_ALLOC_OR_RET(regs_arr8_1, count, false,
+                                       "[do_HEnter] regs_arr8_1 申请寄存器失败 ...");
+
                     bool res = fir_impl::do_sysloader_hook_funs_B(
                             code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
+                            regs_arr8_1[0], regs_arr8_1[1],
                             reg_do_args, regs8[0],
                             g_name_class_THook, g_name_fun_onEnter,
                             name_class_arg, rtype_name, insert_point);
@@ -363,17 +383,24 @@ namespace finject {
             LOGD("[doHExit] 系统侧 调用 isHExit ...")
 
             // --------------------- 2 do 参数打包 Object[Object,Long]
-            count = 2;
+            count = 1;
             auto regs9 = fRegs.get()->AllocSinglesTail("regs9", count);
             CHECK_ALLOC_OR_RET(regs9, count, -1,
                                "[doHExit] regs9 申请寄存器失败 ...");
 
+
+            count = 2;
+            auto regs_arr9_1 = fRegs.get()->GetRegs22c(count);
+            CHECK_ALLOC_OR_RET(regs_arr9_1, count, false,
+                               "[doHExit] regs_arr9_1 申请寄存器失败 ...");
+
             // 反射要再包一层  Class[]{Object.class,Long.class}
             fir_funs_do::cre_arr_do_arg_2p(
-                    code_ir, regs9[0], reg_do_arg, regs9[1],
+                    code_ir, regs_arr9_1[0],
+                    reg_do_arg, regs_arr9_1[0], regs9[1],
                     hook_info.j_method_id, insert_point);
 
-            auto reg_do_args = regs9[1]; //  reg_do_arg -》 reg_do_args
+            auto reg_do_args = regs9[0]; //  reg_do_arg -》 reg_do_args
 
             // --------------------- 4
             switch (plan) {
@@ -381,18 +408,24 @@ namespace finject {
                     LOGI("[doHExit] 运行A方案 ...")
 
                     // --------------------- 3
-                    count = 3;// 前面只有最后的封装参数需要保留
+                    count = 2;// 前面只有最后的封装参数需要保留
 
                     auto regs10 = fRegs.get()->AllocSinglesTail("regs10", count);
                     CHECK_ALLOC_OR_RET(regs10, count, -1, "[doHExit] regs10 申请寄存器失败 ...");
 
+                    count = 2;
+                    auto regs_arr10_1 = fRegs.get()->GetRegs22c(count);
+                    CHECK_ALLOC_OR_RET(regs_arr10_1, count, false,
+                                       "[doHExit] regs_arr10_1 申请寄存器失败 ...");
+
                     // Class[]{Object.class,Long.class}
                     std::string name_class_arg = "Ljava/lang/Object;";  // 普通obj
                     fir_impl::cre_arr_class_args4frame(
-                            code_ir, regs10[0], regs10[1], regs10[2],
+                            code_ir, regs_arr10_1[0],
+                            regs10[0], regs_arr10_1[1], regs10[1],
                             name_class_arg,
                             insert_point);
-                    auto reg_method_args = regs10[2];
+                    auto reg_method_args = regs10[1];
 
 
                     count = 3;
@@ -420,8 +453,14 @@ namespace finject {
                     std::string name_class_arg = "Ljava/lang/Object;";
                     std::string rtype_name = "Ljava/lang/Object;";
 
+                    count = 2;
+                    auto regs_arr8_1 = fRegs.get()->GetRegs22c(count);
+                    CHECK_ALLOC_OR_RET(regs_arr8_1, count, false,
+                                       "[doHExit] regs_arr8_1 申请寄存器失败 ...");
+
                     bool res = fir_impl::do_sysloader_hook_funs_B(
                             code_ir, regs8[0], regs8[1], regs8[2], regs8[3],
+                            regs_arr8_1[0], regs_arr8_1[1],
                             reg_do_args, regs8[0],
                             g_name_class_THook, g_name_fun_onExit,
                             name_class_arg, rtype_name,
@@ -520,19 +559,18 @@ namespace finject {
         dex::u2 num_add_reg = 0; // 这个用于位移恢复参数
         dex::u2 num_reg_non_param_new = 0;
 
-        int num_reg_orig = 0; /// 原参数寄存器索引+参数数量 用于跳过原有申请
         fRegs = std::make_unique<feadre::FRegAllocator>(code_ir); // 初始化寄存管理器
 
         /// 没有 hook 方法 不需要  申请寄存器 ****
         if (hook_info.isHEnter || hook_info.isHExit) {
 
             auto ins_count = fRegs.get()->InsCount();
+            // onEnter
             int num_reg_non_param_orig = fRegs.get()->GrowLocals(
-                    6 + ins_count, 2);
+                    7 + ins_count + 2, 2);
             fRegs.get()->LockOldBase(num_reg_non_param_orig); // 锁定旧寄存器
             num_reg_non_param_new = fRegs.get()->Locals();
             num_add_reg = num_reg_non_param_new - num_reg_non_param_orig;
-            num_reg_orig = num_reg_non_param_orig + ins_count;
 
         }
 

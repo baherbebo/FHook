@@ -23,6 +23,7 @@ namespace fir_impl {
     bool do_sysloader_hook_funs_B(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp, dex::u2 reg4_tmp,
+            dex::u2 reg1_size_22c, dex::u2 reg3_arr_22c,
             int reg_do_args,// Object[Object[arg0,arg1...],Long]
             dex::u2 reg_return, // 可重复
             std::string &name_class,
@@ -45,9 +46,10 @@ namespace fir_impl {
 
     void cre_arr_class_args4frame(
             lir::CodeIr *code_ir,
-            dex::u2 reg1, // index 与 array_size 复用
+            dex::u2 reg1_size_22c, // 数组大小 也是索引 必须小于16 22c指令
             dex::u2 reg2, // value 临时（存放 Class 对象）
-            dex::u2 reg3_arr, // array 目标寄存器（Class[]）
+            dex::u2 reg3_arr_22c, // array 目标寄存器（Class[]）
+            dex::u2 reg3_arr_return,  // 最终接收
             std::string &name_class_arg,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 

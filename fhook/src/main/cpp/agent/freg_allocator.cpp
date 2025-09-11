@@ -112,13 +112,13 @@ int FRegAllocator::GrowLocals(dex::u2 add, uint16_t num_22c) {
     num_reg_non_param_orig_ = static_cast<int>(orig_locals);
 
     if (add == 0) {
-        LOGI("[GrowLocals] +0 total=%u ins=%u locals=%u", orig_total, ins_size, orig_locals);
+        LOGI("[GrowLocals] +0 total= %u，ins= %u，locals= %u", orig_total, ins_size, orig_locals);
         return static_cast<int>(orig_locals);
     }
 
     code->registers = static_cast<dex::u2>(orig_total + add);
     const dex::u2 new_locals = static_cast<dex::u2>(code->registers - ins_size);
-    LOGI("[GrowLocals] add=%u total:%u->%u ins=%u locals:%u->%u",
+    LOGI("[GrowLocals] add= %u， total:%u->%u ins= %u，locals:%u->%u",
          add, orig_total, code->registers, ins_size, orig_locals, new_locals);
 
     regs_22c_.clear();
@@ -141,10 +141,10 @@ int FRegAllocator::GrowLocals(dex::u2 add, uint16_t num_22c) {
     }
 
     if (need > 0) {
-        LOGW("[GrowLocals] reserve22c need=%u got=%zu (locals_before=%u)", num_22c,
+        LOGW("[GrowLocals] num_22c need= %u， got= %zu (locals_before= %u)", num_22c,
              regs_22c_.size(), orig_locals);
     } else {
-        LOGD("[GrowLocals] reserve22c=%u regs=%s", num_22c, VEC_CSTR(to_sorted_vec(regs_22c_)));
+        LOGD("[GrowLocals] num_22c= %u，regs= %s", num_22c, VEC_CSTR(to_sorted_vec(regs_22c_)));
     }
 
     return num_reg_non_param_orig_; // 旧段大小

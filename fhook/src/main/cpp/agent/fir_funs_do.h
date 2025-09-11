@@ -141,9 +141,10 @@ namespace fir_funs_do {
 
     void cre_arr_do_arg_2p(
             lir::CodeIr *code_ir,
-            dex::u2 reg1_tmp_idx, // 索引寄存器（也临时承接 String/Long）
+            dex::u2 reg1_size_22c, // 数组大小 也是索引 必须小于16 22c指令
             dex::u2 reg2_value, // 需要打包的第一个参数     临时（用作 aput 索引=1 等）
-            dex::u2 reg3_arr, // 外层 Object[] 数组寄存器（输出）
+            dex::u2 reg3_arr_22c, // 外层 Object[] 数组寄存器（输出）
+            dex::u2 reg3_arr_return,  // 最终接收
             uint64_t method_id, // 要写入的 methodId  打包的第二个参数
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 

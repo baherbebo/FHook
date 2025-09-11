@@ -602,38 +602,43 @@ namespace fir_funs_do {
     /// 用 Object[Object[],Long] 把指定的参数 放入
     void cre_arr_do_arg_2p(
             lir::CodeIr *code_ir,
-            dex::u2 reg1_tmp_idx, // 数组大小 也是索引 必须小于16 22c指令
+            dex::u2 reg1_size_22c, // 数组大小 也是索引 必须小于16 22c指令
             dex::u2 reg2_value, // 需要打包的第一个参数     临时（用作 aput 索引=1 等）
-            dex::u2 reg3_arr, // 外层 Object[] 数组寄存器（输出）
+            dex::u2 reg3_arr_22c, // 外层 Object[] 数组寄存器（输出）
+            dex::u2 reg3_arr_return,  // 最终接收
             uint64_t method_id, // 要写入的 methodId  打包的第二个参数
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
         ir::Builder builder(code_ir->dex_ir);
         const auto obj_array_type = builder.GetType("[Ljava/lang/Object;");
 
+        dex::u2 reg_arr = reg3_arr_return < 16 ? reg3_arr_return : reg3_arr_22c;
+
+
         {
             // outer = new Object[2]
-            fir_tools::emitValToReg(code_ir, insert_point, reg1_tmp_idx, 2);
+            fir_tools::emitValToReg(code_ir, insert_point, reg1_size_22c, 2);
 
             // 创建数组对象 reg4
 //        const auto obj_array_type = builder.GetType("[Ljava/lang/Object;");
             auto new_outer_array = code_ir->Alloc<lir::Bytecode>();
             new_outer_array->opcode = dex::OP_NEW_ARRAY;
-            new_outer_array->operands.push_back(code_ir->Alloc<lir::VReg>(reg3_arr)); // outer
-            new_outer_array->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_tmp_idx));// length=2
+            new_outer_array->operands.push_back(code_ir->Alloc<lir::VReg>(reg_arr)); // outer
+            new_outer_array->operands.push_back(
+                    code_ir->Alloc<lir::VReg>(reg1_size_22c));// length=2
             new_outer_array->operands.push_back(code_ir->Alloc<lir::Type>(
                     obj_array_type, obj_array_type->orig_index));  // 正确类型：Object[]
             code_ir->instructions.insert(insert_point, new_outer_array);
 
-            // reg1_tmp_idx 索引为0 outer[0] = reg2_value（内层 Object[]）
-            fir_tools::emitValToReg(code_ir, insert_point, reg1_tmp_idx, 0);
+            // reg1_size_22c 索引为0 outer[0] = reg2_value（内层 Object[]）
+            fir_tools::emitValToReg(code_ir, insert_point, reg1_size_22c, 0);
 
             // 先把原参数放进去
             auto aput_outer = code_ir->Alloc<lir::Bytecode>();
             aput_outer->opcode = dex::OP_APUT_OBJECT;
             aput_outer->operands.push_back(code_ir->Alloc<lir::VReg>(reg2_value));  // 原始参数数组
-            aput_outer->operands.push_back(code_ir->Alloc<lir::VReg>(reg3_arr));         // 外层数组
-            aput_outer->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_tmp_idx));         // 索引0
+            aput_outer->operands.push_back(code_ir->Alloc<lir::VReg>(reg_arr));         // 外层数组
+            aput_outer->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_size_22c));         // 索引0
             code_ir->instructions.insert(insert_point, aput_outer);
         }
 
@@ -645,7 +650,7 @@ namespace fir_funs_do {
             auto jstr = builder.GetAsciiString(mid_str.c_str());
             auto c_str = code_ir->Alloc<lir::Bytecode>();
             c_str->opcode = dex::OP_CONST_STRING;
-            c_str->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_tmp_idx)); // 暂存 String
+            c_str->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_size_22c)); // 暂存 String
             c_str->operands.push_back(code_ir->Alloc<lir::String>(jstr, jstr->orig_index));
             code_ir->instructions.insert(insert_point, c_str);
 
@@ -661,7 +666,7 @@ namespace fir_funs_do {
 
             auto args = code_ir->Alloc<lir::VRegList>(); // 这个是直接加 寄存器号
             args->registers.clear(); // 无参数
-            args->registers.push_back(reg1_tmp_idx); // 参数：String
+            args->registers.push_back(reg1_size_22c); // 参数：String
 
             auto inv = code_ir->Alloc<lir::Bytecode>();
             inv->opcode = dex::OP_INVOKE_STATIC; // Long.valueOf(String)
@@ -671,20 +676,25 @@ namespace fir_funs_do {
 
             auto mres = code_ir->Alloc<lir::Bytecode>();
             mres->opcode = dex::OP_MOVE_RESULT_OBJECT;
-            mres->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_tmp_idx));
+            mres->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_size_22c));
             code_ir->instructions.insert(insert_point, mres);
 
-            // idx=1 （此处用 reg2_value 暂存索引，避免覆盖 reg1_tmp_idx 中的 Long）
+            // idx=1 （此处用 reg2_value 暂存索引，避免覆盖 reg1_size_22c 中的 Long）
             fir_tools::emitValToReg(code_ir, insert_point, reg2_value, 1);
 
             // aput-object <Long>, outer, 1
             auto aput1 = code_ir->Alloc<lir::Bytecode>();
             aput1->opcode = dex::OP_APUT_OBJECT;
-            aput1->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_tmp_idx));    // value = Long对象
-            aput1->operands.push_back(code_ir->Alloc<lir::VReg>(reg3_arr));  // array = outer
+            aput1->operands.push_back(
+                    code_ir->Alloc<lir::VReg>(reg1_size_22c));    // value = Long对象
+            aput1->operands.push_back(code_ir->Alloc<lir::VReg>(reg_arr));  // array = outer
             aput1->operands.push_back(
                     code_ir->Alloc<lir::VReg>(reg2_value));  // index = 1（注意此时 reg_inner 仅作索引用）
             code_ir->instructions.insert(insert_point, aput1);
+        }
+
+        if (reg3_arr_return >= 16) {
+            fir_tools::emit_move_obj(code_ir, reg3_arr_return, reg_arr, insert_point);
         }
 
     }

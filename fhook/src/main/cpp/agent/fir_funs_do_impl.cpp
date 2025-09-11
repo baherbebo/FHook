@@ -140,6 +140,7 @@ namespace fir_impl {
     bool do_sysloader_hook_funs_B(
             lir::CodeIr *code_ir,
             dex::u2 reg1_tmp, dex::u2 reg2_tmp, dex::u2 reg3_tmp, dex::u2 reg4_tmp,
+            dex::u2 reg1_size_22c, dex::u2 reg3_arr_22c,
             int reg_do_args,// Object[Object[arg0,arg1...],Long]
             dex::u2 reg_return, // 可重复
             std::string &name_class,
@@ -152,7 +153,8 @@ namespace fir_impl {
 //        std::string rtype_name = "[Ljava/lang/Object;";
 
         cre_arr_class_args4frame(
-                code_ir, reg1_tmp, reg2_tmp, reg3_tmp,
+                code_ir, reg1_size_22c, reg2_tmp, reg3_arr_22c,
+                reg3_tmp,
                 name_class_arg,
                 insert_point);
         auto reg_method_args = reg3_tmp;
@@ -313,25 +315,29 @@ namespace fir_impl {
     /// 生成的参数类型数组（Class[]{Object.class,Long.class}） （Class[]{Object[].class,Long.class}）
     void cre_arr_class_args4frame(
             lir::CodeIr *code_ir,
-            dex::u2 reg1, // 数组大小 也是索引 必须小于16 22c指令
+            dex::u2 reg1_size_22c, // 数组大小 也是索引 必须小于16 22c指令
             dex::u2 reg2, // value 临时（存放 Class 对象）
-            dex::u2 reg3_arr, // array 目标寄存器（Class[]）
+            dex::u2 reg3_arr_22c, // array 目标寄存器（Class[]）
+            dex::u2 reg3_arr_return,  // 最终接收
             std::string &name_class_arg,
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
         ir::Builder builder(code_ir->dex_ir);
 
         // Class[] 长度=2： { Object.class, long.class }
-        fir_tools::emitValToReg(code_ir, insert_point, reg1, 2);
+        fir_tools::emitValToReg(code_ir, insert_point, reg1_size_22c, 2);
 
-        // new-array v<reg3_arr>, v<reg1>, [Ljava/lang/Class;
+        dex::u2 reg_arr = reg3_arr_return < 16 ? reg3_arr_return : reg3_arr_22c;
+
+
+        // new-array v<reg3_arr_22c>, v<reg1_size_22c>, [Ljava/lang/Class;
         {
             const auto class_array_type = builder.GetType("[Ljava/lang/Class;");
             auto new_arr = code_ir->Alloc<lir::Bytecode>();
             new_arr->opcode = dex::OP_NEW_ARRAY;
             new_arr->operands.push_back(
-                    code_ir->Alloc<lir::VReg>(reg3_arr)); // 结果 Class[] 存到 reg3_arr
-            new_arr->operands.push_back(code_ir->Alloc<lir::VReg>(reg1)); // 长度=2
+                    code_ir->Alloc<lir::VReg>(reg3_arr_22c)); // 结果 Class[] 存到 reg3_arr_22c
+            new_arr->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_size_22c)); // 长度=2
             new_arr->operands.push_back(
                     code_ir->Alloc<lir::Type>(class_array_type, class_array_type->orig_index));
             code_ir->instructions.insert(insert_point, new_arr);
@@ -344,14 +350,14 @@ namespace fir_impl {
                                            reg2, insert_point);
 
             // index = 0
-            fir_tools::emitValToReg(code_ir, insert_point, reg1, 0);
+            fir_tools::emitValToReg(code_ir, insert_point, reg1_size_22c, 0);
 
-            // aput-object v<reg2> → v<reg3_arr>[v<reg1>]
+            // aput-object v<reg2> → v<reg3_arr_22c>[v<reg1_size_22c>]
             auto aput0 = code_ir->Alloc<lir::Bytecode>();
             aput0->opcode = dex::OP_APUT_OBJECT;
             aput0->operands.push_back(code_ir->Alloc<lir::VReg>(reg2)); // Object.class
-            aput0->operands.push_back(code_ir->Alloc<lir::VReg>(reg3_arr)); // Class[] 数组
-            aput0->operands.push_back(code_ir->Alloc<lir::VReg>(reg1)); // index 0
+            aput0->operands.push_back(code_ir->Alloc<lir::VReg>(reg_arr)); // Class[] 数组
+            aput0->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_size_22c)); // index 0
             code_ir->instructions.insert(insert_point, aput0);
         }
 
@@ -360,15 +366,20 @@ namespace fir_impl {
             fir_tools::emitLong2Class(code_ir, reg2, insert_point);
 
             // index = 1
-            fir_tools::emitValToReg(code_ir, insert_point, reg1, 1);
+            fir_tools::emitValToReg(code_ir, insert_point, reg1_size_22c, 1);
 
-            // aput-object v<reg2> → v<reg3_arr>[v<reg1>]
+            // aput-object v<reg2> → v<reg3_arr_22c>[v<reg1_size_22c>]
             auto aput1 = code_ir->Alloc<lir::Bytecode>();
             aput1->opcode = dex::OP_APUT_OBJECT;
             aput1->operands.push_back(code_ir->Alloc<lir::VReg>(reg2)); // Long.TYPE (long.class)
-            aput1->operands.push_back(code_ir->Alloc<lir::VReg>(reg3_arr)); // Class[]
-            aput1->operands.push_back(code_ir->Alloc<lir::VReg>(reg1)); // index 1
+            aput1->operands.push_back(code_ir->Alloc<lir::VReg>(reg_arr)); // Class[]
+            aput1->operands.push_back(code_ir->Alloc<lir::VReg>(reg1_size_22c)); // index 1
             code_ir->instructions.insert(insert_point, aput1);
+        }
+
+        // 恢复寄存
+        if (reg3_arr_return >= 16) {
+            fir_tools::emit_move_obj(code_ir, reg3_arr_return, reg_arr, insert_point);
         }
     }
 
