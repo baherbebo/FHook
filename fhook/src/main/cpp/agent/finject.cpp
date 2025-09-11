@@ -574,9 +574,10 @@ namespace finject {
 //                    7 + ins_count + 2, 2);  // 3个 22c 支持2组连续使用
 
             // 系统该方法   --- 8 个 +  3个22c
+            int num_22c = 3;
             int num_reg_non_param_orig = fRegs.get()->GrowLocals(
-                    9 + ins_count + 2, 3);  // 3个 22c 支持2组连续使用
-            fRegs.get()->LockOldBase(num_reg_non_param_orig); // 锁定旧寄存器
+                    10 + ins_count + num_22c, num_22c);  // 3个 22c 支持2组连续使用
+            fRegs.get()->LockOldBase(num_reg_non_param_orig + ins_count); // 锁定原有全部寄存器
             num_reg_non_param_new = fRegs.get()->Locals();
             num_add_reg = num_reg_non_param_new - num_reg_non_param_orig;
 

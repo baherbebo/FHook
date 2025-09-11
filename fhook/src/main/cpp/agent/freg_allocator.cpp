@@ -105,50 +105,72 @@ int FRegAllocator::GrowLocals(dex::u2 add, uint16_t num_22c) {
 
     CheckIr(code_ir_);
     auto *code = code_ir_->ir_method->code;
-    const dex::u2 orig_total = code->registers;
-    const dex::u2 ins_size = code->ins_count;
+    const dex::u2 orig_total  = code->registers;
+    const dex::u2 ins_size    = code->ins_count;
     const dex::u2 orig_locals = static_cast<dex::u2>(orig_total - ins_size);
 
     num_reg_non_param_orig_ = static_cast<int>(orig_locals);
 
     if (add == 0) {
-        LOGI("[GrowLocals] +0 total= %u，ins= %u，locals= %u", orig_total, ins_size, orig_locals);
+        LOGI("[GrowLocals] +0 total=%u, ins=%u, locals=%u", orig_total, ins_size, orig_locals);
         return static_cast<int>(orig_locals);
     }
 
-    code->registers = static_cast<dex::u2>(orig_total + add);
-    const dex::u2 new_locals = static_cast<dex::u2>(code->registers - ins_size);
-    LOGI("[GrowLocals] add= %u，total:%u->%u ins= %u，locals:%u->%u",
-         add, num_22c, orig_total, code->registers, ins_size, orig_locals, new_locals);
+    // 扩容
+    const dex::u2 new_total = static_cast<dex::u2>(orig_total + add);
+    code->registers = new_total;
+    const dex::u2 new_locals = static_cast<dex::u2>(new_total - ins_size);
+
+    LOGI("[GrowLocals] add=%u, total:%u->%u ins=%u, locals:%u->%u",
+         add, orig_total, new_total, ins_size, orig_locals, new_locals);
 
     regs_22c_.clear();
-    int need = (int) num_22c;
+    int need = (int)num_22c;
 
-    //  若旧本地 <16，优先从“新增段里的低位”塞入，直到 16 之前
-    if (orig_locals < 16 && add > 0) {
-        int can_take = std::min(need, std::max(0, 16 - (int) orig_locals));
-        can_take = std::min(can_take, (int) add);
-        for (int i = 0; i < can_take; ++i) regs_22c_.insert((int) orig_locals + i);
-        need -= can_take;
+    // 扩容后“当前参数寄存器”区间：[new_locals .. new_total-1] —— 必须跳过
+    auto is_param_after_grow = [&](int r) -> bool {
+        return r >= (int)new_locals && r < (int)new_total;
+    };
+
+    auto try_take = [&](int r) -> bool {
+        if (r < 0 || r >= 16) return false;          // 22c 只能用 0..15
+        if (is_param_after_grow(r)) return false;    // 跳过“当前参数”窗口
+        if (!regs_22c_.count(r)) {
+            regs_22c_.insert(r);
+            --need;
+            return true;
+        }
+        return false;
+    };
+
+    // 1) 先从“新增的本地寄存器”里拿: [orig_locals .. new_locals-1] ∩ [0..15]，倒序挑
+    if (need > 0) {
+        int lo = std::max<int>(0, (int)orig_locals);
+        int hi = std::min<int>(15, (int)new_locals - 1);
+        for (int v = hi; need > 0 && v >= lo; --v) {
+            try_take(v);
+        }
     }
 
-    // 不够再从旧段 [0..15] 里倒序补（避免占用更靠前的 0、1 可留给其它 22c 指令）
-    for (int v = 15; need > 0 && v >= 0; --v) {
-        if (v < (int) orig_locals) {
-            regs_22c_.insert(v);
-            --need;
+    // 2) 仍不足，再从“旧的本地寄存器”里拿: [0 .. orig_locals-1] ∩ [0..15]，倒序挑
+    if (need > 0) {
+        int hi = std::min<int>(15, (int)orig_locals - 1);
+        for (int v = hi; need > 0 && v >= 0; --v) {
+            try_take(v);
         }
     }
 
     if (need > 0) {
-        LOGW("[GrowLocals] num_22c need= %u， got= %zu (locals_before= %u)", num_22c,
-             regs_22c_.size(), orig_locals);
+        LOGW("[GrowLocals] num_22c need=%u, got=%zu (locals_before=%u, prefer_new_locals, skip_params_after_grow)",
+             num_22c, regs_22c_.size(), orig_locals);
     } else {
-        LOGD("[GrowLocals] num_22c= %u，regs= %s", num_22c, VEC_CSTR(to_sorted_vec(regs_22c_)));
+        LOGD("[GrowLocals] num_22c=%u, regs=%s",
+             num_22c, VEC_CSTR(to_sorted_vec(regs_22c_)));
     }
 
-    return num_reg_non_param_orig_; // 旧段大小
+    return num_reg_non_param_orig_; // 返回“旧本地段”的大小（保持原语义）
 }
+
 
 /**
  * 锁定旧段：[0, base) 不可用（仅对本分配器生效）

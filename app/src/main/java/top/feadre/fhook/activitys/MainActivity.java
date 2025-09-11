@@ -8,6 +8,8 @@ import android.widget.Button;
 import androidx.appcompat.app.AppCompatActivity;
 
 
+import java.security.MessageDigest;
+
 import top.feadre.fhook.FCFG_fhook;
 import top.feadre.fhook.R;
 
@@ -87,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-// 05 触发 System.loadLibrary("log")
+        // 05 触发 System.loadLibrary("log")
         Button bt_main_05 = findViewById(R.id.bt_main_05);
         bt_main_05.setText("05 触发 System.loadLibrary(\"log\")");
         bt_main_05.setOnClickListener(v -> {
@@ -101,7 +103,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-// 06 触发 SystemProperties.get("ro.build.version.release")
+        // 06 触发 SystemProperties.get("ro.build.version.release")
         Button bt_main_06 = findViewById(R.id.bt_main_06);
         bt_main_06.setText("06 触发 SystemProperties.get(版本号)");
         bt_main_06.setOnClickListener(v -> {
@@ -117,7 +119,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-// 07 触发 Settings.Secure.getString(..., ANDROID_ID)
+        // 07 触发 Settings.Secure.getString(..., ANDROID_ID)
         Button bt_main_07 = findViewById(R.id.bt_main_07);
         bt_main_07.setText("07 触发 ANDROID_ID 读取");
         bt_main_07.setOnClickListener(v -> {
@@ -144,7 +146,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-// 09 触发 Process.killProcess(myPid()) —— 注意：先点“初始化 hook”
+        // 09 触发 Process.killProcess(myPid()) —— 注意：先点“初始化 hook”
         Button bt_main_09 = findViewById(R.id.bt_main_09);
         bt_main_09.setText("09 触发 killProcess(myPid())（需已初始化Hook）");
         bt_main_09.setOnClickListener(v -> {
@@ -158,7 +160,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-// 10 触发 Debug.isDebuggerConnected()
+        // 10 触发 Debug.isDebuggerConnected()
         Button bt_main_10 = findViewById(R.id.bt_main_10);
         bt_main_10.setText("10 触发 Debug.isDebuggerConnected()");
         bt_main_10.setOnClickListener(v -> {
@@ -177,7 +179,7 @@ public class MainActivity extends AppCompatActivity {
         bt_main_11.setOnClickListener(v -> {
             Log.i(TAG, "[UI] trigger MessageDigest.getInstance(\"MD5\")");
             try {
-                java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
+                java.security.MessageDigest md = MessageDigest.getInstance("MD5");
                 byte[] out = md.digest("abc".getBytes(java.nio.charset.StandardCharsets.UTF_8));
                 StringBuilder sb = new StringBuilder();
                 for (byte b : out) sb.append(String.format("%02x", b));
@@ -187,7 +189,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-    // 12 触发 Cipher.getInstance(\"AES/CBC/PKCS5Padding\")
+        // 12 触发 Cipher.getInstance(\"AES/CBC/PKCS5Padding\")
         Button bt_main_12 = findViewById(R.id.bt_main_12);
         bt_main_12.setText("12 触发 Cipher.getInstance(\"AES/CBC/PKCS5Padding\")");
         bt_main_12.setOnClickListener(v -> {
