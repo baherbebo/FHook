@@ -447,6 +447,7 @@ public class DebugActivity extends AppCompatActivity {
                 String key = "k";
                 boolean ok = sp.edit().putString(key, "时间" + System.currentTimeMillis()).commit();
                 String v2 = sp.getString(key, "");
+                FLog.d(TAG, "sp_putString_S_SS ok=" + ok + ", v2=" + v2);
                 Toast.makeText(this, "sp_putString_S_SS=" + ok + ", v2=" + v2, Toast.LENGTH_SHORT).show();
             } catch (Throwable e) {
                 Log.e(TAG, "运行出错: " + e);
@@ -482,7 +483,7 @@ public class DebugActivity extends AppCompatActivity {
 //        h_Class_forName();
 
 //        h_Settings_getString();
-//
+
         h_SP_putString();
 
     }
@@ -497,7 +498,7 @@ public class DebugActivity extends AppCompatActivity {
         Method mCommitImpl = FHookTool.findMethod4Impl(editor, sp_putString_S_SS);
 
         FHook.hook(mCommitImpl)
-                .setOrigFunRun(false)
+                .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
                     // thiz 是具体 Editor 实例；无参数
                     showLog("SharedPreferences.Editor.commit", thiz, args, types);
@@ -507,10 +508,11 @@ public class DebugActivity extends AppCompatActivity {
                     // ret 是 Boolean（primitive boolean 会被装箱）
                     showLog("SharedPreferences.Editor.commit", hh.thisObject, ret, type);
                     // 你也可以强制返回 true 观测效果：
+                    // 这个换了实例 改的参数就没有用了
                     // 运行出错: java.lang.ClassCastException: java.lang.Boolean cannot be cast to android.content.SharedPreferences$Editor
-                    SharedPreferences sp = getSharedPreferences("hook", MODE_PRIVATE);
-                    SharedPreferences.Editor edit = sp.edit();
-                    ret = edit;
+//                    SharedPreferences sp = getSharedPreferences("hook", MODE_PRIVATE);
+//                    SharedPreferences.Editor edit = sp.edit();
+//                    ret = edit;
                     return ret;
                 })
                 .commit();
@@ -527,19 +529,19 @@ public class DebugActivity extends AppCompatActivity {
                 .setHookEnter((thiz, args, types, hh) -> {
                     // static 方法 thiz=null；args[0]=ContentResolver, args[1]=key
                     showLog("Settings_Secure_getString_S_OS", thiz, args, types);
-//                        args.set(1, "input_method_selector_visibility");
+                    args.set(1, "input_method_selector_visibility");
 
                 })
-//                .setHookExit((ret, type, hh) -> {
-//                    showLog("Settings_Secure_getString_S_OS", hh.thisObject, ret, type);
-//                    // 演示：在返回值后面加标记，肉眼可见 hook 生效
-//                    if (ret instanceof String) {
-//                        ret = ret + "_HOOK";
-//                    } else {
-//                        ret = "null_null_";
-//                    }
-//                    return ret;
-//                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("Settings_Secure_getString_S_OS", hh.thisObject, ret, type);
+                    // 演示：在返回值后面加标记，肉眼可见 hook 生效
+                    if (ret instanceof String) {
+                        ret = ret + "_HOOK";
+                    } else {
+                        ret = "null_null_";
+                    }
+                    return ret;
+                })
                 .commit();
     }
 
