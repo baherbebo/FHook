@@ -390,16 +390,15 @@ namespace finject {
             CHECK_ALLOC_OR_RET(regs9, count, -1,
                                "[doHExit] regs9 申请寄存器失败 ...");
 
-
-            count = 2;
-            auto regs_arr9_1 = fRegs.get()->GetRegs22c4Count(count, "regs9");
+            count = 2; // 原参数不是数组这里只用到 一组
+            auto regs_arr9_1 = fRegs.get()->GetRegs22c4Count(count, "regs_arr9_1");
             CHECK_ALLOC_OR_RET(regs_arr9_1, count, false,
                                "[doHExit] regs_arr9_1 申请22c寄存器失败 ...");
 
             // 反射要再包一层  Class[]{Object.class,Long.class}
             fir_funs_do::cre_arr_do_arg_2p(
-                    code_ir, regs_arr9_1[0],
-                    reg_do_arg, regs_arr9_1[0], regs9[1],
+                    code_ir, regs_arr9_1[0], reg_do_arg,
+                    regs_arr9_1[1], regs9[0],
                     hook_info.j_method_id, insert_point);
 
             auto reg_do_args = regs9[0]; //  reg_do_arg -》 reg_do_args

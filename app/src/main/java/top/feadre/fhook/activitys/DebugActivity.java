@@ -473,9 +473,9 @@ public class DebugActivity extends AppCompatActivity {
 
     private void doSysHook01() throws Throwable {
 
-        h_method_invoke(); // 不支持
+//        h_method_invoke(); // 不支持
 
-        h_class_getDeclareMethod();
+//        h_class_getDeclareMethod();
 
 //        h_class_loadClass(); // 这两个不能同时hook 会锁死
 
@@ -498,18 +498,21 @@ public class DebugActivity extends AppCompatActivity {
 
         FHook.hook(mCommitImpl)
                 .setOrigFunRun(false)
-//                .setHookEnter((thiz, args, types, hh) -> {
-//                    // thiz 是具体 Editor 实例；无参数
-//                    showLog("SharedPreferences.Editor.commit", thiz, args, types);
-//                })
-//                .setHookExit((ret, type, hh) -> {
-//                    // ret 是 Boolean（primitive boolean 会被装箱）
-//                    showLog("SharedPreferences.Editor.commit", hh.thisObject, ret, type);
-//                    // 你也可以强制返回 true 观测效果：
-//                    // 运行出错: java.lang.ClassCastException: java.lang.Boolean cannot be cast to android.content.SharedPreferences$Editor
-//                    ret = false;
-//                    return ret;
-//                })
+                .setHookEnter((thiz, args, types, hh) -> {
+                    // thiz 是具体 Editor 实例；无参数
+                    showLog("SharedPreferences.Editor.commit", thiz, args, types);
+                    args.set(1, "时间 999999999999");
+                })
+                .setHookExit((ret, type, hh) -> {
+                    // ret 是 Boolean（primitive boolean 会被装箱）
+                    showLog("SharedPreferences.Editor.commit", hh.thisObject, ret, type);
+                    // 你也可以强制返回 true 观测效果：
+                    // 运行出错: java.lang.ClassCastException: java.lang.Boolean cannot be cast to android.content.SharedPreferences$Editor
+                    SharedPreferences sp = getSharedPreferences("hook", MODE_PRIVATE);
+                    SharedPreferences.Editor edit = sp.edit();
+                    ret = edit;
+                    return ret;
+                })
                 .commit();
     }
 
