@@ -492,14 +492,13 @@ namespace fir_impl {
      * @param insert_point
      * @return 是否成功
      */
-    bool cre_arr_do_args4onExit(
+    bool cre_do_arg_2obj4onExit(
             lir::CodeIr *code_ir,
-            int reg_return_orig,         // 原方法返回值所在寄存器 传入 清空则没有返回值
-            dex::u2 reg_do_arg,  // 这个是返回值 必需要一个正常的寄存器，可以相等，需要外面判断完成是不是宽
-            bool is_wide_return,
+            int reg_return_orig,   // 原方法返回值所在寄存器  清空则传入-1 -> 直接给对象空 null
+            dex::u2 reg_do_arg,  // 这个是返回值 单寄存器
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point) {
 
-        LOGD("[cre_arr_do_args4onExit] reg_return_orig= %d", reg_return_orig)
+        LOGD("[cre_do_arg_2obj4onExit] reg_return_orig= %d", reg_return_orig)
         auto ir_method = code_ir->ir_method;
         auto proto = ir_method->decl->prototype;
         auto return_type = proto->return_type;
@@ -507,7 +506,7 @@ namespace fir_impl {
         // 无返回值或方法已经清空情况
         if (strcmp(return_type->descriptor->c_str(), "V") == 0 || reg_return_orig < 0) {
             // 拿到方法信息
-            LOGI("[cre_arr_do_args4onExit] %s.%s%s -> void/null, 插入null到v%d",
+            LOGI("[cre_do_arg_2obj4onExit] %s.%s%s -> void/null, 插入null到v%d",
                  ir_method->decl->parent->Decl().c_str(),
                  ir_method->decl->name->c_str(),
                  ir_method->decl->prototype->Signature().c_str(),
@@ -531,14 +530,8 @@ namespace fir_impl {
         fir_tools::box_scalar_value(insert_point, code_ir, return_type,
                                     reg_return_orig, reg_do_arg);
 
-        // 如果是寄存器相同 就不能恢复
-        if (is_wide_return && reg_return_orig != reg_do_arg) {
-            // 恢复宽寄存器
-            fir_tools::emitValToReg(code_ir, insert_point, reg_return_orig + 1, 0);
-            fir_tools::emitValToReg(code_ir, insert_point, reg_return_orig, 0);
-        }
 
-        LOGD("[cre_arr_do_args4onExit] 处理完成：%s → 转换为Object到v%d",
+        LOGD("[cre_do_arg_2obj4onExit] 处理完成：%s → 转换为Object到v%d",
              return_type->descriptor->c_str(), reg_do_arg);
 
         return true;

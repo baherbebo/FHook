@@ -119,7 +119,7 @@ int FRegAllocator::GrowLocals(dex::u2 add, uint16_t num_22c) {
     code->registers = static_cast<dex::u2>(orig_total + add);
     const dex::u2 new_locals = static_cast<dex::u2>(code->registers - ins_size);
     LOGI("[GrowLocals] add= %u，total:%u->%u ins= %u，locals:%u->%u",
-         add,num_22c, orig_total, code->registers, ins_size, orig_locals, new_locals);
+         add, num_22c, orig_total, code->registers, ins_size, orig_locals, new_locals);
 
     regs_22c_.clear();
     int need = (int) num_22c;
@@ -179,17 +179,18 @@ void FRegAllocator::AddGlobalForbid(const std::vector<int> &forbidden) {
          VEC_CSTR(to_sorted_vec(global_forbid_)));
 }
 
-std::vector<int> FRegAllocator::GetRegs22c(int count) const {
+std::vector<int> FRegAllocator::GetRegs22c(int count, const std::string &text) const {
     std::vector<int> out;
     int sz = (int) regs_22c_.size();
     if (count < 0 || count > sz) {
-        LOGE("[GetRegs22c] count=%d > size=%d", count, sz);
+        LOGE("[GetRegs22c] %s count=%d > size=%d", text.c_str(), count, sz);
         return out;
     }
 
     auto vec = to_sorted_vec(regs_22c_);
     out.assign(vec.begin(), vec.begin() + count);
-    LOGD("[GetRegs22c] count=%d out=%s all=%s", count, VEC_CSTR(out), VEC_CSTR(vec));
+    LOGD("[GetRegs22c] %s count=%d out=%s all=%s",
+         text.c_str(), count, VEC_CSTR(out), VEC_CSTR(vec));
     return out;
 }
 
@@ -246,9 +247,10 @@ std::vector<uint8_t> FRegAllocator::MakeForbidMaskWides(const std::vector<int> &
  */
 std::vector<int> FRegAllocator::AllocWides(const std::string &owner,
                                            int count,
+                                           const std::string &text,
                                            bool prefer_low_index,
                                            const std::vector<int> &extra_forbid) {
-    return AllocWidesImpl(owner, count, prefer_low_index, false, extra_forbid);
+    return AllocWidesImpl(owner, count, text, prefer_low_index, false, extra_forbid);
 }
 
 /**
@@ -260,8 +262,9 @@ std::vector<int> FRegAllocator::AllocWides(const std::string &owner,
  */
 std::vector<int> FRegAllocator::AllocWidesTail(const std::string &owner,
                                                int count,
+                                               const std::string &text,
                                                const std::vector<int> &extra_forbid) {
-    return AllocWidesImpl(owner, count, true, true, extra_forbid);
+    return AllocWidesImpl(owner, count, text, true, true, extra_forbid);
 }
 
 /**
@@ -275,6 +278,7 @@ std::vector<int> FRegAllocator::AllocWidesTail(const std::string &owner,
  */
 std::vector<int> FRegAllocator::AllocWidesImpl(const std::string &owner,
                                                int count,
+                                               const std::string &text,
                                                bool prefer_low_index,
                                                bool tail_only,
                                                const std::vector<int> &extra_forbid) {
@@ -285,7 +289,8 @@ std::vector<int> FRegAllocator::AllocWidesImpl(const std::string &owner,
     const int locals = Locals();
 
     if (count <= 0 || locals <= 1) {
-        LOGE("[AllocWides] owner=%s cnt=%d locals=%d -> no-op", owner.c_str(), count, locals);
+        LOGE("[AllocWides] %s owner=%s cnt=%d locals=%d -> no-op",
+             text.c_str(), owner.c_str(), count, locals);
         return lease.wides;
     }
 
@@ -299,8 +304,9 @@ std::vector<int> FRegAllocator::AllocWidesImpl(const std::string &owner,
     sort_unique(extra);
 
     // 3) 打日志（单行）
-    LOGD("[AllocWides] owner=%s cnt=%d tail=%d prefLow=%d locals=%d lockBase=%d glob=%s usedS=%s usedW=%s forbid=%s",
-         owner.c_str(), count, tail_only ? 1 : 0, prefer_low_index ? 1 : 0, locals, lock_old_base_,
+    LOGD("[AllocWides] %s owner=%s cnt=%d tail=%d prefLow=%d locals=%d lockBase=%d glob=%s usedS=%s usedW=%s forbid=%s",
+         text.c_str(), owner.c_str(), count, tail_only ? 1 : 0, prefer_low_index ? 1 : 0, locals,
+         lock_old_base_,
          VEC_CSTR(to_sorted_vec(global_forbid_)),
          VEC_CSTR(to_sorted_vec(used_single_)),
          VEC_CSTR(to_sorted_vec(used_wide_start_)),
@@ -329,7 +335,8 @@ std::vector<int> FRegAllocator::AllocWidesImpl(const std::string &owner,
         used_wide_start_.insert(v);
         owner_wides_[owner].insert(v);
     }
-    LOGD("[AllocWides] owner=%s got=%s/%d", owner.c_str(), VEC_CSTR(lease.wides), count);
+    LOGD("[AllocWides] %s owner=%s got=%s/%d",
+         text.c_str(), owner.c_str(), VEC_CSTR(lease.wides), count);
 
     return lease.wides;
 }
@@ -344,9 +351,10 @@ std::vector<int> FRegAllocator::AllocWidesImpl(const std::string &owner,
  */
 std::vector<int> FRegAllocator::AllocSingles(const std::string &owner,
                                              int count,
+                                             const std::string &text,
                                              bool prefer_low_index,
                                              const std::vector<int> &extra_forbid) {
-    return AllocSinglesImpl(owner, count, prefer_low_index, false, extra_forbid);
+    return AllocSinglesImpl(owner, count, text, prefer_low_index, false, extra_forbid);
 }
 
 /**
@@ -358,8 +366,9 @@ std::vector<int> FRegAllocator::AllocSingles(const std::string &owner,
  */
 std::vector<int> FRegAllocator::AllocSinglesTail(const std::string &owner,
                                                  int count,
+                                                 const std::string &text,
                                                  const std::vector<int> &extra_forbid) {
-    return AllocSinglesImpl(owner, count, true, true, extra_forbid);
+    return AllocSinglesImpl(owner, count, text, true, true, extra_forbid);
 }
 
 /**
@@ -373,6 +382,7 @@ std::vector<int> FRegAllocator::AllocSinglesTail(const std::string &owner,
  */
 std::vector<int> FRegAllocator::AllocSinglesImpl(const std::string &owner,
                                                  int count,
+                                                 const std::string &text,
                                                  bool prefer_low_index,
                                                  bool tail_only,
                                                  const std::vector<int> &extra_forbid) {
@@ -383,7 +393,8 @@ std::vector<int> FRegAllocator::AllocSinglesImpl(const std::string &owner,
     const int locals = Locals();
 
     if (count <= 0 || locals <= 0) {
-        LOGE("[AllocSingles] owner=%s cnt=%d locals=%d -> no-op", owner.c_str(), count, locals);
+        LOGE("[AllocSingles] %s owner=%s cnt=%d locals=%d -> no-op",
+             text.c_str(), owner.c_str(), count, locals);
         return lease.singles;
     }
 
@@ -397,8 +408,11 @@ std::vector<int> FRegAllocator::AllocSinglesImpl(const std::string &owner,
     sort_unique(extra);
 
     // 3) 打日志（单行）
-    LOGD("[AllocSingles] owner=%s cnt=%d tail=%d prefLow=%d locals=%d lockBase=%d glob=%s usedS=%s usedW=%s forbid=%s",
-         owner.c_str(), count, tail_only ? 1 : 0, prefer_low_index ? 1 : 0, locals, lock_old_base_,
+    LOGD("[AllocSingles] %s owner=%s cnt=%d tail=%d prefLow=%d locals=%d lockBase=%d glob=%s usedS=%s usedW=%s forbid=%s",
+         text.c_str(), owner.c_str(), count,
+         tail_only ? 1 : 0,
+         prefer_low_index ? 1 : 0, locals,
+         lock_old_base_,
          VEC_CSTR(to_sorted_vec(global_forbid_)),
          VEC_CSTR(to_sorted_vec(used_single_)),
          VEC_CSTR(to_sorted_vec(used_wide_start_)),
@@ -425,7 +439,8 @@ std::vector<int> FRegAllocator::AllocSinglesImpl(const std::string &owner,
         used_single_.insert(v);
         owner_singles_[owner].insert(v);
     }
-    LOGD("[AllocSingles] owner=%s got=%s/%d", owner.c_str(), VEC_CSTR(lease.singles), count);
+    LOGD("[AllocSingles] %s owner=%s got=%s/%d",
+         text.c_str(), owner.c_str(), VEC_CSTR(lease.singles), count);
 
     return lease.singles;
 }

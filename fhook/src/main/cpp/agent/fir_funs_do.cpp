@@ -284,14 +284,6 @@ namespace fir_funs_do {
             code_ir->instructions.insert(insert_point, mres);
         }
 
-//        {
-//            // long 临时必须恢复宽寄存器
-//            // 先清高半 v+1
-//            fir_tools::emitValToReg(code_ir, insert_point, reg_tmp_long + 1, 0);
-//            // 再清低半 v
-//            fir_tools::emitValToReg(code_ir, insert_point, reg_tmp_long, 0);
-//        }
-
         return true;
     }
 

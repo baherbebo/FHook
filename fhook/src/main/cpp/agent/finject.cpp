@@ -106,11 +106,11 @@ namespace finject {
 
         // --------------------- 1 参数包装成 object[object arg0,object arg1...]
         count = 2;
-        auto regs1 = fRegs.get()->AllocSinglesTail("regs1", count);
+        auto regs1 = fRegs.get()->AllocSinglesTail("regs1", count, "regs1");
         CHECK_ALLOC_OR_RET(regs1, count, false, "[do_HEnter] regs1 申请寄存器失败 ...");
 
         count = 2;
-        auto regs_arr1 = fRegs.get()->GetRegs22c(count);
+        auto regs_arr1 = fRegs.get()->GetRegs22c(count, "regs_arr1");
         CHECK_ALLOC_OR_RET(regs_arr1, count, false, "[do_HEnter] regs_arr1 申请寄存器失败 ...");
 
         // 这里参数来源 自动读 p指针 object[arg0,arg1...]
@@ -125,13 +125,15 @@ namespace finject {
             LOGD("[do_HEnter] 应用侧 调用 isHEnter ...")
 
             count = 1; // 后申请宽，保持连续
-            auto regs2_wide = fRegs.get()->AllocWidesTail("regs2_wide", count);
+            auto regs2_wide = fRegs.get()->AllocWidesTail(
+                    "regs2_wide", count, "regs2_wide");
             CHECK_ALLOC_OR_RET(regs2_wide, count, false,
                                "[do_HEnter] regs2_wide 申请寄存器失败 ...");
 
             // ---------------------  直接执行 do_frame_hfun 这个没得返回 改了的参数在 这里要确保连续
             count = 1;
-            auto regs3 = fRegs.get()->AllocSinglesTail("regs3", count);
+            auto regs3 = fRegs.get()->AllocSinglesTail(
+                    "regs3", count, "regs3");
             CHECK_ALLOC_OR_RET(regs3, count, false, "[do_HEnter] regs3 申请寄存器失败 ...");
 
             // 拿到 运行方法
@@ -151,11 +153,11 @@ namespace finject {
             // reg_do_args  Object[arg0,arg1...]
             // --------------------- 1
             count = 1;
-            auto regs5 = fRegs.get()->AllocSinglesTail("regs5", count);
+            auto regs5 = fRegs.get()->AllocSinglesTail("regs5", count, "regs5");
             CHECK_ALLOC_OR_RET(regs5, count, false, "[do_HEnter] regs5 申请寄存器失败 ...");
 
             count = 2;
-            auto regs_arr5_1 = fRegs.get()->GetRegs22c(count);
+            auto regs_arr5_1 = fRegs.get()->GetRegs22c(count, "regs_arr5_1");
             CHECK_ALLOC_OR_RET(regs_arr5_1, count, false,
                                "[do_HEnter] regs_arr5_1 申请寄存器失败 ...");
 
@@ -174,11 +176,13 @@ namespace finject {
 
                     // --------------------- 2
                     count = 2;
-                    auto regs6 = fRegs.get()->AllocSinglesTail("regs6", count);
+                    auto regs6 = fRegs.get()->AllocSinglesTail(
+                            "regs6", count, "regs6");
                     CHECK_ALLOC_OR_RET(regs6, count, false, "[do_HEnter] regs6 申请寄存器失败 ...");
 
                     count = 2;
-                    auto regs_arr6_1 = fRegs.get()->GetRegs22c(count);
+                    auto regs_arr6_1 = fRegs.get()->GetRegs22c(
+                            count, "regs_arr6_1");
                     CHECK_ALLOC_OR_RET(regs_arr6_1, count, false,
                                        "[do_HEnter] regs_arr6_1 申请寄存器失败 ...");
 
@@ -193,7 +197,8 @@ namespace finject {
                     auto reg_method_args = regs6[1];
 
                     count = 3;
-                    auto regs7 = fRegs.get()->AllocSinglesTail("regs7", count);
+                    auto regs7 = fRegs.get()->AllocSinglesTail(
+                            "regs7", count, "regs7");
                     CHECK_ALLOC_OR_RET(regs7, count, false, "[do_HEnter] regs7 申请寄存器失败 ...");
 
                     // 执行结果返回到 v0`
@@ -214,13 +219,14 @@ namespace finject {
                     LOGI("[do_HEnter] 运行B方案 ...")
 
                     count = 4;
-                    auto regs8 = fRegs.get()->AllocSinglesTail("regs8", count);
+                    auto regs8 = fRegs.get()->AllocSinglesTail(
+                            "regs8", count, "regs8");
                     CHECK_ALLOC_OR_RET(regs8, count, false, "[do_HEnter] regs8 申请寄存器失败 ...");
                     std::string name_class_arg = "[Ljava/lang/Object;";
                     std::string rtype_name = "[Ljava/lang/Object;";
 
                     count = 2;
-                    auto regs_arr8_1 = fRegs.get()->GetRegs22c(count);
+                    auto regs_arr8_1 = fRegs.get()->GetRegs22c(count, "regs8");
                     CHECK_ALLOC_OR_RET(regs_arr8_1, count, false,
                                        "[do_HEnter] regs_arr8_1 申请寄存器失败 ...");
 
@@ -243,7 +249,8 @@ namespace finject {
                     if (gIsDebug)LOGI("[do_HEnter] 运行C方案 ...")
 
                     count = 4;
-                    auto regs9 = fRegs.get()->AllocSinglesTail("regs9", count);
+                    auto regs9 = fRegs.get()->AllocSinglesTail(
+                            "regs9", count, "regs9");
                     CHECK_ALLOC_OR_RET(regs9, count, false, "[do_HEnter] regs9 申请寄存器失败 ...");
 
                     bool res = fir_impl::do_sysloader_hook_funs_C(
@@ -269,7 +276,8 @@ namespace finject {
         // 没有执行原始方法 则不需要恢复参数类型
         if (hook_info.isRunOrigFun) {
             count = 2;
-            auto regs4 = fRegs.get()->AllocSinglesTail("regs4", count);
+            auto regs4 = fRegs.get()->AllocSinglesTail(
+                    "regs4", count, "regs4");
             CHECK_ALLOC_OR_RET(regs4, count, false, "[do_HEnter] regs4 申请寄存器失败 ...");
 
 //             需要运行原方法才恢复
@@ -291,17 +299,17 @@ namespace finject {
                 const deploy::MethodHooks &hook_info,
                 lir::CodeIr *code_ir,
                 slicer::IntrusiveList<lir::Instruction>::Iterator insert_point,
-                int &reg_return_orig, // 原方法返回值所在寄存器 清空了这里是 -1
+                int &reg_return_orig, // 原方法所在的最后一个返回值所在寄存器 清空了这里是 -1
                 bool &is_wide_reg_return,
                 HookPlan plan) {
 
         LOGD("[doHExit] 运行 isHExit ......")
-        int reg_return_dst = -1;  // 最终返回值
+        int reg_return_dst = -1;  // 外把最终处理后的结果 返回值
 
-        // 申请一个统一可用的返回寄存器 根据返回寄存器类型 epilogue
-        // 如果需要运行原方法才进行统一出口， reg_return_orig 肯定不会是 -1
+        // 申请一个统一可用的返回寄存器 根据返回寄存器类型
+        // 如果需要运行原方法才进行统一出口， reg_return_orig 肯定不会是 -1，不处理
         if (hook_info.isRunOrigFun) {
-            // reg_return_orig 里存的返回值原方法，不能动 这里 reg_return_orig 可能是宽寄存器
+            // 原方法返回值处加工， reg_return_orig 里存的返回值原方法，不能动 这里 reg_return_orig 可能是宽寄存器
             fir_tools::instrument_with_epilogue(code_ir, reg_return_orig);
         }
 
@@ -311,61 +319,50 @@ namespace finject {
         count = 1; // 申请一个宽存
         std::vector<int> regs0;
 
-        dex::u2 reg_do_arg = 0;
-        // 拿到 reg_return_dst
-        if (reg_return_orig < 0) {
-            // 清空了的 随机造一个
-            LOGW("[doHExit] reg_return_orig 已清空不存在 ... %d",
-                 reg_return_orig)
-            // 随机选一个
-            if (is_wide_reg_return) {
-                regs0 = fRegs.get()->AllocWidesTail("regs0", count);
-                CHECK_ALLOC_OR_RET(regs0, count, -1,
-                                   "[doHExit] regs0 申请宽寄存器失败 ...");
-            } else {
-                regs0 = fRegs.get()->AllocSinglesTail("regs0", count);
-                CHECK_ALLOC_OR_RET(regs0, count, -1,
-                                   "[doHExit] regs0 申请寄存器失败 ...");
-            }
-            reg_do_arg = regs0[0];
+        LOGI("[doHExit] 原最后一个返回值的寄存器 reg_return_orig= %d", reg_return_orig)
 
-        } else {
-
-            // 直接取用原函数的最后一个返回值寄存器
+        // 如果有返回值 则锁定 没有就不管
+        if (reg_return_orig >=0) {
+            // 直接取用原函数的最后一个返回值寄存器  锁住
             if (is_wide_reg_return) {
-                // 这里直接取第一个宽寄存器
                 fRegs.get()->AddGlobalForbid({reg_return_orig, reg_return_orig + 1});
             } else {
                 fRegs.get()->AddGlobalForbid({reg_return_orig});
             }
-            reg_do_arg = reg_return_orig;
         }
 
         insert_point = code_ir->instructions.end(); // 参数等会用到这个指针
+
         // --------------------- 1
-        // 确保不与宽冲突 创建参数 这个函数不会报错
-        fir_impl::cre_arr_do_args4onExit(
+        count = 1;
+        auto regs0_1 = fRegs.get()->AllocSinglesTail(
+                "regs0_1", count, "regs0_1");
+        CHECK_ALLOC_OR_RET(regs0_1, count, -1,
+                           "[doHExit] regs0_1 申请寄存器失败 ...");
+
+        // 原返回值包装成 object
+        fir_impl::cre_do_arg_2obj4onExit(
                 code_ir,
                 reg_return_orig,
-                reg_do_arg,
-                is_wide_reg_return,
+                regs0_1[0],
                 insert_point);
+
+        dex::u2 reg_do_arg = regs0_1[0];
 
         // --- 完成：reg_do_arg 是把返回值转成了 Object对象
 
         /// 开发调试  -------------------
 //        debug_log_2p(code_ir, forbidden_v, insert_point);
 
-
-//            if (!transform->is_app_loader()) { //  调试使用
         if (transform->is_app_loader()) {
             LOGD("[doHExit] 应用侧 调用 isHExit ...")
 
             // --------------------- 2
-            count = 1; // 申请一个宽存
-            auto regs8_wide = fRegs.get()->AllocWidesTail("regs8_wide", count);
+            count = 1; // 申请一个宽存  这里要和 regs0_1 连续
+            auto regs8_wide = fRegs.get()->AllocWidesTail(
+                    "regs8_wide", count, "regs8_wide");
             CHECK_ALLOC_OR_RET(regs8_wide, count, -1,
-                               "[doHExit] regs8_wide 申请寄存器失败 ...");
+                               "[doHExit] regs8_wide 申请宽寄存器失败 ...");
 
             auto f_THook_onExit = fir_funs_def::get_THook_onExit(code_ir);
             // 这里出来
@@ -384,15 +381,16 @@ namespace finject {
 
             // --------------------- 2 do 参数打包 Object[Object,Long]
             count = 1;
-            auto regs9 = fRegs.get()->AllocSinglesTail("regs9", count);
+            auto regs9 = fRegs.get()->AllocSinglesTail(
+                    "regs9", count, "regs9");
             CHECK_ALLOC_OR_RET(regs9, count, -1,
                                "[doHExit] regs9 申请寄存器失败 ...");
 
 
             count = 2;
-            auto regs_arr9_1 = fRegs.get()->GetRegs22c(count);
+            auto regs_arr9_1 = fRegs.get()->GetRegs22c(count, "regs9");
             CHECK_ALLOC_OR_RET(regs_arr9_1, count, false,
-                               "[doHExit] regs_arr9_1 申请寄存器失败 ...");
+                               "[doHExit] regs_arr9_1 申请22c寄存器失败 ...");
 
             // 反射要再包一层  Class[]{Object.class,Long.class}
             fir_funs_do::cre_arr_do_arg_2p(
@@ -414,9 +412,9 @@ namespace finject {
                     CHECK_ALLOC_OR_RET(regs10, count, -1, "[doHExit] regs10 申请寄存器失败 ...");
 
                     count = 2;
-                    auto regs_arr10_1 = fRegs.get()->GetRegs22c(count);
+                    auto regs_arr10_1 = fRegs.get()->GetRegs22c(count, "regs_arr10_1");
                     CHECK_ALLOC_OR_RET(regs_arr10_1, count, false,
-                                       "[doHExit] regs_arr10_1 申请寄存器失败 ...");
+                                       "[doHExit] regs_arr10_1 申请22c寄存器失败 ...");
 
                     // Class[]{Object.class,Long.class}
                     std::string name_class_arg = "Ljava/lang/Object;";  // 普通obj
@@ -429,7 +427,8 @@ namespace finject {
 
 
                     count = 3;
-                    auto regs11 = fRegs.get()->AllocSinglesTail("regs11", count);
+                    auto regs11 = fRegs.get()->AllocSinglesTail(
+                            "regs11", count, "regs11");
                     CHECK_ALLOC_OR_RET(regs11, count, -1, "[doHExit] regs11 申请寄存器失败 ...");
 
                     bool res = fir_impl::do_sysloader_hook_funs_A(
@@ -447,14 +446,15 @@ namespace finject {
                     LOGI("[doHExit] 运行B方案 ...")
 
                     count = 4;
-                    auto regs8 = fRegs.get()->AllocSinglesTail("regs8", count);
+                    auto regs8 = fRegs.get()->AllocSinglesTail(
+                            "regs8", count, "regs8");
                     CHECK_ALLOC_OR_RET(regs8, count, false, "[doHExit] regs8 申请寄存器失败 ...");
 
                     std::string name_class_arg = "Ljava/lang/Object;";
                     std::string rtype_name = "Ljava/lang/Object;";
 
                     count = 2;
-                    auto regs_arr8_1 = fRegs.get()->GetRegs22c(count);
+                    auto regs_arr8_1 = fRegs.get()->GetRegs22c(count, "regs_arr8_1");
                     CHECK_ALLOC_OR_RET(regs_arr8_1, count, false,
                                        "[doHExit] regs_arr8_1 申请寄存器失败 ...");
 
@@ -477,7 +477,8 @@ namespace finject {
                     if (gIsDebug)LOGI("[doHExit] 运行C方案 ...")
 
                     count = 4;
-                    auto regs9 = fRegs.get()->AllocSinglesTail("regs9", count);
+                    auto regs9 = fRegs.get()->AllocSinglesTail(
+                            "regs9", count, "regs9");
                     CHECK_ALLOC_OR_RET(regs9, count, false, "[doHExit] regs9 申请寄存器失败 ...");
 
                     bool res = fir_impl::do_sysloader_hook_funs_C(
@@ -547,7 +548,7 @@ namespace finject {
         if (!hook_info.isRunOrigFun) {
             fir_tools::clear_original_instructions(code_ir);
         } else {
-            // 快速查找，原始返回值寄存器编号和类型
+            // 快速查找，原始返回值寄存器编号和类型 最后一个
             reg_return_orig = fir_tools::find_return_register(
                     code_ir, &is_wide_reg_return);
             LOGI("[do_finject] reg_return_orig= %d, is_wide_reg_return= %d", reg_return_orig,
@@ -621,6 +622,7 @@ namespace finject {
         // ------------------ Exit ------------------
 
         if (hook_info.isHExit) {
+            fRegs.get()->ClearAllUsed();
             reg_return_dst = doHExit(
                     transform, hook_info, code_ir,
                     insert_point,

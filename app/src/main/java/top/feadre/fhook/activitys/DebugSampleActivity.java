@@ -232,15 +232,15 @@ public class DebugSampleActivity extends AppCompatActivity {
                 throw new RuntimeException(e);
             }
             FHook.hook(method)
-                    .setOrigFunRun(true)
-                    .setHookEnter((thiz, args, types, hh) -> {
-                        Log.i(TAG, "h_fz1 args=" + args);
-                        args.set(0, 9999);
-                    })
-//                    .setHookExit((ret, returnType, hh) -> {
-//                        Log.i(TAG, "h_fz1 ret=" + ret);
-//                        return ret;
+                    .setOrigFunRun(false)
+//                    .setHookEnter((thiz, args, types, hh) -> {
+//                        Log.i(TAG, "h_fz1 args=" + args);
+//                        args.set(0, 9999);
 //                    })
+                    .setHookExit((ret, returnType, hh) -> {
+                        Log.i(TAG, "h_fz1 ret=" + ret);
+                        return ret;
+                    })
                     .commit();
             FFunsUI.toast(this, "h_fz1");
         });
@@ -261,7 +261,7 @@ public class DebugSampleActivity extends AppCompatActivity {
         });
 
         Button bt_main_34 = findViewById(R.id.bt_main_34);
-        bt_main_34.setText("34 h_fz1");
+        bt_main_34.setText("34 h_fz2");
         bt_main_34.setOnClickListener(v -> {
             Method method = null;
             try {
@@ -275,10 +275,10 @@ public class DebugSampleActivity extends AppCompatActivity {
                         Log.i(TAG, "fun_fz02 args=" + args);
                         args.set(1, 8888);
                     })
-//                    .setHookExit((ret, returnType, hh) -> {
-//                        Log.i(TAG, "fun_fz02 ret=" + ret);
-//                        return ret;
-//                    })
+                    .setHookExit((ret, returnType, hh) -> {
+                        Log.i(TAG, "fun_fz02 ret=" + ret);
+                        return ret;
+                    })
                     .commit();
         });
 
@@ -329,10 +329,11 @@ public class DebugSampleActivity extends AppCompatActivity {
                         Log.i(TAG, "fun_fz03 args=" + args);
                         args.set(3, 888.888);
                     })
-//                    .setHookExit((ret, returnType, hh) -> {
-//                        Log.i(TAG, "fun_fz03 ret=" + ret);
-//                        return ret;
-//                    })
+                    .setHookExit((ret, returnType, hh) -> {
+                        Log.i(TAG, "fun_fz03 ret=" + ret);
+                        ret = 9999.9999;
+                        return ret;
+                    })
                     .commit();
         });
 
@@ -549,16 +550,16 @@ public class DebugSampleActivity extends AppCompatActivity {
                     TObject o1 = (TObject) args.get(0);
                     o1.setAge(9999);
                 })
-//                .setHookExit((ret, type, hh) -> {
-//                    showLog("fun_TObject_TObject", hh.thisObject, ret, type);
-//                    if (ret == null) {
-//                        ret = new TObject("bbbbbbbbbbb", 8888);
-//                        return ret;
-//                    }
-//                    TObject o1 = (TObject) ret;
-//                    o1.setName("aaaaaabbb");
-//                    return ret;
-//                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("fun_TObject_TObject", hh.thisObject, ret, type);
+                    if (ret == null) {
+                        ret = new TObject("bbbbbbbbbbb", 8888);
+                        return ret;
+                    }
+                    TObject o1 = (TObject) ret;
+                    o1.setName("aaaaaabbb");
+                    return ret;
+                })
                 .commit();
 
 
@@ -570,12 +571,12 @@ public class DebugSampleActivity extends AppCompatActivity {
                     int[] arr = (int[]) args.get(0);
                     arr[0] = 666;
                 })
-//                .setHookExit((ret, type, hh) -> {
-//                    showLog("fun_I_IArr", hh.thisObject, ret, type);
-//
-//                    ret = 999;
-//                    return ret;
-//                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("fun_I_IArr", hh.thisObject, ret, type);
+
+                    ret = 999;
+                    return ret;
+                })
                 .commit();
 
 
@@ -588,12 +589,12 @@ public class DebugSampleActivity extends AppCompatActivity {
                     arg0[2] = 999.99999;
 
                 })
-//                .setHookExit((ret, type, hh) -> {
-//                    showLog("fun_IArr_DArr", hh.thisObject, ret, type);
-//                    int[] ret1 = (int[]) ret;
-//                    ret1[0] = 666;
-//                    return ret;
-//                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("fun_IArr_DArr", hh.thisObject, ret, type);
+                    int[] ret1 = (int[]) ret;
+                    ret1[0] = 666;
+                    return ret;
+                })
                 .commit();
 
 
@@ -606,19 +607,19 @@ public class DebugSampleActivity extends AppCompatActivity {
                     o[0] = 999.9999;
 
                 })
-//                .setHookExit((ret, type, hh) -> {
-//                    showLog("fun_TObjectArr_DArr", hh.thisObject, ret, type);
-//                    if (ret == null) {
-//                        TObject[] out = new TObject[2];
-//                        out[0] = new TObject("_new_" + 999, 999);
-//                        return out; // 一定要返回 TObject[]，与原方法签名匹配
-//                    }
-//
-//                    TObject[] oarr = (TObject[]) ret;
-//                    oarr[0].setName("_new_" + 999);
-//                    return ret;
-//
-//                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("fun_TObjectArr_DArr", hh.thisObject, ret, type);
+                    if (ret == null) {
+                        TObject[] out = new TObject[2];
+                        out[0] = new TObject("_new_" + 999, 999);
+                        return out; // 一定要返回 TObject[]，与原方法签名匹配
+                    }
+
+                    TObject[] oarr = (TObject[]) ret;
+                    oarr[0].setName("_new_" + 999);
+                    return ret;
+
+                })
                 .commit();
 
 
@@ -631,15 +632,15 @@ public class DebugSampleActivity extends AppCompatActivity {
                     o[0] = 5555.555;
 
                 })
-//                .setHookExit((ret, type, hh) -> {
-//                    showLog("fun_double_DArr", hh.thisObject, ret, type);
-//                    if (ret == null) {
-//                        double out = 456.6666;
-//                        return out;
-//                    }
-//                    ret = 22.2;
-//                    return ret;
-//                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("fun_double_DArr", hh.thisObject, ret, type);
+                    if (ret == null) {
+                        double out = 456.6666;
+                        return out;
+                    }
+                    ret = 22.2;
+                    return ret;
+                })
                 .commit();
 
 
@@ -652,21 +653,21 @@ public class DebugSampleActivity extends AppCompatActivity {
                     o[0] = 999;
                     hh.extras.put("args", new java.util.ArrayList<>(args));// 这里要再包一层
                 })
-//                .setHookExit((ret, type, hh) -> {
-//                    showLog("jtFun_JArr_JArr", hh.thisObject, ret, type);
-//                    if (ret == null) {
-//                        long[] out = new long[2];
-//                        out[0] = 6666;
-//                        return out;
-//                    }
-//                    ArrayList<long[]> args = (ArrayList<long[]>) hh.extras.get("args");
-//                    for (int i = 0; i < args.size(); i++) {
-//                        Log.d(TAG, "jtFun_JArr_JArr ... args[" + i + "]=" + Arrays.toString(args.get(i)));
-//                    }
-//                    long[] r = (long[]) ret;
-//                    r[1] = 99;
-//                    return ret;
-//                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("jtFun_JArr_JArr", hh.thisObject, ret, type);
+                    if (ret == null) {
+                        long[] out = new long[2];
+                        out[0] = 6666;
+                        return out;
+                    }
+                    ArrayList<long[]> args = (ArrayList<long[]>) hh.extras.get("args");
+                    for (int i = 0; i < args.size(); i++) {
+                        Log.d(TAG, "jtFun_JArr_JArr ... args[" + i + "]=" + Arrays.toString(args.get(i)));
+                    }
+                    long[] r = (long[]) ret;
+                    r[1] = 99;
+                    return ret;
+                })
                 .commit();
 
     }
@@ -682,11 +683,11 @@ public class DebugSampleActivity extends AppCompatActivity {
                     showLog("fun_V_V", thiz, args, types);
 
                 })
-//                .setHookExit((ret, type, hh) -> {
-//                    showLog("fun_V_V", hh.thisObject, ret, type);
-//
-//                    return ret;
-//                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("fun_V_V", hh.thisObject, ret, type);
+
+                    return ret;
+                })
                 .commit();
 
         FHook.hook(jtFun_V_V)
@@ -695,11 +696,11 @@ public class DebugSampleActivity extends AppCompatActivity {
                     showLog("jcFun_V_V", thiz, args, types);
 
                 })
-//                .setHookExit((ret, type, hh) -> {
-//                    showLog("jcFun_V_V", hh.thisObject, ret, type);
-//
-//                    return ret;
-//                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("jcFun_V_V", hh.thisObject, ret, type);
+
+                    return ret;
+                })
                 .commit();
 
     }
@@ -718,13 +719,13 @@ public class DebugSampleActivity extends AppCompatActivity {
                     args1 = "9999" + args0;
                     args.set(1, args1);
                 })
-//                .setHookExit(
-//                        (ret, type, hh) -> {
-//                            showLog("fun_String_String2", hh.thisObject, ret, type);
-//
-//                            ret = "11111";
-//                            return ret;
-//                        })
+                .setHookExit(
+                        (ret, type, hh) -> {
+                            showLog("fun_String_String2", hh.thisObject, ret, type);
+
+                            ret = "11111";
+                            return ret;
+                        })
                 .commit();
 
         FHook.hook(fun_I_III)
@@ -734,12 +735,12 @@ public class DebugSampleActivity extends AppCompatActivity {
                     args.set(0, 6666);
 
                 })
-//                .setHookExit((ret, type, hh) -> {
-//                    showLog("fun_I_III", hh.thisObject, ret, type);
-//
-//                    ret = 8888;
-//                    return ret;
-//                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("fun_I_III", hh.thisObject, ret, type);
+
+                    ret = 8888;
+                    return ret;
+                })
                 .commit();
 
         FHook.hook(jtFun_I_II)
@@ -750,12 +751,12 @@ public class DebugSampleActivity extends AppCompatActivity {
                     args.set(0, 8888);
 
                 })
-//                .setHookExit((ret, type, hh) -> {
-//                    showLog("jtFun_I_II", hh.thisObject, ret, type);
-//
-//                    ret = 99999;
-//                    return ret;
-//                })
+                .setHookExit((ret, type, hh) -> {
+                    showLog("jtFun_I_II", hh.thisObject, ret, type);
+
+                    ret = 99999;
+                    return ret;
+                })
                 .commit();
     }
 

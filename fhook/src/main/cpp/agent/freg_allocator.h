@@ -45,26 +45,30 @@ namespace feadre {
         void AddGlobalForbid(const std::vector<int> &forbidden);
 
 
-        std::vector<int> GetRegs22c(int count) const;
+        std::vector<int> GetRegs22c(int count, const std::string &text="") const;
 
         // 任意可用段分配
         std::vector<int> AllocSingles(const std::string &owner,
                                       int count,
+                                      const std::string &text="",
                                       bool prefer_low_index = true,
                                       const std::vector<int> &extra_forbid = {});
 
         // 只从新段分配
         std::vector<int> AllocSinglesTail(const std::string &owner,
                                           int count,
+                                          const std::string &text="",
                                           const std::vector<int> &extra_forbid = {});
 
         std::vector<int> AllocWides(const std::string &owner,
                                     int count,
+                                    const std::string &text="",
                                     bool prefer_low_index = true,
                                     const std::vector<int> &extra_forbid = {});
 
         std::vector<int> AllocWidesTail(const std::string &owner,
                                         int count,
+                                        const std::string &text="",
                                         const std::vector<int> &extra_forbid = {});
 
         // 释放
@@ -131,12 +135,14 @@ namespace feadre {
         // 实际分配
         std::vector<int> AllocSinglesImpl(const std::string &owner,
                                           int count,
+                                          const std::string &text,
                                           bool prefer_low_index,
                                           bool tail_only,
                                           const std::vector<int> &extra_forbid);
 
         std::vector<int> AllocWidesImpl(const std::string &owner,
                                         int count,
+                                        const std::string &text,
                                         bool prefer_low_index,
                                         bool tail_only,
                                         const std::vector<int> &extra_forbid);

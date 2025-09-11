@@ -61,11 +61,10 @@ namespace fir_impl {
             dex::u2 reg3_arr_return,  // 最终接收
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 
-    bool cre_arr_do_args4onExit(
+    bool cre_do_arg_2obj4onExit(
             lir::CodeIr *code_ir,
-            int reg_return_orig,         // 原方法返回值所在寄存器 传入 清空则没有返回值
-            dex::u2 reg_do_arg,  // 这个是返回值 必需要一个正常的寄存器，可以相等，需要外面判断完成是不是宽
-            bool is_wide_return,
+            int reg_return_orig,   // 原方法返回值所在寄存器  清空则传入-1 -> 直接给对象空 null
+            dex::u2 reg_do_arg,  // 这个是返回值 单寄存器
             slicer::IntrusiveList<lir::Instruction>::Iterator &insert_point);
 }
 
