@@ -10,7 +10,9 @@ public class MyApp extends Application {
     @Override
     protected void attachBaseContext(Context base) {
         Log.d(TAG, "attachBaseContext");
-        Log.i(TAG, "attachBaseContext FHook.init= " + FHook.init(base));
+        if (FCFG.IS_APP_INIT_AUTO) {
+            Log.i(TAG, "attachBaseContext FHook.init= " + FHook.init(base));
+        }
 
         super.attachBaseContext(base);
     }

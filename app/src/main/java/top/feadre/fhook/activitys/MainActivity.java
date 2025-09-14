@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import java.security.MessageDigest;
 
 import top.feadre.fhook.FCFG_fhook;
+import top.feadre.fhook.FHook;
 import top.feadre.fhook.R;
 
 public class MainActivity extends AppCompatActivity {
@@ -45,12 +46,25 @@ public class MainActivity extends AppCompatActivity {
 
 
         Button bt_main_02 = findViewById(R.id.bt_main_02);
-        bt_main_02.setText("02 初始化 FAndroidHook");
+        bt_main_02.setText("02 hook 以下系统方法");
         bt_main_02.setOnClickListener(v -> {
 
             mainActivityHelp.do_init_hooks();
 
         });
+
+        Button bt_main_13 = findViewById(R.id.bt_main_13);
+        bt_main_13.setText("13 手动 FHook");
+        bt_main_13.setOnClickListener(v -> {
+            Log.i(TAG, "FHook init  " + (FHook.init(this) ? "成功" : "失败"));
+        });
+
+        Button bt_main_14 = findViewById(R.id.bt_main_14);
+        bt_main_14.setText("14 卸载 FHook");
+        bt_main_14.setOnClickListener(v -> {
+            FHook.unInit();
+        });
+
 
         init_views();
     }

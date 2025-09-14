@@ -85,9 +85,9 @@ public class FHook {
         FLog.i(TAG, "JDWP enable tried=" + jdwpToggleOk + ", now=" + jdwpNow);
 
         try {
-            Debug.attachJvmtiAgent("libfhook_agent.so", null, context.getClassLoader());
+            Debug.attachJvmtiAgent(name_so_fhook_agent, null, context.getClassLoader());
             boolean ok = CLinker.jcJvmtiSuccess(
-                    "libfhook_agent.so",
+                    name_so_fhook_agent,
                     FCFG_fhook.IS_SAFE_MODE,
                     FCFG_fhook.IS_DEBUG);
             if (ok) {
@@ -102,9 +102,9 @@ public class FHook {
             int rtState = CLinker.dcSetRuntimeJavaDebuggable(1); // 1=强制开
             FLog.d(TAG, "[init] setJavaDebuggable(true) -> " + rtState + " (1=T,0=F,-1=no symbol,-2=libart fail)");
             try {
-                Debug.attachJvmtiAgent("libfhook_agent.so", null, context.getClassLoader());
+                Debug.attachJvmtiAgent(name_so_fhook_agent, null, context.getClassLoader());
                 boolean ok2 = CLinker.jcJvmtiSuccess(
-                        "libfhook_agent.so",
+                        name_so_fhook_agent,
                         FCFG_fhook.IS_SAFE_MODE,
                         FCFG_fhook.IS_DEBUG);
                 if (ok2) {
