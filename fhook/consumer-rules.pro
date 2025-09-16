@@ -1,0 +1,2 @@
+-keep class top.feadre.fhook.CLinker {*;}
+-keep class top.feadre.fhook.FHook {*;}

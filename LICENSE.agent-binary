@@ -1,0 +1,119 @@
+FHook Agent Binary License Agreement
+Version: 1.0 (2025-01-01)
+
+IMPORTANT: This Agreement governs your use of the binary file
+"libfhook_agent.so" (the “Agent”). By using, copying or distributing the Agent,
+you agree to these terms.
+
+1. Grant of License
+   Licensor grants you a perpetual, worldwide, non-exclusive, non-transferable,
+   royalty-free license to:
+   (a) use the Agent solely as included in the official FHook AAR you obtained
+       from Licensor or its authorized distribution channels; and
+   (b) distribute the Agent only as an integral, unmodified part of your
+       application that depends on the unmodified FHook AAR.
+
+2. Restrictions
+   You shall NOT:
+   (a) reverse engineer, decompile, disassemble, or attempt to derive the
+       source code or underlying ideas of the Agent (except to the extent
+       such restriction is prohibited by applicable law);
+   (b) modify, repackage, or distribute the Agent on a standalone basis;
+   (c) sublicense, rent, lease, lend, or provide the Agent as a service;
+   (d) use the Agent to create a substantially similar competing JVMTI agent
+       or hooking/instrumentation framework;
+   (e) remove or alter any proprietary notices; or
+   (f) use the Agent in violation of applicable laws or third-party terms.
+
+3. Ownership
+   The Agent is proprietary to Licensor. No title or ownership is transferred.
+   All rights not expressly granted are reserved by Licensor.
+
+4. Updates & Support
+   Licensor may provide updates at its sole discretion. Unless otherwise agreed
+   in writing, Licensor has no obligation to provide support or maintenance.
+
+5. Privacy & Telemetry
+   The Agent does not collect or transmit personal data by default.
+
+6. Warranty Disclaimer
+   THE AGENT IS PROVIDED “AS IS” WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+7. Limitation of Liability
+   TO THE MAXIMUM EXTENT PERMITTED BY LAW, LICENSOR SHALL NOT BE LIABLE FOR ANY
+   INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY OR PUNITIVE DAMAGES,
+   OR FOR ANY LOSS OF PROFITS, REVENUE, DATA OR GOODWILL, ARISING OUT OF OR
+   RELATED TO THIS AGREEMENT OR USE OF THE AGENT, EVEN IF ADVISED OF THE
+   POSSIBILITY OF SUCH DAMAGES. LICENSOR’S AGGREGATE LIABILITY SHALL NOT
+   EXCEED USD 100.
+
+8. Termination
+   This Agreement terminates automatically if you breach it. Upon termination
+   you must cease use and distribution of the Agent and remove it from your
+   applications. Sections 3, 6, 7, 9 and 10 survive termination.
+
+9. Governing Law & Dispute Resolution
+   This Agreement is governed by the laws of the People’s Republic of China,
+   without regard to conflict-of-laws rules. Disputes shall be submitted to
+   the courts located in Chongqing, PRC.
+
+10. Contact
+   Licensing inquiries: licensing@feadre.top
+
+LANGUAGE
+   This English version controls. A Chinese translation is provided below for
+   convenience only. In case of any conflict, the English version shall prevail.
+
+──────────────────────────────────────────────────────────────────────────────
+
+FHook 代理二进制许可协议（中文译本）
+版本：1.0（2025-01-01）
+
+重要提示：本协议适用于二进制文件 “libfhook_agent.so”（以下简称“Agent”）。
+使用、复制或分发该 Agent，即视为同意本协议条款。
+
+1. 许可授予
+   许可方授予你永久、全球性的、非独占、不可转让、免版税的许可，以：
+   (a) 仅将 Agent 作为许可方或其授权渠道提供的 **官方 FHook AAR** 的组成部分使用；以及
+   (b) 仅在你的应用程序中分发 Agent，且该应用依赖**未修改**的 FHook AAR，并且 Agent 保持**未修改**且与应用一并分发，**不得单独分发**。
+
+2. 限制
+   你不得：
+   (a) 对 Agent 进行逆向工程、反编译、反汇编或试图推导其源代码或设计（法律强制允许的除外）；
+   (b) 修改、重新打包或以**独立文件形式**分发 Agent；
+   (c) 转授、出租、出借或以服务形式提供 Agent；
+   (d) 利用 Agent 创建与其**实质近似**的竞争性 JVMTI 代理或 Hook/插桩框架；
+   (e) 移除或更改任何权利声明；或
+   (f) 以违反适用法律或第三方条款的方式使用 Agent。
+
+3. 所有权
+   Agent 属于许可方的专有财产。本协议不转移任何所有权。未明示授予的权利均由许可方保留。
+
+4. 更新与支持
+   许可方可自行决定是否提供更新。除非另行书面约定，许可方不承担支持或维护义务。
+
+5. 隐私与遥测
+   Agent 默认不收集或传输个人数据。
+
+6. 免责声明
+   Agent 按“现状”提供，不作任何明示或默示担保，包括但不限于适销性、特定用途适用性及不侵权担保。
+
+7. 责任限制
+   在法律允许的最大范围内，许可方不对任何间接、附带、特殊、后果性、示范性或惩罚性损害，
+   亦不对利润、收入、数据或商誉损失承担责任，即使已被告知可能发生该等损害。
+   许可方在任何情况下的累计赔偿责任不超过 **100 美元**。
+
+8. 终止
+   如你违反本协议，本协议自动终止。终止后你应立即停止使用与分发 Agent，并将其从你的应用中移除。
+   第 3、6、7、9、10 条在终止后继续有效。
+
+9. 适用法律与争议解决
+   本协议受 **中华人民共和国法律** 管辖，不考虑其法律冲突规则。争议提交至 **中国重庆** 有管辖权的法院。
+
+10. 联系方式
+   授权相关：licensing@feadre.top
+
+语言条款
+   为避免歧义，**英文版本具有法律效力**；中文仅供参考。如有冲突，以英文版本为准。
