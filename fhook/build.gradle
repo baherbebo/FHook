@@ -6,7 +6,7 @@ plugins {
 android {
     namespace 'top.feadre.core' // 这个不要重叠
     compileSdk 35
-    ndkVersion '29.0.13113456'  // 显式指定的 NDK 版本
+    ndkVersion '27.0.12077973'  // 显式指定的 NDK 版本
     buildToolsVersion "35.0.1"
 
 
