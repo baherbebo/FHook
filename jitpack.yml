@@ -20,4 +20,4 @@ install:
   - echo "84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_SDK_ROOT/licenses/android-sdk-preview-license
 
   # 3) 用“我们安装的” sdkmanager 安装与你 Gradle 完全一致的组件（注意：一行写完，别加反斜杠）
-  - yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platforms;android-35" "build-tools;35.0.2" "platform-tools" "cmake;3.22.1" "ndk;29.0.13113456"
+  - yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platforms;android-35" "build-tools;35.0.1" "platform-tools" "cmake;3.22.1" "ndk;29.0.13113456"
