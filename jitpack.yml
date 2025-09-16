@@ -1,4 +1,3 @@
-# jitpack.yml —— 放仓库根目录
 jdk:
   - openjdk17
 
@@ -8,7 +7,6 @@ env:
   PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 install:
-  # 1) 安装 Android cmdline-tools & SDK 组件（与你 Gradle 完全一致）
   - mkdir -p $ANDROID_SDK_ROOT
   - curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o cmdtools.zip
   - unzip -q cmdtools.zip -d $ANDROID_SDK_ROOT/cmdline-tools
@@ -18,10 +16,9 @@ install:
   - echo "84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_SDK_ROOT/licenses/android-sdk-preview-license
   - yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platforms;android-35" "build-tools;35.0.1" "platform-tools" "cmake;3.22.1" "ndk;29.0.13113456"
 
-  # 2) 关键：在 install 阶段执行“发布到本地仓库”，供 JitPack 收集
-  #    用 JitPack 自带的 ${VERSION} 环境变量（值=当前 tag，比如 v1.1.1）
+  # 关键：这里执行构建 + 发布到本地 Maven，供 JitPack 收集（使用 JitPack 的 ${VERSION}=当前 tag）
   - ./gradlew :fhook:clean :fhook:assembleRelease
   - ./gradlew -Pgroup=com.github.Rift0911 -Pversion=${VERSION} :fhook:publishReleasePublicationToMavenLocal
 
-  # 3) 可选：把产物路径打到日志里，便于你目视确认
-  - echo "M2 dir listing:" && ls -R ~/.m2/repository/com/github/Rift0911/fhook || true
+  # 打印一下产物目录，便于日志确认
+  - echo "== M2 ==" && ls -R ~/.m2/repository/com/github/Rift0911/fhook || true
