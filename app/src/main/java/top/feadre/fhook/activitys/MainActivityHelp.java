@@ -40,7 +40,7 @@ android.os.Process.sendSignal(int, int) → (II)V
 
 
         动态加载 / 代码注入相关
-        java.lang.System.load(String) → (Ljava/lang/String;)V
+java.lang.System.load(String) → (Ljava/lang/String;)V
 java.lang.System.loadLibrary(String) → (Ljava/lang/String;)V
 java.lang.Runtime.load(String) → (Ljava/lang/String;)V
 java.lang.Runtime.loadLibrary(String) → (Ljava/lang/String;)V
