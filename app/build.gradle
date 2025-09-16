@@ -5,6 +5,8 @@ plugins {
 android {
     namespace 'top.feadre.fhook'
     compileSdk 36
+    ndkVersion '29.0.13113456'  // 显式指定的 NDK 版本
+    buildToolsVersion "36.0.0"
 
     defaultConfig {
         applicationId "top.feadre.fhook"
@@ -15,7 +17,6 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
-        // ndk配置1  直接下载最新的 D:\zhuanye\sdk\ndk\27.0.12077973
         ndk {
             abiFilters "armeabi-v7a", "x86", 'arm64-v8a', 'x86_64'
 //            abiFilters "armeabi-v7a", 'arm64-v8a', "x86"

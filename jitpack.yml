@@ -1,0 +1,10 @@
+# jitpack.yml（放在仓库根目录）
+jdk:
+  - openjdk17
+
+# 安装构建所需的 Android 组件（根据你工程实际版本调整）
+install:
+  - echo "y" | sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+  - echo "y" | sdkmanager "cmake;3.22.1" "ndk;29.0.13113456"
+
+
