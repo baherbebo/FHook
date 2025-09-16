@@ -59,13 +59,13 @@ static inline bool ShouldLog(int prio) noexcept {
     return exact ? (prio == lv) : (prio >= lv);
 }
 
-
-
 // 绿色 / 黄色 / 红色
 #define LOGD(...) do { if (ShouldLog(ANDROID_LOG_DEBUG)) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__); } while (0);
 #define LOGI(...) do { if (ShouldLog(ANDROID_LOG_INFO )) __android_log_print(ANDROID_LOG_INFO , TAG, __VA_ARGS__); } while (0);
 #define LOGW(...) do { if (ShouldLog(ANDROID_LOG_WARN )) __android_log_print(ANDROID_LOG_WARN , TAG, __VA_ARGS__); } while (0);
 #define LOGE(...) do { if (ShouldLog(ANDROID_LOG_ERROR)) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__); } while (0);
+
+// ========== 运行期全局日志控制 --- ==========
 
 // ========== 业务全局 ==========
 extern bool gIsDebug;
