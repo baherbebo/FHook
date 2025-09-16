@@ -178,20 +178,9 @@ FHook.hook(sysGet)
 
 
 <!-- 响应式赞助二维码容器：宽屏并排，窄屏换行 -->
-<table style="margin: 20px auto; text-align: center;">
-  <tr>
-    <!-- WeChat QR Code -->
-    <td style="padding: 0 15px;">
-      <img src="docs/wx_rift_m.jpg" alt="WeChat Sponsorship" height="180">
-      <p style="margin-top: 8px; font-size: 14px;">微信支付</p>
-    </td>
-    <!-- Alipay QR Code -->
-    <td style="padding: 0 15px;">
-      <img src="docs/zfb_rift_m.jpg" alt="Alipay Sponsorship" height="180">
-      <p style="margin-top: 8px; font-size: 14px;">支付宝支付</p>
-    </td>
-  </tr>
-</table>
+| <img src="docs/wx_rift_m.jpg" alt="微信赞助" height="180"> | <img src="docs/zfb_rift_m.jpg" alt="支付宝赞助" height="180"> |
+|:--:|:--:|
+| 微信支付 | 支付宝支付 |
 
 
 **尽情享受使用 FHook 的乐趣吧!**
