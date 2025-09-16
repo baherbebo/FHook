@@ -13,6 +13,5 @@ install:
   - mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
 
   - yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT \
-    "platforms;android-34" "build-tools;35.0.2" "platform-tools" \
+    "platforms;android-36" "build-tools;36.0.0" "platform-tools" \
     "cmake;3.22.1" "ndk;29.0.13113456"
-
