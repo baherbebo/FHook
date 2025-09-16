@@ -20,10 +20,7 @@ install:
 
 # 2) 关键：显式执行「生成 AAR + POM」的命令
 script:
-  # 执行 fhook 模块的发布任务，生成 POM 到 ~/.m2 目录，同时生成 AAR
-  # -Pgroup：Jitpack 标准 groupId（com.github.用户名）
-  # -Pversion：版本号（与 Git Tag 一致，如 v1.0.7 去掉 v 为 1.0.7）
-  - ./gradlew :fhook:publishReleasePublicationToMavenLocal -Pgroup=com.github.Rift0911 -Pversion=1.0.7
+  - ./gradlew :fhook:publishReleasePublicationToMavenLocal -Pgroup=com.github.Rift0911 -Pversion=1.1.0
   # 可选：打印产物路径，方便 Jitpack 日志中确认是否生成
   - echo "查看 AAR 路径：" && ls -l /home/jitpack/build/fhook/build/outputs/aar/
   - echo "查看 POM 路径：" && ls -l /home/jitpack/.m2/repository/com/github/Rift0911/fhook/1.0.7/
