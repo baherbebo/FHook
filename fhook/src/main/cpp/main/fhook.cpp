@@ -8,7 +8,8 @@
 
 #include "fhook.h"
 #include "../tools/fsys.h"
-#include "../agent/fhook_agent.h"
+
+#include "../include/fhook_agent_out.h"
 #include <string>
 
 static void *fAgentHandle = nullptr;

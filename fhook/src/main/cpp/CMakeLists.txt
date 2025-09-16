@@ -10,29 +10,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)  # 禁用编译器扩展
 
-
-add_library(
-        dexter
-        STATIC #  静态库 只生成 .a，不会打包进 APK 后续谁链接它
-
-        dexter/bytecode_encoder.cc
-        dexter/code_ir.cc
-        dexter/common.cc
-        dexter/control_flow_graph.cc
-        dexter/debuginfo_encoder.cc
-        dexter/dex_bytecode.cc
-        dexter/dex_format.cc
-        dexter/dex_ir.cc
-        dexter/dex_ir_builder.cc
-        dexter/dex_utf8.cc
-        dexter/instrumentation.cc
-        dexter/reader.cc
-        dexter/tryblocks_encoder.cc
-        dexter/writer.cc
-
-)
-
-
 # 定义公共源文件列表
 set(COMMON_SOURCES
         FGlobal_flib.cpp
@@ -44,45 +21,72 @@ add_library(
         SHARED
 
         ${COMMON_SOURCES}
-
         main/fhook.cpp
 )
 
+
 target_link_libraries(
         fhook
+        PRIVATE
         android
         log
+)
+
+target_include_directories(fhook
+        PUBLIC
+        ${CMAKE_CURRENT_LIST_DIR}/src/main/cpp/include
 )
 
 # ------------------------------ fhook_agent
-add_library(
-        fhook_agent
-        SHARED
+#add_library(
+#        dexter
+#        STATIC #  静态库 只生成 .a，不会打包进 APK 后续谁链接它
+#
+#        dexter/bytecode_encoder.cc
+#        dexter/code_ir.cc
+#        dexter/common.cc
+#        dexter/control_flow_graph.cc
+#        dexter/debuginfo_encoder.cc
+#        dexter/dex_bytecode.cc
+#        dexter/dex_format.cc
+#        dexter/dex_ir.cc
+#        dexter/dex_ir_builder.cc
+#        dexter/dex_utf8.cc
+#        dexter/instrumentation.cc
+#        dexter/reader.cc
+#        dexter/tryblocks_encoder.cc
+#        dexter/writer.cc
+#
+#)
 
-        ${COMMON_SOURCES}
-
-        agent/fhook_agent.cpp
-        agent/finject.cpp
-        agent/fir_funs_def.cpp
-        agent/fir_funs_do.cpp
-        agent/fir_funs_do_impl.cpp
-        agent/fir_tools.cpp
-        agent/fsmali_printer.cpp
-        agent/transform.cpp
-        agent/freg_manager.cpp
-        agent/freg_allocator.cpp
-
-)
-
-target_link_libraries(
-        fhook_agent
-
-        dexter  # 静态库
-        z
-
-        android
-        log
-)
+#add_library(
+#        fhook_agent
+#        SHARED
+#
+#        ${COMMON_SOURCES}
+#
+#        agent/fhook_agent.cpp
+#        agent/finject.cpp
+#        agent/fir_funs_def.cpp
+#        agent/fir_funs_do.cpp
+#        agent/fir_funs_do_impl.cpp
+#        agent/fir_tools.cpp
+#        agent/fsmali_printer.cpp
+#        agent/transform.cpp
+#        agent/freg_manager.cpp
+#        agent/freg_allocator.cpp
+#
+#)
+#
+#target_link_libraries(
+#        fhook_agent
+#
+#        dexter  # 静态库
+#        z
+#
+#        android
+#        log
+#)
 
 
 ## --------------- 测试 -----------
