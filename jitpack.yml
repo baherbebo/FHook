@@ -1,22 +1,15 @@
-# jitpack.yml —— 放仓库根目录
-
 jdk:
   - openjdk17
-
-# 只设必要的变量；显式给出一个“安全的系统 PATH”
 env:
   ANDROID_SDK_ROOT: /home/jitpack/android-sdk
   ANDROID_HOME: /home/jitpack/android-sdk
   PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 install:
-  # 1) 安装新版 cmdline-tools（自带新版 sdkmanager，避免 javax.xml.bind 错误）
   - mkdir -p $ANDROID_SDK_ROOT
   - curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o cmdtools.zip
   - unzip -q cmdtools.zip -d $ANDROID_SDK_ROOT/cmdline-tools
   - mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
-
-  # 2) 用“我们安装的” sdkmanager 安装与你 Gradle 完全一致的组件
   - yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT \
-    "platforms;android-36" "build-tools;36.0.0" "platform-tools" \
+    "platforms;android-35" "build-tools;35.0.1" "platform-tools" \
     "cmake;3.22.1" "ndk;29.0.13113456"
