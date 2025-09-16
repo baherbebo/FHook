@@ -1,3 +1,4 @@
+<p align="right">语言：<b>中文</b> · <a href="./README.en.md">English</a></p>
 # FHook
 
 **Android 端 Java 层全函数 HOOK 框架**
