@@ -1,10 +1,18 @@
-# jitpack.yml（放在仓库根目录）
 jdk:
   - openjdk17
 
-# 安装构建所需的 Android 组件（根据你工程实际版本调整）
-install:
-  - echo "y" | sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
-  - echo "y" | sdkmanager "cmake;3.22.1" "ndk;29.0.13113456"
+env:
+  ANDROID_SDK_ROOT: /home/jitpack/android-sdk
+  ANDROID_HOME: /home/jitpack/android-sdk
+  PATH: $PATH:/home/jitpack/android-sdk/cmdline-tools/latest/bin:/home/jitpack/android-sdk/platform-tools
 
+install:
+  - mkdir -p $ANDROID_SDK_ROOT
+  - wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdtools.zip
+  - unzip -q cmdtools.zip -d $ANDROID_SDK_ROOT/cmdline-tools
+  - mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
+
+  - yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT \
+    "platforms;android-34" "build-tools;35.0.2" "platform-tools" \
+    "cmake;3.22.1" "ndk;29.0.13113456"
 
