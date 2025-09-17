@@ -5,6 +5,7 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.system.ErrnoException;
 import android.system.Os;
+import android.util.Log;
 
 import java.io.FileDescriptor;
 import java.lang.invoke.MethodHandle;
@@ -20,31 +21,30 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.Random;
 
-import top.feadre.fhook.flibs.fsys.FLog;
 
 /**
  * 测试类  各种类型的方法
  */
 public class THook {
-    private static final String TAG = FCFG_fhook.TAG_PREFIX + "THook";
+    private static final String TAG = FCFG.TAG_PREFIX + "THook";
 
     // ----------------------------  initAppBt01 ---------------------------------
 
     public int fun_I_III(int a, int b, int c) {
         int ret = a + b + c;
-        FLog.d(TAG, "原方法输出 fun_I_III ... a=" + a + ", b=" + b + ", c=" + c + " -> ret=" + ret);
+        Log.d(TAG, "原方法输出 fun_I_III ... a=" + a + ", b=" + b + ", c=" + c + " -> ret=" + ret);
         return ret;
     }
 
     public String fun_String_String2(String a, String b) {
         String ret = a + b;
-        FLog.d(TAG, "原方法输出 fun_String_String2 ... a=" + a + ", b=" + b + " -> ret=" + ret);
+        Log.d(TAG, "原方法输出 fun_String_String2 ... a=" + a + ", b=" + b + " -> ret=" + ret);
         return ret;
     }
 
     public static int jtFun_I_II(int a, int b) {
         int ret = a + b;
-        FLog.d(TAG, "原方法输出 jtFun_I_II ... a=" + a + ", b=" + b + " -> ret=" + ret);
+        Log.d(TAG, "原方法输出 jtFun_I_II ... a=" + a + ", b=" + b + " -> ret=" + ret);
         return ret;
     }
 
@@ -53,28 +53,28 @@ public class THook {
 
 
     public void fun_V_V() {
-        FLog.d(TAG, "原方法输出 fun_V_V ...");
+        Log.d(TAG, "原方法输出 fun_V_V ...");
     }
 
     public static void jtFun_V_V() {
-        FLog.d(TAG, "原方法输出 jtFun_V_V ...");
+        Log.d(TAG, "原方法输出 jtFun_V_V ...");
     }
 
     // ----------------------------  initAppBt03 ---------------------------------
 
     public TObject fun_TObject_TObject(TObject obj) {
-        FLog.d(TAG, "原方法输出 fun_TObject_TObject ... in=" + obj);
+        Log.d(TAG, "原方法输出 fun_TObject_TObject ... in=" + obj);
         if (obj != null) {
             obj.setAge(obj.getAge() + 1).setName(obj.getName() + "_m");
         }
-        FLog.d(TAG, "原方法输出 fun_TObject_TObject ... out=" + obj);
+        Log.d(TAG, "原方法输出 fun_TObject_TObject ... out=" + obj);
         return obj;
     }
 
     public int fun_I_IArr(int[] arr) {
         int sum = 0;
         if (arr != null) for (int v : arr) sum += v;
-        FLog.d(TAG, "原方法输出 fun_I_IArr ... len="
+        Log.d(TAG, "原方法输出 fun_I_IArr ... len="
                 + (arr == null ? 0 : arr.length) + " -> sum=" + sum);
         return sum;
     }
@@ -86,14 +86,14 @@ public class THook {
             for (int i = 0; i < arr.length; i++) {
                 ret[i] = (int) arr[i] * 2;
             }
-        FLog.d(TAG, "原方法输出 fun_IArr_DArr ... len=" + (arr == null ? 0 : arr.length));
+        Log.d(TAG, "原方法输出 fun_IArr_DArr ... len=" + (arr == null ? 0 : arr.length));
         return ret;
     }
 
     public TObject[] fun_TObjectArr_DArr(double[] arr) {
         int sum = 0;
         if (arr != null) for (double v : arr) sum += v;
-        FLog.d(TAG, "fun_TObjectArr_IArr ... len=" + (arr == null ? 0 : arr.length) + " -> sum=" + sum);
+        Log.d(TAG, "fun_TObjectArr_IArr ... len=" + (arr == null ? 0 : arr.length) + " -> sum=" + sum);
         TObject[] tObjects = new TObject[2];
         tObjects[0] = new TObject("_new_" + sum, sum);
         return tObjects;
@@ -104,7 +104,7 @@ public class THook {
         for (int i = 0; i < arr.length; i++) {
             sum += arr[i];
         }
-        if (arr != null) for (double v : arr) FLog.d(TAG, "fun_double_DArr ... v=" + v);
+        if (arr != null) for (double v : arr) Log.d(TAG, "fun_double_DArr ... v=" + v);
         return sum;
     }
 
@@ -113,7 +113,7 @@ public class THook {
         for (int i = 0; i < arr.length; i++) {
             sum += arr[i];
         }
-        if (arr != null) for (long v : arr) FLog.d(TAG, "jtFun_JArr_JArr ... v=" + v);
+        if (arr != null) for (long v : arr) Log.d(TAG, "jtFun_JArr_JArr ... v=" + v);
         arr[0] = sum;
         return arr;
     }
