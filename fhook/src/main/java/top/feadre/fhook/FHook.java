@@ -67,7 +67,7 @@ public class FHook {
     public static synchronized boolean init(Context context) {
         FLog.init(context, false);
         FLog.i(TAG, "FCFG.IS_DEBUG= " + FCFG_fhook.IS_DEBUG);
-        FLog.setLogLevel(FCFG_fhook.IS_DEBUG ? FLog.VERBOSE : FLog.INFO);
+        FLog.setLogLevel(FCFG_fhook.IS_DEBUG ? FLog.VERBOSE : FLog.WARN);
         FLog.d(TAG, "[init] start ...");
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
