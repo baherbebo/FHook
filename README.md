@@ -1,4 +1,6 @@
-<p align="right">Language: <b>English</b> · <a href="README_cn.md">Chinese</a></p>
+
+
+<p align="right">Language: <b>English</b> · <a href="README.cn.md">Chinese</a></p>
 
 # FHook
 
