@@ -245,11 +245,11 @@ static jboolean dcUnhook(JNIEnv *env, jclass clazz, jlong jMethodID) {
 
 /// 签名 （参数）返回值
 static JNINativeMethod methods[] = {
-        {"dcHook",                     "(Ljava/lang/reflect/Method;ZZZ)J", reinterpret_cast<void *>(dcHook)},
-        {"dcEnableJdwp",               "(Z)Z",                             reinterpret_cast<void *>(dcEnableJdwp)},
-        {"dcSetRuntimeJavaDebuggable", "(I)I",                             reinterpret_cast<void *>(dcSetRuntimeJavaDebuggable)},
-        {"dcIsJdwpAllowed",            "()Z",                              reinterpret_cast<void *>(dcIsJdwpAllowed)},
-        {"dcUnhook",                   "(J)Z",                             reinterpret_cast<void *>(dcUnhook)},
+        {"dcHook",                     "(Ljava/lang/reflect/Executable;ZZZ)J", reinterpret_cast<void *>(dcHook)},
+        {"dcEnableJdwp",               "(Z)Z",                                 reinterpret_cast<void *>(dcEnableJdwp)},
+        {"dcSetRuntimeJavaDebuggable", "(I)I",                                 reinterpret_cast<void *>(dcSetRuntimeJavaDebuggable)},
+        {"dcIsJdwpAllowed",            "()Z",                                  reinterpret_cast<void *>(dcIsJdwpAllowed)},
+        {"dcUnhook",                   "(J)Z",                                 reinterpret_cast<void *>(dcUnhook)},
 };
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {

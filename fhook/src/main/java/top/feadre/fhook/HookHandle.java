@@ -1,6 +1,9 @@
 package top.feadre.fhook;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.concurrent.ConcurrentHashMap;
 
 import top.feadre.fhook.flibs.fsys.FLog;
@@ -11,7 +14,11 @@ public class HookHandle {
     public Object thisObject; // 这个由框架自动设置
     boolean isHooked = false; // native 已安装
     long nativeHandle;              // 由 native 返回的句柄
-    Method method;
+    public final Executable method;     // 可是 Method 或 Constructor
+    public final Class<?> retType;    // 返回类型（构造器是 void.class）
+    public final Class<?>[] paramTypes; // 参数类型
+    public final boolean isStatic;   // 构造器恒为 false
+
     boolean disabledByPrecheck; //预检失败/禁止安装 标志
     volatile FHook.HookEnterCallback enterCb;
     volatile FHook.HookExitCallback exitCb;
@@ -23,6 +30,16 @@ public class HookHandle {
     HookHandle(long h, Method m) {
         this.nativeHandle = h;
         this.method = m;
+        this.paramTypes = m.getParameterTypes();
+        this.retType = m.getReturnType();
+        this.isStatic = Modifier.isStatic(m.getModifiers());
+    }
+
+    HookHandle(Constructor<?> c) {
+        this.method = c;
+        this.paramTypes = c.getParameterTypes();
+        this.retType = void.class;      // 构造器没有返回值
+        this.isStatic = false;          // 构造器一定不是 static
     }
 
     HookHandle markNotHooked() {
@@ -54,7 +71,7 @@ public class HookHandle {
         this.isHooked = hooked;
     }
 
-    public Method getMethod() {
+    public Executable getMethod() {
         return method;
     }
 

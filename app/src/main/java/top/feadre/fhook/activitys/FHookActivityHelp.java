@@ -5,16 +5,17 @@ import android.util.Log;
 import java.lang.reflect.Method;
 import java.security.MessageDigest;
 
-import top.feadre.fhook.FCFG_fhook;
 import top.feadre.fhook.FHook;
-
-public class MainActivityHelp {
-    private static final String TAG = FCFG_fhook.TAG_PREFIX + "MainActivityHelp";
+import top.feadre.fhook.FCFG;
 
 
-    private final MainActivity mMainActivity;
+public class FHookActivityHelp {
+    private static final String TAG = FCFG.TAG_PREFIX + "MainActivityHelp";
 
-    public MainActivityHelp(MainActivity mainActivity) {
+
+    private final FHookActivity mMainActivity;
+
+    public FHookActivityHelp(FHookActivity mainActivity) {
         mMainActivity = mainActivity;
     }
 
@@ -246,7 +247,7 @@ android.telephony.TelephonyManager.getSimSerialNumber() → ()Ljava/lang/String;
     // Hook: java.security.MessageDigest.getInstance(String) → (Ljava/lang/String;)Ljava/security/MessageDigest;
     private static void hook_MessageDigest_getInstance() throws Exception {
         ///  这个返回是对象不好改
-        Method m = java.security.MessageDigest.class.getDeclaredMethod("getInstance", String.class);
+        Method m = MessageDigest.class.getDeclaredMethod("getInstance", String.class);
         FHook.hook(m)
                 .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {

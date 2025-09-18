@@ -30,7 +30,7 @@ extern "C" JNIEXPORT int add_plus1(int a, int b) {
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_top_feadre_fhook_activitys_MainActivity_jcFt001T01(JNIEnv *env, jobject thiz, jint a, jint b) {
+Java_top_feadre_fhook_activitys_FHookActivity_jcFt001T01(JNIEnv *env, jobject thiz, jint a, jint b) {
     LOGD("[jcFt001T01] ...")
     return add_plus1(a, b);
 }

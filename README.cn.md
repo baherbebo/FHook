@@ -154,6 +154,79 @@ FHook.hook(sysGet)
 
 > 提示：接口/桥接方法（如 `SharedPreferences.Editor.commit`）建议用
 > `FHookTool.findMethod4Impl(editor, ifaceMethod)` 找到 **真实实现方法** 再 hook，成功率更高。
+---
+### 3.5 构造函数 Hook 示例（系统 & 自定义类）
+
+> 说明：**构造器 Hook 的原语义**是“总会执行原构造”，因此 `setOrigFunRun(true/false)` **对构造器不生效**；
+>  回调中 **enter 阶段对象尚未完全初始化**，不要访问实例字段/方法；**exit 阶段**的 `ret` 即新建的实例（`thisObject` 同 `ret`）。
+
+#### A) Hook 系统构造器：`FileInputStream(FileDescriptor)`
+```java
+
+FHook.hook(c)
+    .setOrigFunRun(true) // 对构造器无效，但保留写法不影响
+    .setHookEnter((thiz, args, types, hh) -> {
+        // 仅做观测：从 FileDescriptor 反解路径（可能受隐藏 API 限制，必要时使用 HiddenApiBypass）
+        FileDescriptor fdObj = (FileDescriptor) args.get(0);
+        Field f = FileDescriptor.class.getDeclaredField("descriptor");
+                f.setAccessible(true);
+        int fd = (int) f.get(fdObj);
+        String path = android.system.Os.readlink("/proc/self/fd/" + fd);
+        Log.i("FHook", "[FIS.<init>(fd).enter] fd=" + fd + ", path=" + path);
+    })
+    .setHookExit((ret, type, hh) -> {
+        Log.i("FHook", "[FIS.<init>(fd).exit] new instance=" + ret);
+        return ret; // 构造器语义：返回值保持原样
+    })
+    .commit();
+
+```
+#### B) Hook 自定义类构造器（无参与含参）
+
+```java
+// 无参构造
+Constructor<TObject> c0 = TObject.class.getDeclaredConstructor();
+c0.setAccessible(true);
+FHook.hook(c0)
+    .setOrigFunRun(true) // 对构造器无效
+    .setHookEnter((thiz, args, types, hh) -> {
+        // 仅做标记，exit 阶段再访问实例
+        hh.extras.put("watch", true);
+    })
+    .setHookExit((ret, type, hh) -> {
+        if (Boolean.TRUE.equals(hh.extras.get("watch")) && ret instanceof TObject) {
+            TObject to = (TObject) ret;
+            to.setName("张三").setAge(109);
+            Log.i("FHook", "[Ctor0.exit] TObject() -> " + to);
+        }
+        return ret;
+    })
+    .commit();
+
+// (String,int) 构造
+Constructor<TObject> c2 = TObject.class.getDeclaredConstructor(String.class, int.class);
+c2.setAccessible(true);
+FHook.hook(c2)
+    .setOrigFunRun(true)
+    .setHookEnter((thiz, args, types, hh) -> {
+        Log.i("FHook", "[Ctor2.enter] name=" + args.get(0) + ", age=" + args.get(1));
+        hh.extras.put("watch", true);
+    })
+    .setHookExit((ret, type, hh) -> {
+        if (Boolean.TRUE.equals(hh.extras.get("watch")) && ret instanceof TObject) {
+            TObject to = (TObject) ret;
+            to.setName("李四").setAge(16);
+            Log.i("FHook", "[Ctor2.exit] TObject(name,int) -> " + to);
+        }
+        return ret;
+    })
+    .commit();
+ ```
+
+> 小贴士
+>
+> - 构造器 Hook **支持观测/修饰** 不支持函数阻断（即 setOrigFunRun 无效）。
+> - 读取 `FileDescriptor.descriptor` 在部分 ROM/版本上可能触发隐藏 API 限制，必要时配合 **HiddenApiBypass** 或改用 NDK 辅助。
 
 ---
 
@@ -166,6 +239,18 @@ FHook.hook(sysGet)
 > **合规声明**：FHook 仅用于合规场景。**严禁**将本项目用于任何违法违规用途，由此产生的风险与后果由使用者承担。
 
 ---
+
+### 源码部署与核心技术支持
+
+在合法合规前提下，我们提供更深入的工程化支持，助你低成本落地：
+
+- **源码级交付选项**：可选 *全源码交付* 或 *核心 Agent 二进制 + 适配层源码* 的混合模式（可签署 NDA）
+- **部署形态**：Gradle 依赖、源码导入（mono-repo/多模块）、私有 Maven 仓库分发
+- **兼容性与适配**：Android 9–15 版本差异、厂商 ROM、混淆/加固/VMP 环境下的稳定性优化
+- **性能与稳定性**：启动时机、死锁规避、关键桥接路径旁路、回调线程模型与卡顿治理
+- **培训与共建**：二次开发培训、代码走查、最佳实践清单、联调排障陪跑
+
+> 如需 **源码部署 / 核心技术支持 / 定制功能**，请在下方「联系方式」与我们沟通具体诉求与范围。
 
 ### 联系方式
 

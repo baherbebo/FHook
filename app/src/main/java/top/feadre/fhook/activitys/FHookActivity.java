@@ -7,21 +7,19 @@ import android.widget.Button;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-
 import java.security.MessageDigest;
 
-import top.feadre.fhook.FCFG_fhook;
 import top.feadre.fhook.FHook;
 import top.feadre.fhook.R;
 
-public class MainActivity extends AppCompatActivity {
+
+public class FHookActivity extends AppCompatActivity {
     static {
         System.loadLibrary("ft001");
     }
 
-    private static final String TAG = FCFG_fhook.TAG_PREFIX + "MainActivity";
+    private static final String TAG =  "MainActivity";
 
-    public native int jcFt001T01(int a, int b);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,15 +27,14 @@ public class MainActivity extends AppCompatActivity {
 //        EdgeToEdge.enable(this); // 沉浸式
         setContentView(R.layout.activity_main);
 
-        Log.i("Ft001", "jcFt001T01: ----------------" + jcFt001T01(1, 2));
 
-        MainActivityHelp mainActivityHelp = new MainActivityHelp(this);
+        FHookActivityHelp mainActivityHelp = new FHookActivityHelp(this);
 
         Button bt_main_01 = findViewById(R.id.bt_main_01);
         bt_main_01.setText("01 启动 DebugSample");
         bt_main_01.setOnClickListener(v -> {
 
-            Intent intent = new Intent(this, DebugActivity.class);
+            Intent intent = new Intent(this, FHookDebugActivity.class);
             startActivity(intent);
 
         });
@@ -193,7 +190,7 @@ public class MainActivity extends AppCompatActivity {
         bt_main_11.setOnClickListener(v -> {
             Log.i(TAG, "[UI] trigger MessageDigest.getInstance(\"MD5\")");
             try {
-                java.security.MessageDigest md = MessageDigest.getInstance("MD5");
+                MessageDigest md = MessageDigest.getInstance("MD5");
                 byte[] out = md.digest("abc".getBytes(java.nio.charset.StandardCharsets.UTF_8));
                 StringBuilder sb = new StringBuilder();
                 for (byte b : out) sb.append(String.format("%02x", b));

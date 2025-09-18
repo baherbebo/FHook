@@ -9,11 +9,12 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
-
 
 import top.feadre.fhook.flibs.fsys.FLog;
 
@@ -219,9 +220,9 @@ public class FHook {
         if (hh.enterCb == null) return rawArgs;
 
         // 参数引用转为 List
-        java.util.List<Object> argsView =
+        List<Object> argsView =
                 java.util.Arrays.asList(rawArgs).subList(1, rawArgs.length);
-        final Class<?>[] paramTypes = hh.method.getParameterTypes();
+        final Class<?>[] paramTypes = hh.paramTypes;
 
         // 调试
         if (FCFG_fhook.IS_DEBUG)
@@ -244,7 +245,7 @@ public class FHook {
         HookHandle hh = sHandles.get(methodId);
         if (hh == null || hh.exitCb == null) return ret;
 
-        final Class<?> returnType = hh.method.getReturnType();
+        final Class<?> returnType = hh.retType;
         try {
             FLog.i(TAG, "[onExit4fhook] 开始 ---minfo " + hh.method.getDeclaringClass().getName() + "." + hh.method.getName());
             FLog.i(TAG, "[onExit4fhook] 开始 --- 原返回值= " + ret + ", 类型= " + returnType);
@@ -294,7 +295,7 @@ public class FHook {
         FLog.d(TAG, "[unHook(Class)] start ... class=" + cls.getName());
 
         // 先收集，避免遍历时并发修改
-        java.util.List<Long> toRemove = new java.util.ArrayList<>();
+        List<Long> toRemove = new java.util.ArrayList<>();
         for (java.util.Map.Entry<Long, HookHandle> e : sHandles.entrySet()) {
             HookHandle h = e.getValue();
             if (h == null || h.method == null) continue;
@@ -384,7 +385,7 @@ public class FHook {
     /// 批量 hook
     public static final class GroupHandle {
         private final Class<?> targetClass;
-        private final java.util.List<HookHandle> handles = new java.util.ArrayList<>();
+        private final List<HookHandle> handles = new java.util.ArrayList<>();
         private boolean committed = false;
 
         GroupHandle(Class<?> targetClass) {
@@ -429,7 +430,7 @@ public class FHook {
             if (committed) return this;
 
             // 去重
-            java.util.LinkedHashMap<Method, HookHandle> uniq = new java.util.LinkedHashMap<>();
+            java.util.LinkedHashMap<Executable, HookHandle> uniq = new java.util.LinkedHashMap<>();
             for (HookHandle h : handles) {
                 if (h != null && h.method != null) uniq.put(h.method, h);
             }
@@ -451,7 +452,7 @@ public class FHook {
 
 
         // 可选：返回本组的每个 HookHandle
-        public java.util.List<HookHandle> getHandles() {
+        public List<HookHandle> getHandles() {
             return handles;
         }
     }
@@ -487,7 +488,7 @@ public class FHook {
             return group;
         }
 
-        java.util.List<Method> targets = new java.util.ArrayList<>();
+        List<Method> targets = new java.util.ArrayList<>();
         for (Method m : declared) {
             if (nameFilter == null || nameFilter.equals(m.getName())) {
                 targets.add(m);
@@ -629,6 +630,11 @@ public class FHook {
         }
 
         return new HookHandle(-1, method);
+    }
+
+    public static synchronized HookHandle hook(Constructor<?> ctor) {
+        if (ctor == null) throw new NullPointerException("ctor == null");
+        return new HookHandle(ctor); // 直接复用 HookHandle
     }
 
     /**

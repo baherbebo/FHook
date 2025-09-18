@@ -1,6 +1,6 @@
 package top.feadre.fhook;
 
-import java.lang.reflect.Method;
+import java.lang.reflect.Executable;
 
 public class CLinker {
     protected static native boolean dcEnableJdwp(boolean enable); // 常规初始 初始化入口
@@ -11,7 +11,7 @@ public class CLinker {
 
     protected static native int dcSetRuntimeJavaDebuggable(int debuggable); // 尝试增强初始
 
-    protected static native long dcHook(Method method, boolean isHEnter, boolean isHExit,
+    protected static native long dcHook(Executable method, boolean isHEnter, boolean isHExit,
                                         boolean isRunOrigFun);
 
 

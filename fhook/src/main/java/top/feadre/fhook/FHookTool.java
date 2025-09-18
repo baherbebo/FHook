@@ -2,6 +2,7 @@ package top.feadre.fhook;
 
 import static top.feadre.fhook.FCFG_fhook.TAG_PREFIX;
 
+import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -26,7 +27,7 @@ public class FHookTool {
             boolean includeInherited, boolean excludeBridge, boolean excludeSynthetic) {
 
         if (cls == null || methodName == null) return java.util.Collections.emptyList();
-        java.util.List<Method> out = new java.util.ArrayList<>();
+        java.util.List<Method> out = new ArrayList<>();
 
         Class<?> it = cls;
         while (it != null) {
@@ -234,7 +235,7 @@ public class FHookTool {
      */
     /** 逐行打印：方法签名、this、每个参数（期望类型=值 | 实际类型） */
     public static void showOnEnterArgs(String tag, String name_fun,
-                                       Method m, Object[] rawArgs) {
+                                       Executable m, Object[] rawArgs) {
         final boolean isStatic = Modifier.isStatic(m.getModifiers());
         final Class<?>[] ps = m.getParameterTypes();
         final int len = rawArgs == null ? 0 : rawArgs.length;
@@ -256,7 +257,7 @@ public class FHookTool {
     }
 
     /** 单行精简：类型=值（便于拼到一条日志） */
-    public static String showOnEnterArgs4line(Method m, Object[] rawArgs) {
+    public static String showOnEnterArgs4line(Executable m, Object[] rawArgs) {
         Class<?>[] ps = m.getParameterTypes();
         int len = rawArgs == null ? 0 : rawArgs.length;
         StringBuilder sb = new StringBuilder();
@@ -281,11 +282,20 @@ public class FHookTool {
     }
 
     /** JVM 方法描述符（适合生成/比对 methodId） */
-    public static String jvmMethodDesc(Method m) {
+    public static String jvmMethodDesc(Executable m) {
         StringBuilder sb = new StringBuilder();
         sb.append('(');
         for (Class<?> p : m.getParameterTypes()) sb.append(jvmTypeDesc(p));
-        sb.append(')').append(jvmTypeDesc(m.getReturnType()));
+
+        Class<?> returnType;
+        if (m instanceof Method) {
+            Method mth = (Method) m;
+            returnType= mth.getReturnType();
+        }else  {
+            returnType = void.class;
+        }
+
+        sb.append(')').append(jvmTypeDesc(returnType));
         return sb.toString();
     }
 

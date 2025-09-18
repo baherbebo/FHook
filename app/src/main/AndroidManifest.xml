@@ -13,7 +13,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.FHook">
         <activity
-            android:name=".activitys.MainActivity"
+            android:name=".activitys.FHookActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -23,7 +23,7 @@
         </activity>
 
         <activity
-            android:name=".activitys.DebugActivity"
+            android:name=".activitys.FHookDebugActivity"
             android:exported="true"
             tools:ignore="ExportedActivity"></activity>
     </application>

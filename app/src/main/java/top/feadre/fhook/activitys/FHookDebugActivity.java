@@ -1,5 +1,6 @@
 package top.feadre.fhook.activitys;
 
+
 import static top.feadre.fhook.THook.fun_fz01;
 import static top.feadre.fhook.THook.fun_fz02;
 import static top.feadre.fhook.THook.fun_fz03;
@@ -20,31 +21,34 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.io.FileDescriptor;
+import java.io.FileInputStream;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import top.feadre.fhook.CLinker;
-import top.feadre.fhook.FCFG_fhook;
 import top.feadre.fhook.FHook;
 import top.feadre.fhook.FHookTool;
 import top.feadre.fhook.R;
 import top.feadre.fhook.THook;
 import top.feadre.fhook.TObject;
-import top.feadre.fhook.flibs.fsys.FLog;
 import top.feadre.fhook.tools.FFunsUI;
 
-public class DebugActivity extends AppCompatActivity {
-    private static final String TAG = FCFG_fhook.TAG_PREFIX + "DebugSample";
+
+public class FHookDebugActivity extends AppCompatActivity {
+    private static final String TAG =  "DebugSample";
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 //        EdgeToEdge.enable(this); // 沉浸式
-        setContentView(R.layout.debug_sample);
+        setContentView(R.layout.activity_fhook_debug);
 
         Method method;
         try {
@@ -75,13 +79,6 @@ public class DebugActivity extends AppCompatActivity {
     }
 
     private void initCtr() {
-        Button bt_main_37 = findViewById(R.id.bt_main_37);
-        bt_main_37.setText("37 方法2测试");
-        bt_main_37.setOnClickListener(v -> {
-
-
-            FFunsUI.toast(this, "方法2测试 点击");
-        });
 
         // --------------------------------------
         Button bt_main_01 = findViewById(R.id.bt_main_01);
@@ -218,7 +215,7 @@ public class DebugActivity extends AppCompatActivity {
         bt_main_29.setText("29 fz1");
         bt_main_29.setOnClickListener(v -> {
             int result = fun_fz01(1, 2, "tag");
-            FLog.d(TAG, "fun_fz01 result=" + result);
+            Log.d(TAG, "fun_fz01 result=" + result);
             FFunsUI.toast(this, "fun_fz01 result=" + result);
         });
 
@@ -256,7 +253,7 @@ public class DebugActivity extends AppCompatActivity {
                 }
             });
 
-            FLog.d(TAG, "fun_fz02 result=" + result);
+            Log.d(TAG, "fun_fz02 result=" + result);
             FFunsUI.toast(this, "fun_fz02 result=" + result);
         });
 
@@ -299,7 +296,7 @@ public class DebugActivity extends AppCompatActivity {
                     9           // int i3
             );
 
-            FLog.d(TAG, "fun_fz03 result=" + result);
+            Log.d(TAG, "fun_fz03 result=" + result);
             FFunsUI.toast(this, "fun_fz03 result=" + result);
         });
 
@@ -336,6 +333,195 @@ public class DebugActivity extends AppCompatActivity {
                     })
                     .commit();
         });
+
+
+        Button bt_main_36 = findViewById(R.id.bt_main_36);
+        bt_main_36.setText("36 h_系统构造函数测试");
+        bt_main_36.setOnClickListener(v -> {
+            final String TAG = "CtorHookTest";
+            try {
+                // 1) 本应用 APK 路径（/data/app/.../base.apk）
+                String apkPath = getApplicationInfo().sourceDir;
+                Log.i(TAG, "[test] apkPath=" + apkPath);
+
+                // 2) 用 PFD 打开只读 → 拿到 FileDescriptor
+                android.os.ParcelFileDescriptor pfd =
+                        android.os.ParcelFileDescriptor.open(new java.io.File(apkPath),
+                                android.os.ParcelFileDescriptor.MODE_READ_ONLY);
+
+                // 3) 关键：触发你要测的构造器 FileInputStream(FileDescriptor)
+                try (FileInputStream fis = new FileInputStream(pfd.getFileDescriptor());
+                     java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(fis)) {
+
+                    // 4) 随便读一点内容，顺便触发 getNextEntry 的观察钩子
+                    java.util.zip.ZipEntry e;
+                    int seen = 0;
+                    byte[] buf = new byte[4096];
+                    while ((e = zis.getNextEntry()) != null && seen < 8) {
+                        Log.i(TAG, "[test] entry=" + e.getName());
+                        // 把该 entry 的内容读掉（不做任何处理，只是驱动 read 调用）
+                        while (zis.read(buf) != -1) { /* drain */ }
+                        seen++;
+                    }
+                } finally {
+                    try {
+                        pfd.close();
+                    } catch (Throwable ignore) {
+                    }
+                }
+
+                Toast.makeText(this, "构造器Hook测试完成，查看日志", Toast.LENGTH_SHORT).show();
+            } catch (Throwable t) {
+                Log.e(TAG, "[test] error", t);
+                Toast.makeText(this, "测试出错：" + t.getClass().getSimpleName(), Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        Button bt_main_37 = findViewById(R.id.bt_main_37);
+        bt_main_37.setText("37 h_系统构造函数");
+        bt_main_37.setOnClickListener(v -> {
+
+            Constructor<FileInputStream> c = null;
+            try {
+                c = FileInputStream.class.getDeclaredConstructor(FileDescriptor.class);
+
+                c.setAccessible(true);
+                FHook.hook(c)
+                        .setOrigFunRun(true)  // 如何是构造函数，框架不支持阻止原方法运行，这个设置将无效
+                        .setHookEnter((thiz, args, types, hh) -> {
+                            // 观测：只记录本 APK 路径（可选）
+                            FileDescriptor fdObj = (FileDescriptor) args.get(0);
+                            Field descriptor = FileDescriptor.class.getDeclaredField("descriptor");
+                            descriptor.setAccessible(true);
+                            int fd = (int) descriptor.get(fdObj);
+                            String path = android.system.Os.readlink("/proc/self/fd/" + fd);
+                            Log.i("Obs", "[FIS.<init>(fd).enter] fd=" + fd + ", path=" + path);
+                        })
+                        .setHookExit((ret, type, hh) ->{
+                            Log.d(TAG, "hook exit");
+                            return  ret;
+                        } ) // 构造器固定返回 null
+                        .commit();
+
+            } catch (NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        // ===== 38: 安装 TObject 构造器 Hook =====
+        Button bt_main_38 = findViewById(R.id.bt_main_38);
+        bt_main_38.setText("38 h_TObject 构造hook");
+        bt_main_38.setOnClickListener(v -> {
+            final String TAG = "CtorHook_TObject";
+            try {
+                // 1) 无参构造
+                Constructor<TObject> c0 =
+                        TObject.class.getDeclaredConstructor();
+                c0.setAccessible(true);
+                FHook.hook(c0)
+                        .setOrigFunRun(true)
+                        .setHookEnter((thiz, args, types, hh) -> {
+                            // 构造器 enter 阶段：对象未完全初始化，别访问字段/别调用实例方法 要报错
+//                            Log.i(TAG, "[enter] TObject() args=0, this=" + thiz.getClass().getName());
+                            // 标记一下，exit 用
+                            hh.extras.put("watch", true);
+                        })
+                        .setHookExit((ret, type, hh) -> {
+                            if (Boolean.TRUE.equals(hh.extras.get("watch"))) {
+                                try {
+                                    // 通过这上是拿不倒构造器的实例的 框架已经把实例放在了 ret 参数中
+                                    Object obj =ret;
+                                    Log.d(TAG, "[exit] 构造hook1 reflect thisObject=" + hh.thisObject);
+                                    Log.d(TAG, "[exit] 构造hook1 reflect ret=" + ret);
+                                    if (obj instanceof TObject) {
+                                        TObject to = (TObject) obj;
+                                        to.setName("张三");
+                                        to.setAge(109);
+                                        Log.i(TAG, "[exit] 构造hook1 TObject() done -> " + to);
+                                    }
+                                } catch (Throwable e) {
+                                    Log.w(TAG, "[exit] 构造hook1 reflect THIS failed", e);
+                                }
+                            }
+                            return ret; // 构造器固定返回 null
+                        })
+                        .commit();
+
+                // 2) (String,int) 构造
+                Constructor<top.feadre.fhook.TObject> c2 =
+                        top.feadre.fhook.TObject.class.getDeclaredConstructor(String.class, int.class);
+                c2.setAccessible(true);
+                FHook.hook(c2)
+                        .setOrigFunRun(true)
+                        .setHookEnter((thiz, args, types, hh) -> {
+                            // 只打印入参，不动 this
+                            String name = (String) args.get(0);
+                            int age = (Integer) args.get(1);
+                            Log.i(TAG, "[enter] TObject(String,int) name=" + name + ", age=" + age);
+                            hh.extras.put("watch", true);
+                        })
+                        .setHookExit((ret, type, hh) -> {
+                            if (Boolean.TRUE.equals(hh.extras.get("watch"))) {
+                                try {
+                                    Object obj =ret;
+                                    Log.d(TAG, "[exit] 构造hook2 reflect thisObject=" + hh.thisObject);
+                                    Log.d(TAG, "[exit] 构造hook2 reflect ret=" + ret);
+
+                                    if (obj instanceof TObject) {
+                                        TObject to = (TObject) obj;
+                                        to.setName("李四");
+                                        to.setAge(16);
+                                        Log.i(TAG, "[exit] 构造hook2 TObject(String,int) -> " + to);
+                                    }
+                                } catch (Throwable e) {
+                                    Log.w(TAG, "[exit] 构造hook2 reflect THIS failed", e);
+                                }
+                            }
+                            return ret;
+                        })
+                        .commit();
+
+                Toast.makeText(this, "TObject 构造hook2 已安装", Toast.LENGTH_SHORT).show();
+            } catch (Throwable t) {
+                Log.e(TAG, "install hook fail", t);
+                Toast.makeText(this, "安装失败: " + t.getClass().getSimpleName(), Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // ===== 39: 触发 TObject 构造 + 一些静态/实例操作 =====
+        Button bt_main_39 = findViewById(R.id.bt_main_39);
+        bt_main_39.setText("39 h_TObject 触发");
+        bt_main_39.setOnClickListener(v -> {
+            final String TAG = "CtorHook_TObject_Run";
+            try {
+                // 触发无参
+                top.feadre.fhook.TObject a = new top.feadre.fhook.TObject();
+                Log.i(TAG, "new TObject() -> " + a);
+
+                // 触发有参
+                top.feadre.fhook.TObject b = new top.feadre.fhook.TObject("Alice", 23);
+                Log.i(TAG, "new TObject(\"Alice\",23) -> " + b);
+
+                // 再改点实例字段（非构造 hook 范畴，只是帮你产生更多调用痕迹）
+                b.setName("Bob").setAge(24);
+                Log.i(TAG, "after setName/setAge -> " + b);
+
+                // 玩一下静态字段，便于你后续做静态读写 hook 测试
+                top.feadre.fhook.TObject.setStaticName("S-Name");
+                top.feadre.fhook.TObject.setStaticAge(99);
+                top.feadre.fhook.TObject.incStaticCount();
+                Log.i(TAG, "Statics: name=" + top.feadre.fhook.TObject.getStaticName()
+                        + ", age=" + top.feadre.fhook.TObject.getStaticAge()
+                        + ", count=" + top.feadre.fhook.TObject.getStaticCount()
+                        + ", instCount=" + top.feadre.fhook.TObject.getCount());
+
+                Toast.makeText(this, "已触发 TObject 构造/操作，查看日志", Toast.LENGTH_SHORT).show();
+            } catch (Throwable t) {
+                Log.e(TAG, "run fail", t);
+                Toast.makeText(this, "触发失败: " + t.getClass().getSimpleName(), Toast.LENGTH_SHORT).show();
+            }
+        });
+
 
     }
 
@@ -447,7 +633,7 @@ public class DebugActivity extends AppCompatActivity {
                 String key = "k";
                 boolean ok = sp.edit().putString(key, "时间" + System.currentTimeMillis()).commit();
                 String v2 = sp.getString(key, "");
-                FLog.d(TAG, "sp_putString_S_SS ok=" + ok + ", v2=" + v2);
+                Log.d(TAG, "sp_putString_S_SS ok=" + ok + ", v2=" + v2);
                 Toast.makeText(this, "sp_putString_S_SS=" + ok + ", v2=" + v2, Toast.LENGTH_SHORT).show();
             } catch (Throwable e) {
                 Log.e(TAG, "运行出错: " + e);
@@ -656,7 +842,7 @@ public class DebugActivity extends AppCompatActivity {
                     showLog("jtFun_JArr_JArr", thiz, args, types);
                     long[] o = (long[]) args.get(0);
                     o[0] = 999;
-                    hh.extras.put("args", new java.util.ArrayList<>(args));// 这里要再包一层
+                    hh.extras.put("args", new ArrayList<>(args));// 这里要再包一层
                 })
                 .setHookExit((ret, type, hh) -> {
                     showLog("jtFun_JArr_JArr", hh.thisObject, ret, type);
