@@ -48,7 +48,7 @@ dependencyResolutionManagement {
 Add to the **app module**:
 ```groovy
 dependencies {
-    implementation "com.github.Rift0911:fhook:1.1.5"
+    implementation "com.github.Rift0911:fhook:+"
 }
 ```
 
