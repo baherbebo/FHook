@@ -4,7 +4,7 @@
 
 **Full-function HOOK framework for the Android Java layer**
 
-* **No Root required** — initialize and use directly inside the app
+* **debug mode** — initialize and use directly inside the app
 * **Android 9+ (API 28+)**, including the latest versions
 * Intercept and modify **arguments/return values** of any **Java method**
 * **Class/instance-wide batch hooks**, covering common **system hotspots** (class loading, device fingerprint, SharedPreferences writes, etc.)
