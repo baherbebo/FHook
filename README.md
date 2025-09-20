@@ -1,5 +1,3 @@
-
-
 <p align="right">Language: <b>English</b> · <a href="README.cn.md">Chinese</a></p>
 
 # FHook
@@ -254,6 +252,77 @@ FHook.hook(c2)
 >
 > * Constructor hooks **observe/modify** but do not **block** creation (i.e., `setOrigFunRun` is ineffective).
 > * Reading `FileDescriptor.descriptor` may trigger hidden-API restrictions on some ROMs/versions; use **HiddenApiBypass** or NDK helpers if needed.
+
+---
+
+### 3.6 Async & Batch Submission (Avoid ANR)
+
+> **Recommended**: submit hooks **asynchronously**. The framework uses a **global single-thread executor** to install hooks **sequentially**, ensuring stability and reproducibility.
+> **Kept**: main-thread **synchronous** APIs remain available (see below).
+
+#### 3.6.1 Async submission for a single hook
+
+```java
+Method m = THook.class.getMethod("fun_I_III", int.class, int.class, int.class);
+
+FHook.hook(m)
+    .setOrigFunRun(true)
+    .setHookEnter((thiz, args, types, hh) -> { /* ... */ })
+    .setHookExit((ret, type, hh) -> ret)
+    .commitAsync(success -> Log.i("FHook", "single hook installed: " + success));
+```
+
+**Behavior**
+
+* Installation runs on a **background single thread**, keeping the UI thread responsive.
+* Result is delivered via `OnHookFinish#onFinish(boolean success)`.
+* **Synchronous API** is still available: `.commit()` (avoid calling it repeatedly on the UI thread to prevent **ANR**).
+
+#### 3.6.2 Async batch submission
+
+**Hook all declared methods on a class:**
+
+```java
+FHook.hookClassAllFuns(TObject.class)
+    .setOrigFunRun(false)
+    .setHookEnter((thiz, args, types, hh) -> { /* ... */ })
+    .setHookExit((ret, type, hh) -> ret)
+    .commitAsync(success -> Log.i("FHook", "group installed all ok? " + success));
+```
+
+**Hook all overloads by name:**
+
+```java
+FHook.hookOverloads(ClassLoader.class, "loadClass")
+    .setOrigFunRun(true)
+    .setHookEnter((thiz, args, types, hh) -> { /* ... */ })
+    .setHookExit((ret, type, hh) -> ret)
+    .commitAsync(success -> Log.i("FHook", "[loadClass] installed: " + success));
+```
+
+**Behavior**
+
+* All methods in the same batch are installed **sequentially within one background task** (no concurrent retransforms).
+* Duplicates (same executable) are automatically **de-duplicated** before install.
+* **Legacy API** remains: `commitAsync(Executor, Runnable onDone)`; you may also use `commitAsync(Executor, OnHookFinish cb)` to supply a custom executor.
+
+#### 3.6.3 Main-thread synchronous APIs (kept)
+
+* **Single**: `.commit()` — synchronous install; **do not** spam on the main thread.
+* **Batch (legacy)**: `.commitAsync(Executor, Runnable onDone)` — still supported for backward compatibility.
+
+#### 3.6.4 ANR & concurrency caveats
+
+* **Avoid ANR**
+
+  * **Do not** synchronously install **many** hooks on the UI thread.
+  * `onEnter/onExit` run on the **caller’s thread**. If the target is on a hot UI path, **avoid heavy work/IO** in callbacks.
+* **Concurrency risks**
+
+  * JVMTI retransform/verification is sensitive to concurrency on some ROMs/ART versions — **install sequentially** (the default).
+* **Mutual exclusion tip**
+
+  * Avoid hooking both `Class.forName(...)` and `ClassLoader.loadClass(...)` at the same time; they may recurse and deadlock.
 
 ---
 
