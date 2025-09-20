@@ -239,7 +239,7 @@ android.telephony.TelephonyManager.getSimSerialNumber() → ()Ljava/lang/String;
                 .setOrigFunRun(true) // 先跑原逻辑，再强制改返回
                 .setHookExit((ret, type, hh) -> {
                     Log.i("FHook", "[Debug.isDebuggerConnected] forced=false (orig=" + ret + ")");
-                    return Boolean.FALSE;
+                    return Boolean.TRUE;
                 })
                 .commit();
     }

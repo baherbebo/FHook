@@ -93,7 +93,7 @@ inline bool StartsWith(const char *s, const char *p) noexcept {
 }
 
 // ========== 常用检查 ==========
-#define CHECK_OR_RETURN(val, ret, msg) do { \
+#define G_CHECK_RET(val, ret, msg) do { \
     if (!(val)) { LOGE("%s", msg); return (ret); } \
 } while (0)
 

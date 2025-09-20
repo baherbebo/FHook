@@ -162,7 +162,7 @@ public class FHookTool {
             FLog.d(TAG, "[showMethod] Exception types: " + exceptionTypesStr.toString());
         }
 
-        // 完整签名 public static int top.feadre.finject.FInjectHelpUI.add(int,int)
+        // 完整签名 public static int top.feadre.fhook.FInjectHelpUI.add(int,int)
         String methodSignature = method.toGenericString();
         FLog.d(TAG, "[showMethod] 全签名: " + methodSignature);
 

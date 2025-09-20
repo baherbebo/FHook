@@ -107,7 +107,6 @@ public class FHookDebugActivity extends AppCompatActivity {
                 }
             }
 
-
         });
 
 
@@ -147,7 +146,10 @@ public class FHookDebugActivity extends AppCompatActivity {
             TObject o2 = new TObject("o2", 1);
             TObject o3 = new TObject("o3", 1);
 
-            FHook.hookObjAllFuns(o1).setOrigFunRun(false).commit();
+            FHook.hookObjAllFuns(o1)
+                    .setOrigFunRun(false)
+                    .commitAsync(success ->
+                            Log.i("TAG", "single hook installed: " + success));
 
             Object[] instances = CLinker.jcJvmtiFindInstances(TObject.class, true);
             for (Object o : instances) {
@@ -166,7 +168,9 @@ public class FHookDebugActivity extends AppCompatActivity {
                             showLog("SharedPreferences.Editor.class.getName()", thiz, ret, ret.getClass());
                             return ret;
                         })
-                        .commit();
+                        .commitAsync(success ->
+                                Log.i("TAG", "single hook installed: " + success));
+
                 Log.d(TAG, "SharedPreferences.Editor: " + clazz.getName());
             }
         });
@@ -184,7 +188,8 @@ public class FHookDebugActivity extends AppCompatActivity {
                         Log.d(TAG, "TObject.class.getName()=" + TObject.class.getName());
                         return ret;
                     })
-                    .commit();
+                    .commitAsync(success ->
+                            Log.i("TAG", "single hook installed: " + success));
 
         });
 
@@ -660,15 +665,15 @@ public class FHookDebugActivity extends AppCompatActivity {
 
     private void doSysHook01() throws Throwable {
 
-//        h_method_invoke(); // 不支持
+        h_method_invoke(); // 不支持
 
-//        h_class_getDeclareMethod();
+        h_class_getDeclareMethod();
 
-//        h_class_loadClass(); // 这两个不能同时hook 会锁死
+        h_class_loadClass(); // 这两个不能同时hook 会锁死
 
-//        h_Class_forName();
+//        h_Class_forName(); // 这两个不能同时hook 会锁死
 
-//        h_Settings_getString();
+        h_Settings_getString();
 
         h_SP_putString();
 
@@ -1048,12 +1053,16 @@ public class FHookDebugActivity extends AppCompatActivity {
                     Log.d(TAG, "[classLoader_loadClass_Class_S] start ....");
                     args.set(0, "java.lang.Integer");
                 })
-//                .setHookExit((ret, type, hh) -> {
-//                    Log.d(TAG, "[classLoader_loadClass_Class_S] end .... ");
-//                    ret = Thread.class;
-//                    return ret;
-//                })
-                .commit();
+                .setHookExit((ret, type, hh) -> {
+                    Log.d(TAG, "[classLoader_loadClass_Class_S] end .... ");
+                    ret = Thread.class;
+                    return ret;
+                })
+                .commitAsync(success ->
+                        Log.i(TAG, "[loadClass] single hook installed: " + success));
+
+
+
     }
 
     private static void h_Class_forName() {
@@ -1072,17 +1081,19 @@ public class FHookDebugActivity extends AppCompatActivity {
         FHook.hook(Class_forName)
                 .setOrigFunRun(true)
                 .setHookEnter((thiz, args, types, hh) -> {
-//                    Log.d(TAG, "[Class_forName_Class_S] start ....");
-//                    args.set(0, "java.lang.Integer");
+                    Log.d(TAG, "[Class_forName_Class_S] start ....");
+                    args.set(0, "java.lang.Integer");
                 })
-//                .setHookExit((ret, type, hh) -> {
-//                    if (ret != null) {
-//                        Class<?> _ret = (Class<?>) ret;
-//                        Log.d(TAG, "[Class_forName_Class_S] end ....ret= " + _ret.getName());
-//                    }
-//                    return ret;
-//                })
-                .commit();
+                .setHookExit((ret, type, hh) -> {
+                    if (ret != null) {
+                        Class<?> _ret = (Class<?>) ret;
+                        Log.d(TAG, "[Class_forName_Class_S] end ....ret= " + _ret.getName());
+                        ret = Thread.class;
+                    }
+                    return ret;
+                })
+                .commitAsync(success ->
+                        Log.i(TAG, "[Class_forName_Class_S] single hook installed: " + success));
     }
 
     /// 这个框架不能用 --------
@@ -1099,7 +1110,8 @@ public class FHookDebugActivity extends AppCompatActivity {
                     Log.d(TAG, "[class_getDeclaredMethod_M_SC] start ....");
                     return ret;
                 })
-                .commit();
+                .commitAsync(success ->
+                        Log.i(TAG, "[class_getDeclaredMethod_M_SC] single hook installed: " + success));
     }
 
     /*
@@ -1116,11 +1128,12 @@ public class FHookDebugActivity extends AppCompatActivity {
                     Log.d(TAG, "[method_invoke_O_OArr] start ....");
                     args.set(0, "java.lang.Integer");
                 })
-//                .setHookExit((ret, type, hh) -> {
-//                    Log.d(TAG, "[method_invoke_O_OArr] start ....");
-//                    return ret;
-//                })
-                .commit();
+                .setHookExit((ret, type, hh) -> {
+                    Log.d(TAG, "[method_invoke_O_OArr] start ....");
+                    return ret;
+                })
+                .commitAsync(success ->
+                        Log.i(TAG, "[method_invoke_O_OArr] single hook installed: " + success));
     }
 
 

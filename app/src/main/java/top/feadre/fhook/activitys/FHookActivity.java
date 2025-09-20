@@ -25,10 +25,10 @@ public class FHookActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 //        EdgeToEdge.enable(this); // 沉浸式
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_fhook);
 
 
-        FHookActivityHelp mainActivityHelp = new FHookActivityHelp(this);
+        FHookActivityHelp fHookActivityHelp = new FHookActivityHelp(this);
 
         Button bt_main_01 = findViewById(R.id.bt_main_01);
         bt_main_01.setText("01 启动 DebugSample");
@@ -39,14 +39,14 @@ public class FHookActivity extends AppCompatActivity {
 
         });
 
-        mainActivityHelp.do_init_views();
+        fHookActivityHelp.do_init_views();
 
 
         Button bt_main_02 = findViewById(R.id.bt_main_02);
         bt_main_02.setText("02 hook 以下系统方法");
         bt_main_02.setOnClickListener(v -> {
 
-            mainActivityHelp.do_init_hooks();
+            fHookActivityHelp.do_init_hooks();
 
         });
 

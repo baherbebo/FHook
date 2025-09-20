@@ -13,8 +13,11 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 import top.feadre.fhook.flibs.fsys.FLog;
 
@@ -26,6 +29,7 @@ public class FHook {
     // 记录每个 methodId 对应的 HookHandle，供 onEnter/onExit 分发
     private static final ConcurrentHashMap<Long, HookHandle> sHandles = new ConcurrentHashMap<>();
 
+    private static final Object sLock = new Object(); // 锁
 
 //    static {
 //        System.loadLibrary("ft002");
@@ -65,7 +69,7 @@ public class FHook {
      * @param context
      * @return
      */
-    public static synchronized boolean init(Context context) {
+    public static boolean init(Context context) {
         FLog.init(context, false);
         FLog.i(TAG, "FCFG.IS_DEBUG= " + FCFG_fhook.IS_DEBUG);
         FLog.setLogLevel(FCFG_fhook.IS_DEBUG ? FLog.VERBOSE : FLog.WARN);
@@ -127,23 +131,23 @@ public class FHook {
      *
      * @param disableDebugBridge true=尝试关闭 JDWP，并把 Runtime JavaDebuggable 复位为 0；false=保留当前调试状态
      */
-    public static synchronized void unInit(boolean disableDebugBridge) {
+    public static void unInit(boolean disableDebugBridge) {
         FLog.d(TAG, "[unInit] start ... disableDebugBridge=" + disableDebugBridge);
 
-        // 1) 卸载所有 hook（内部已做快照遍历）
-        try {
-            unHookAll();
-        } catch (Throwable t) {
-            FLog.e(TAG, "[unInit] unHookAll exception", t);
-        }
+        // 卸载所有 hook（内部已做快照遍历）
+//        try {
+//            unHookAll();
+//        } catch (Throwable t) {
+//            FLog.e(TAG, "[unInit] unHookAll exception", t);
+//        }
 
-        // 2) 清理句柄表（unHookAll 会逐个移除，这里再次确保）
-        try {
-            sHandles.clear();
-        } catch (Throwable ignore) {
-        }
+        // 清理句柄表（unHookAll 会逐个移除，这里再次确保）
+//        try {
+//            sHandles.clear();
+//        } catch (Throwable ignore) {
+//        }
 
-        // 3) 可选：关闭调试桥接（注意不同 ROM 可能无效或被策略拦截）
+        // 可选：关闭调试桥接（注意不同 ROM 可能无效或被策略拦截）
         if (disableDebugBridge) {
             try {
                 int rt = CLinker.dcSetRuntimeJavaDebuggable(0); // 0=关；-1/-2 见你之前的约定
@@ -160,7 +164,7 @@ public class FHook {
             }
         }
 
-        // 4) 置初始化标志
+        // 置初始化标志
         isInit = false;
 
         FLog.i(TAG, "[unInit] done. isInit=" + isInit + ", handles=" + sHandles.size());
@@ -169,7 +173,7 @@ public class FHook {
     /**
      * 无参便捷版：默认关闭调试桥接能力
      */
-    public static synchronized void unInit() {
+    public static void unInit() {
         unInit(true);
     }
 
@@ -181,9 +185,13 @@ public class FHook {
     }
 
 
-    static synchronized void installOnce(HookHandle h) {
+    static void installOnce(HookHandle h) {
         if (h == null || h.method == null) return;
-        if (h.isHooked) return; // 已安装就别重复
+
+        synchronized (sLock) {
+            if (h.isHooked || h.disabledByPrecheck) return;
+            h.isHooked = true; // 可选：防重复提交
+        }
 
         if (h.disabledByPrecheck) {
             FLog.e(TAG, "[installOnce] skip disabled handle: " + h.method);
@@ -195,14 +203,17 @@ public class FHook {
         boolean runOrig = h.runOriginalByDefault;
 
         long mid = CLinker.dcHook(h.method, hasEnter, hasExit, runOrig);
-        if (mid < 0) {
-            FLog.e(TAG, "[installOnce] dcHook failed: " + mid);
-            h.markNotHooked();
-            return;
+        synchronized (sLock) {
+            h.isHooked = false;
+            if (mid < 0) {
+                h.markNotHooked();
+                return;
+            }
+            h.nativeHandle = mid;
+            h.setHooked(true);
+            sHandles.put(mid, h);
         }
-        h.nativeHandle = mid;
-        h.setHooked(true);
-        sHandles.put(mid, h);
+
         if (FCFG_fhook.IS_DEBUG)
             FLog.i(TAG, "[installOnce] success: mid=" + mid +
                     " enter=" + hasEnter + " exit=" + hasExit + " runOrig=" + runOrig);
@@ -270,6 +281,9 @@ public class FHook {
         Object onExit(Object ret, Class<?> returnType, HookHandle hh) throws Throwable;
     }
 
+    public interface OnHookFinish{
+        void onFinish(boolean success);
+    }
     public static void unHook(long methodId) {
         FLog.d(TAG, "[unHook] start ... methodId=" + methodId);
         if (!sHandles.containsKey(methodId)) {
@@ -425,28 +439,50 @@ public class FHook {
             return this;
         }
 
-        // 安装本组所有 hook
-        public GroupHandle commit() {
-            if (committed) return this;
 
-            // 去重
-            java.util.LinkedHashMap<Executable, HookHandle> uniq = new java.util.LinkedHashMap<>();
-            for (HookHandle h : handles) {
-                if (h != null && h.method != null) uniq.put(h.method, h);
+        /**
+         * FHook.hookOverloads(Debug.class, "isDebuggerConnected")
+         *      .setHookExit(...)
+         *      .commitAsync(success -> FLog.i("TAG", "group installed all ok? " + success));
+         * @param cb
+         * @return
+         */
+        public GroupHandle commitAsync(OnHookFinish cb) {
+            // 单线程池
+            return commitAsync(Executors.newSingleThreadExecutor(), cb);
+        }
+
+        public GroupHandle commitAsync(Executor executor, OnHookFinish cb) {
+            if (committed) {
+                if (cb != null) cb.onFinish(true);
+                return this;
             }
+
+            // 去重（保持）
+            LinkedHashMap<Executable, HookHandle> uniq = new LinkedHashMap<>();
+            for (HookHandle h : handles) if (h != null && h.method != null) uniq.put(h.method, h);
             handles.clear();
             handles.addAll(uniq.values());
 
-            for (HookHandle h : handles) {
-                try {
-                    FHook.installOnce(h);
-                } catch (Throwable t) {
-                    FLog.e(TAG, "[GroupHandle.commit] install failed: " + h, t);
+            executor.execute(() -> {
+                int ok = 0, fail = 0;
+                for (HookHandle h : handles) {
+                    try {
+                        FHook.installOnce(h);
+                        if (h.isHooked() && h.nativeHandle > 0) ok++;
+                        else fail++;
+                    } catch (Throwable t) {
+                        FLog.e(TAG, "[GroupHandle.commitAsync] install failed: " + h, t);
+                        fail++;
+                    }
                 }
-            }
-            committed = true;
-            final String cname = (targetClass == null ? "null" : targetClass.getName());
-            FLog.i(TAG, "[GroupHandle.commit] done. class=" + cname + " total=" + handles.size());
+                committed = true;
+                FLog.i(TAG, "[GroupHandle.commitAsync] done. class=" +
+                        (targetClass == null ? "null" : targetClass.getName()) +
+                        " total=" + handles.size() + " ok=" + ok + " fail=" + fail);
+
+                if (cb != null) cb.onFinish(fail == 0);
+            });
             return this;
         }
 
@@ -566,7 +602,7 @@ public class FHook {
     /**
      * 按类批量 hook（仅本类声明的方法）
      */
-    public static synchronized GroupHandle hookClassAllFuns(Class<?> cls) {
+    public static GroupHandle hookClassAllFuns(Class<?> cls) {
         FLog.d(TAG, "[hook(Class)] start ... class=" + (cls == null ? "null" : cls.getName()));
         return hookClassInternal(cls, null, false);
     }
@@ -574,7 +610,7 @@ public class FHook {
     /**
      * 按对象批量 hook（向上寻找可 hook 的具体实现类；仅本类声明的方法）
      */
-    public static synchronized GroupHandle hookObjAllFuns(Object obj) {
+    public static GroupHandle hookObjAllFuns(Object obj) {
         FLog.d(TAG, "[hook(Object)] start ... " + obj);
         if (!isInit) {
             FLog.e(TAG, "[hook(Object)] 请先初始化 call FHook.init() first");
@@ -601,7 +637,7 @@ public class FHook {
     /**
      * 单方法入口（真正的可用性以 canHook/isBridgeCritical 为准）
      */
-    public static synchronized HookHandle hook(Method method) {
+    public static HookHandle hook(Method method) {
         if (!isInit) {
             FLog.e(TAG, "[hook(Method)] 请先初始化 call FHook.init() first");
             return new HookHandle(-1, method).markNotHooked();
@@ -632,7 +668,7 @@ public class FHook {
         return new HookHandle(-1, method);
     }
 
-    public static synchronized HookHandle hook(Constructor<?> ctor) {
+    public static HookHandle hook(Constructor<?> ctor) {
         if (ctor == null) throw new NullPointerException("ctor == null");
         return new HookHandle(ctor); // 直接复用 HookHandle
     }
@@ -640,7 +676,7 @@ public class FHook {
     /**
      * 指定类与方法名：hook 其所有重载（先本类声明，未命中再回退到继承的 public）
      */
-    public static synchronized GroupHandle hookOverloads(Class<?> clazz, String name_fun) {
+    public static GroupHandle hookOverloads(Class<?> clazz, String name_fun) {
         FLog.d(TAG, "[hook(Class,String)] start ... class=" + (clazz == null ? "null" : clazz.getName())
                 + " name=" + name_fun);
         if (name_fun == null || name_fun.length() == 0) {

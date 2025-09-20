@@ -284,6 +284,7 @@ We provide deeper engineering assistance to help you land with lower cost (under
 * **Business & Technical Support** — **Feadre (Rift Tech)**:
 
   * Email: `rift@feadre.top`
+  * Email: `zkbutt@hotmail.com`
   * QQ: `27113970`
 
 * **Sponsor us** (thank you!):

@@ -339,7 +339,7 @@ Java_top_feadre_fhook_CLinker_jcJvmtiSuccess(JNIEnv *env, jclass clazz, jstring 
 
     auto transformFn = getAgentFn<agent_do_init_success4type>(
             agent_do_init_success4name.c_str());
-    CHECK_OR_RETURN(transformFn, false, "没有找到符号 %s");
+    G_CHECK_RET(transformFn, false, "没有找到符号 %s");
     transformFn(env, clazz, is_safe_mode, is_debug); // 调用 agent_do_init_success4type
 
     return true;

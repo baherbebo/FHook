@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".activitys.FHookActivity">
+    tools:context=".activitys.MainActivity">
 
     <!-- 只有一个 HorizontalScrollView，内部包裹所有行；纵向依旧可滚动 -->
 

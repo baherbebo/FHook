@@ -1,42 +1,42 @@
-<p align="right">语言：<b>中文</b> · <a href="README.md">English</a></p>
+<p align="right">Language: <b>English</b> · <a href="README.cn.md">Chinese</a></p>
 
 # FHook
 
-**Android 端 Java 层全函数 HOOK 框架**
+**Full-function HOOK framework for the Android Java layer**
 
-* **无需 Root**，应用内随时初始化使用
-* **Android 9+（API 28+）**，含最新版本
-* 任意 **Java 方法** 的入参/返回值拦截与篡改
-* 支持 **按类/实例批量 hook**，覆盖常见 **系统关键点**（类加载、设备指纹、SP 写入等）
-* 支持 Gradle 依赖（implementation）、源码集成（module/源码拷贝）、以及在合规前提下的应用注入（重打包或动态加载）三种方式，覆盖不同使用场景
+* **No Root required** — initialize and use directly inside the app
+* **Android 9+ (API 28+)**, including the latest versions
+* Intercept and modify **arguments/return values** of any **Java method**
+* **Class/instance-wide batch hooks**, covering common **system hotspots** (class loading, device fingerprint, SharedPreferences writes, etc.)
+* Three integration options: Gradle dependency (`implementation`), source integration (module/source copy), and (under compliance) app injection (repack or dynamic loading)
 
-> 仅用于安全研究、测试与调试等 **合规场景**。请确保对目标拥有合法授权。
-
----
-
-## 1. 解决什么问题
-
-* **快速观测**：无需改目标代码，运行期即可打印调用栈/参数/返回值
-* **临时改写**：对入参/返回值做临时修正或“假数据”回灌，便于验证分支
-* **批量覆盖**：对类/实例的全部方法一键 hook，提高调试与回归效率
-* **系统关键点监控**：`Class.forName` / `ClassLoader.loadClass` / `Settings.Secure.getString` /
-  `System.loadLibrary` 等都能拦截记录
+> For **lawful** security research, testing, and debugging only. Ensure you have proper authorization for any target.
 
 ---
 
-## 2. 适用场景 & 环境
+## 1. What problem does it solve?
 
-* **环境**：Android 9+（API 28+），Kotlin/Java 工程均可
-* **场景**：功能联调、灰盒测试、自动化验收、关键路径埋点与审计、崩溃定位等
-* **不依赖**：Xposed / Magisk / Root
+* **Rapid observation**: print call stacks/args/returns at runtime without touching target code
+* **Temporary patching**: tweak args/returns or feed “mock data” to verify branches
+* **Batch coverage**: one-click hook for all methods on a class/instance to accelerate debugging and regression
+* **System hotspot auditing**: `Class.forName` / `ClassLoader.loadClass` / `Settings.Secure.getString` /
+  `System.loadLibrary`, etc. can be intercepted and logged
 
 ---
 
-## 3. 快速安装与使用
+## 2. Scenarios & Environment
 
-### 3.1 添加 JitPack 仓库
+* **Environment**: Android 9+ (API 28+); works with Kotlin/Java projects
+* **Scenarios**: feature co-debugging, gray-box testing, automated acceptance, critical-path tracing & audit, crash triage
+* **No dependency on** Xposed / Magisk / Root
 
-在 **`settings.gradle`** 或根 **`build.gradle`** 中添加：
+---
+
+## 3. Quick Start
+
+### 3.1 Add JitPack repository
+
+Add to **`settings.gradle`** or the root **`build.gradle`**:
 
 ```groovy
 dependencyResolutionManagement {
@@ -48,11 +48,11 @@ dependencyResolutionManagement {
 }
 ```
 
-> Kotlin DSL 请改为：`maven(url = "https://jitpack.io")`
+> Kotlin DSL: `maven(url = "https://jitpack.io")`
 
-### 3.2 引入依赖
+### 3.2 Add dependency
 
-在 **app 模块**：
+In your **app module**:
 
 ```groovy
 dependencies {
@@ -60,9 +60,9 @@ dependencies {
 }
 ```
 
-### 3.3 初始化（自动 / 手动）
+### 3.3 Initialize (auto / manual)
 
-**方式 A：`attachBaseContext` 启动自动初始化**
+**Option A: Auto init in `attachBaseContext`**
 
 ```java
 @Override
@@ -75,7 +75,7 @@ protected void attachBaseContext(Context base) {
 }
 ```
 
-**方式 B：任意位置手动初始化（示例：按钮点击）**
+**Option B: Manual init anywhere (e.g., button click)**
 
 ```java
 bt_main_02.setOnClickListener(v -> {
@@ -83,23 +83,23 @@ bt_main_02.setOnClickListener(v -> {
         FHook.unInit();
     } else {
         if (!FHook.init(this)) {
-            Toast.makeText(this, "初始化失败", Toast.LENGTH_LONG).show();
-            Log.e(TAG, "初始化失败");
+            Toast.makeText(this, "Init failed", Toast.LENGTH_LONG).show();
+            Log.e(TAG, "Init failed");
         } else {
-            Toast.makeText(this, "初始化成功", Toast.LENGTH_LONG).show();
-            Log.i(TAG, "初始化成功");
+            Toast.makeText(this, "Init success", Toast.LENGTH_LONG).show();
+            Log.i(TAG, "Init success");
         }
     }
 });
 ```
 
-> 常用：`FHook.unHookAll()` 解除全部 hook；`FHook.showHookInfo()` 查看当前 hook 状态。
+> Handy calls: `FHook.unHookAll()` to remove all hooks; `FHook.showHookInfo()` to view current hook status.
 
-### 3.4 最小可跑示例
+### 3.4 Minimal runnable samples
 
-#### A) Hook 普通方法（应用内方法）
+#### A) Hook a regular app method
 
-以 `THook.fun_I_III(int a, int b, int c): int` 为例，演示 **改入参与返回值**：
+Take `THook.fun_I_III(int a, int b, int c): int` as an example — **modify args and return**:
 
 ```java
 import java.lang.reflect.Method;
@@ -108,23 +108,23 @@ import android.util.Log;
 Method m = THook.class.getMethod("fun_I_III", int.class, int.class, int.class);
 
 FHook.hook(m)
-    .setOrigFunRun(true) // 先跑原函数
+    .setOrigFunRun(true) // run the original method first
     .setHookEnter((thiz, args, types, hh) -> {
-        // 改第一个入参
+        // change the first argument
         args.set(0, 6666);
         Log.d("FHook", "fun_I_III enter: " + args);
     })
     .setHookExit((ret, type, hh) -> {
-        // 强制改返回
+        // force the return value
         Log.d("FHook", "fun_I_III exit, origRet=" + ret);
         return 8888;
     })
     .commit();
 ```
 
-#### B) Hook 系统方法（设备指纹示例）
+#### B) Hook a system method (device fingerprint sample)
 
-以 `Settings.Secure.getString(ContentResolver, String)` 为例，定向 **伪造 ANDROID_ID**：
+Take `Settings.Secure.getString(ContentResolver, String)` — **forge ANDROID\_ID** selectively:
 
 ```java
 import android.provider.Settings;
@@ -145,65 +145,90 @@ FHook.hook(sysGet)
     .setHookExit((ret, type, hh) -> {
         String key = (String) hh.extras.get("key");
         if ("android_id".equalsIgnoreCase(key)) {
-            return "a1b2c3d4e5f6a7b8"; // 仅对 ANDROID_ID 生效
+            return "a1b2c3d4e5f6a7b8"; // affect ANDROID_ID only
         }
-        return ret; // 其它 key 保持原值
+        return ret; // keep others intact
     })
     .commit();
 ```
 
-> 提示：接口/桥接方法（如 `SharedPreferences.Editor.commit`）建议用
-> `FHookTool.findMethod4Impl(editor, ifaceMethod)` 找到 **真实实现方法** 再 hook，成功率更高。
+> Tip: for interface/bridge methods (e.g., `SharedPreferences.Editor.commit`), use
+> `FHookTool.findMethod4Impl(editor, ifaceMethod)` to locate the **actual implementation method** before hooking for a higher success rate.
+
 ---
-### 3.5 构造函数 Hook 示例（系统 & 自定义类）
 
-> 说明：**构造器 Hook 的原语义**是“总会执行原构造”，因此 `setOrigFunRun(true/false)` **对构造器不生效**；
->  回调中 **enter 阶段对象尚未完全初始化**，不要访问实例字段/方法；**exit 阶段**的 `ret` 即新建的实例（`thisObject` 同 `ret`）。
+### 3.5 Constructor Hook Samples (System & Custom)
 
-#### A) Hook 系统构造器：`FileInputStream(FileDescriptor)`
+> Notes: By definition, a **constructor always runs**; `setOrigFunRun(true/false)` **has no effect** on constructors.
+> During **enter**, the object is **not fully initialized** — do not touch fields/instance methods.
+> On **exit**, `ret` is the newly created instance (same as `thisObject`).
+
+#### A) Hook system constructor: `FileInputStream(FileDescriptor)`
+
 ```java
+// 1) Bind the constructor
+Constructor<FileInputStream> c =
+        FileInputStream.class.getDeclaredConstructor(FileDescriptor.class);
+c.setAccessible(true);
 
 FHook.hook(c)
-    .setOrigFunRun(true) // 对构造器无效，但保留写法不影响
+    .setOrigFunRun(true) // no-op for constructors, harmless to keep
     .setHookEnter((thiz, args, types, hh) -> {
-        // 仅做观测：从 FileDescriptor 反解路径（可能受隐藏 API 限制，必要时使用 HiddenApiBypass）
+        // Observe only: reverse path from FileDescriptor (may hit hidden-API limits; use HiddenApiBypass if needed)
         FileDescriptor fdObj = (FileDescriptor) args.get(0);
         Field f = FileDescriptor.class.getDeclaredField("descriptor");
-                f.setAccessible(true);
+        f.setAccessible(true);
         int fd = (int) f.get(fdObj);
         String path = android.system.Os.readlink("/proc/self/fd/" + fd);
         Log.i("FHook", "[FIS.<init>(fd).enter] fd=" + fd + ", path=" + path);
     })
     .setHookExit((ret, type, hh) -> {
         Log.i("FHook", "[FIS.<init>(fd).exit] new instance=" + ret);
-        return ret; // 构造器语义：返回值保持原样
+        return ret; // keep constructor return as-is
     })
     .commit();
 
+// 2) Trigger: open your own APK via PFD, then read some Zip entries through FileInputStream(FileDescriptor)
+String apkPath = context.getApplicationInfo().sourceDir;
+android.os.ParcelFileDescriptor pfd = android.os.ParcelFileDescriptor.open(
+        new java.io.File(apkPath),
+        android.os.ParcelFileDescriptor.MODE_READ_ONLY);
+
+try (FileInputStream fis = new FileInputStream(pfd.getFileDescriptor());
+     java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(fis)) {
+    java.util.zip.ZipEntry e; int seen = 0; byte[] buf = new byte[4096];
+    while ((e = zis.getNextEntry()) != null && seen++ < 5) {
+        Log.i("FHook", "[Zip] " + e.getName());
+        while (zis.read(buf) != -1) { /* drain */ }
+    }
+} finally {
+    try { pfd.close(); } catch (Throwable ignore) {}
+}
 ```
-#### B) Hook 自定义类构造器（无参与含参）
+
+#### B) Hook custom class constructors (no-arg & arg-ful)
 
 ```java
-// 无参构造
+// No-arg constructor
 Constructor<TObject> c0 = TObject.class.getDeclaredConstructor();
 c0.setAccessible(true);
 FHook.hook(c0)
-    .setOrigFunRun(true) // 对构造器无效
+    .setOrigFunRun(true) // no-op for constructors
     .setHookEnter((thiz, args, types, hh) -> {
-        // 仅做标记，exit 阶段再访问实例
+        // Mark only; access the instance on exit
         hh.extras.put("watch", true);
     })
     .setHookExit((ret, type, hh) -> {
         if (Boolean.TRUE.equals(hh.extras.get("watch")) && ret instanceof TObject) {
             TObject to = (TObject) ret;
-            to.setName("张三").setAge(109);
+            to.setName("Zhang San").setAge(109);
             Log.i("FHook", "[Ctor0.exit] TObject() -> " + to);
         }
         return ret;
     })
     .commit();
 
-// (String,int) 构造
+// (String,int) constructor
 Constructor<TObject> c2 = TObject.class.getDeclaredConstructor(String.class, int.class);
 c2.setAccessible(true);
 FHook.hook(c2)
@@ -215,65 +240,133 @@ FHook.hook(c2)
     .setHookExit((ret, type, hh) -> {
         if (Boolean.TRUE.equals(hh.extras.get("watch")) && ret instanceof TObject) {
             TObject to = (TObject) ret;
-            to.setName("李四").setAge(16);
+            to.setName("Li Si").setAge(16);
             Log.i("FHook", "[Ctor2.exit] TObject(name,int) -> " + to);
         }
         return ret;
     })
     .commit();
- ```
+```
 
-> 小贴士
+> Tips
 >
-> - 构造器 Hook **支持观测/修饰** 不支持函数阻断（即 setOrigFunRun 无效）。
-> - 读取 `FileDescriptor.descriptor` 在部分 ROM/版本上可能触发隐藏 API 限制，必要时配合 **HiddenApiBypass** 或改用 NDK 辅助。
+> * Constructor hooks **observe/modify** but do not **block** creation (i.e., `setOrigFunRun` is ineffective).
+> * Reading `FileDescriptor.descriptor` may trigger hidden-API restrictions on some ROMs/versions; use **HiddenApiBypass** or NDK helpers if needed.
 
 ---
 
-## 4. 赞助与支持 · 授权与合作
+### 3.6 Async & Batch Submission (Avoid ANR)
 
-* **个人学习与研究**：免费使用（详见仓库根目录 **[LICENSE.agent-binary](./LICENSE.agent-binary)**）。
-* **商业/企业使用**：请严格遵守 **LICENSE.agent-binary**；如需 **商用授权、定制功能、技术支持或联合研发**，请通过 **GitHub Issues** 或仓库主页的联系方式沟通。
-* **赞助方式**：欢迎 Star ⭐、提交 PR、或联系我们获取赞助通道。
+> **Recommended**: submit hooks **asynchronously**. The framework uses a **global single-thread executor** to install hooks **sequentially**, ensuring stability and reproducibility.
+> **Kept**: main-thread **synchronous** APIs remain available (see below).
 
-> **合规声明**：FHook 仅用于合规场景。**严禁**将本项目用于任何违法违规用途，由此产生的风险与后果由使用者承担。
+#### 3.6.1 Async submission for a single hook
+
+```java
+Method m = THook.class.getMethod("fun_I_III", int.class, int.class, int.class);
+
+FHook.hook(m)
+    .setOrigFunRun(true)
+    .setHookEnter((thiz, args, types, hh) -> { /* ... */ })
+    .setHookExit((ret, type, hh) -> ret)
+    .commitAsync(success -> Log.i("FHook", "single hook installed: " + success));
+```
+
+**Behavior**
+
+* Installation runs on a **background single thread**, keeping the UI thread responsive.
+* Result is delivered via `OnHookFinish#onFinish(boolean success)`.
+* **Synchronous API** is still available: `.commit()` (avoid calling it repeatedly on the UI thread to prevent **ANR**).
+
+#### 3.6.2 Async batch submission
+
+**Hook all declared methods on a class:**
+
+```java
+FHook.hookClassAllFuns(TObject.class)
+    .setOrigFunRun(false)
+    .setHookEnter((thiz, args, types, hh) -> { /* ... */ })
+    .setHookExit((ret, type, hh) -> ret)
+    .commitAsync(success -> Log.i("FHook", "group installed all ok? " + success));
+```
+
+**Hook all overloads by name:**
+
+```java
+FHook.hookOverloads(ClassLoader.class, "loadClass")
+    .setOrigFunRun(true)
+    .setHookEnter((thiz, args, types, hh) -> { /* ... */ })
+    .setHookExit((ret, type, hh) -> ret)
+    .commitAsync(success -> Log.i("FHook", "[loadClass] installed: " + success));
+```
+
+**Behavior**
+
+* All methods in the same batch are installed **sequentially within one background task** (no concurrent retransforms).
+* Duplicates (same executable) are automatically **de-duplicated** before install.
+* **Legacy API** remains: `commitAsync(Executor, Runnable onDone)`; you may also use `commitAsync(Executor, OnHookFinish cb)` to supply a custom executor.
+
+#### 3.6.3 Main-thread synchronous APIs (kept)
+
+* **Single**: `.commit()` — synchronous install; **do not** spam on the main thread.
+* **Batch (legacy)**: `.commitAsync(Executor, Runnable onDone)` — still supported for backward compatibility.
+
+#### 3.6.4 ANR & concurrency caveats
+
+* **Avoid ANR**
+
+  * **Do not** synchronously install **many** hooks on the UI thread.
+  * `onEnter/onExit` run on the **caller’s thread**. If the target is on a hot UI path, **avoid heavy work/IO** in callbacks.
+* **Concurrency risks**
+
+  * JVMTI retransform/verification is sensitive to concurrency on some ROMs/ART versions — **install sequentially** (the default).
+* **Mutual exclusion tip**
+
+  * Avoid hooking both `Class.forName(...)` and `ClassLoader.loadClass(...)` at the same time; they may recurse and deadlock.
 
 ---
 
-### 源码部署与核心技术支持
+## 4. Sponsorship & Support · Licensing & Collaboration
 
-在合法合规前提下，我们提供更深入的工程化支持，助你低成本落地：
+* **Personal learning & research**: free to use (see **[LICENSE.agent-binary](./LICENSE.agent-binary)** in the repo root).
+* **Commercial/enterprise use**: strictly follow **LICENSE.agent-binary**. For **commercial licensing, custom features, technical support, or joint R\&D**, please reach out via **GitHub Issues** or the contact info below.
+* **Ways to support**: Star ⭐ the repo, send PRs, or contact us for sponsorship options.
 
-- **源码级交付选项**：可选 *全源码交付* 或 *核心 Agent 二进制 + 适配层源码* 的混合模式（可签署 NDA）
-- **部署形态**：Gradle 依赖、源码导入（mono-repo/多模块）、私有 Maven 仓库分发
-- **兼容性与适配**：Android 9–15 版本差异、厂商 ROM、混淆/加固/VMP 环境下的稳定性优化
-- **性能与稳定性**：启动时机、死锁规避、关键桥接路径旁路、回调线程模型与卡顿治理
-- **培训与共建**：二次开发培训、代码走查、最佳实践清单、联调排障陪跑
+> **Compliance Notice**: FHook is for compliant use only. **Any illegal or abusive use is strictly prohibited**; users bear all associated risks and consequences.
 
-> 如需 **源码部署 / 核心技术支持 / 定制功能**，请在下方「联系方式」与我们沟通具体诉求与范围。
+---
 
-### 联系方式
+### Source Delivery & Core Technical Support
 
-* **商业合作 & 技术支持**：请通过以下方式联系 **裂痕科技（Feadre）**：
+We provide deeper engineering assistance to help you land with lower cost (under lawful compliance):
 
-  * 邮箱：`rift@feadre.top`
-  * QQ：`27113970`
+* **Source delivery options**: choose *full source delivery* or a hybrid of *core agent binary + adapter-layer source* (NDA available)
+* **Deployment modes**: Gradle dependency, source import (mono-repo/multi-module), private Maven distribution
+* **Compatibility & adaptation**: Android 9–15 deltas, OEM ROMs, stability under obfuscation/packing/VMP
+* **Performance & stability**: init timing, deadlock avoidance, bypassing critical bridge paths, callback threading & jank mitigation
+* **Training & co-build**: secondary-dev training, code walkthrough, best-practice checklists, co-debugging & triage
 
-* **赞助我们**（非常感谢！）：
+> For **source delivery / core support / customization**, contact us below with your scope and requirements.
 
+### Contact
 
-<!-- 响应式赞助二维码容器：宽屏并排，窄屏换行 -->
-| <img src="docs/wx_rift_m.jpg" alt="微信赞助" height="180"> | <img src="docs/zfb_rift_m.jpg" alt="支付宝赞助" height="180"> |
-|:--:|:--:|
-| 微信支付 | 支付宝支付 |
+* **Business & Technical Support** — **Feadre (Rift Tech)**:
 
+  * Email: `rift@feadre.top`
+  * Email: `zkbutt@hotmail.com`
+  * QQ: `27113970`
 
-**尽情享受使用 FHook 的乐趣吧!**
+* **Sponsor us** (thank you!):
 
-### 附：注意事项
+| <img src="docs/wx_rift_m.jpg" alt="WeChat Pay" height="180"> | <img src="docs/zfb_rift_m.jpg" alt="Alipay" height="180"> |
+| :----------------------------------------------------------: | :-------------------------------------------------------: |
+|                          WeChat Pay                          |                           Alipay                          |
 
-* **已知不支持/高危桥接方法**（详见项目内 `isBridgeCritical`）
-  以下方法**通常不建议/无法直接 hook**：
+**Enjoy hacking (legally) with FHook!**
+
+### Appendix: Notes
+
+* **Known unsupported/high-risk bridges** (see `isBridgeCritical` in the project). The following are **usually not recommended / not hookable**:
 
   ```
   Thread.currentThread()
@@ -281,22 +374,25 @@ FHook.hook(c2)
   Class#getDeclaredMethod(String, Class[])
   ```
 
-  这些多为桥接/反射入口，建议改为 **定位到真实实现方法** 再 hook（如先通过
-  `FHookTool.findMethod4Impl(...)` 获取实现方法）。
+  These are often bridge/reflection entry points. Prefer locating the **actual implementation method** first (e.g., via
+  `FHookTool.findMethod4Impl(...)`).
 
-* **互斥建议**：`Class.forName(...)` 与 `ClassLoader.loadClass(...)` **不要同时 hook**。
-  两者存在相互调用/递归链路，容易导致死锁或卡死；框架未做强制限制，请自行规避。
-* **桥接/反射桥方法**（如 `Method.invoke`）不建议直接 hook，请定位 **真实实现方法**（
-  `FHookTool.findMethod4Impl`）。
-* 回调运行在调用线程，避免在 UI 线程做重活。
-* 不同 Android 版本的隐藏 API 限制不同，系统方法 hook 需做版本兼容验证。
-* 若混淆影响调试，可临时添加（按需）：
+* **Mutual exclusion tip**: avoid hooking both `Class.forName(...)` and `ClassLoader.loadClass(...)` together.
+  They may call each other and create recursion → deadlocks/hangs. The framework does not hard-block this; please avoid manually.
+
+* Bridge/reflection bridges (e.g., `Method.invoke`) are not recommended; hook the **real implementation** (`FHookTool.findMethod4Impl`).
+
+* Callbacks run on the caller’s thread; avoid heavy work on the UI thread.
+
+* Hidden-API restrictions vary by Android version; validate system-method hooks across versions.
+
+* If obfuscation hinders debugging, add (as needed):
 
 ```pro
 -keep class top.feadre.fhook.** { *; }
-或
+# or
 -keep class top.feadre.fhook.CLinker {*;}
 -keep class top.feadre.fhook.FHook {*;}
 ```
 
-> 若使用中发现BUG或是其它意见建议，请随便联系作者或提交到 Issue 中，建议 **反馈失败的方法签名与系统版本**，便于快速定位为您解决问题。
+> If you hit a bug or have suggestions, please open an Issue with the **failed method signature and Android version** so we can reproduce and resolve quickly.

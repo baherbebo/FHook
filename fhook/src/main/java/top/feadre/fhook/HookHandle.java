@@ -5,6 +5,8 @@ import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 import top.feadre.fhook.flibs.fsys.FLog;
 
@@ -93,7 +95,38 @@ public class HookHandle {
         return this;
     }
 
-    public synchronized HookHandle commit() {
+    /**
+     * FHook.hook(method)
+     *      .setHookEnter(...)
+     *      .setHookExit(...)
+     *      .commitAsync(success -> FLog.i("TAG", "single hook installed: " + success));
+     * @param cb
+     * @return
+     */
+    public HookHandle commitAsync(FHook.OnHookFinish cb) {
+        return commitAsync(Executors.newSingleThreadExecutor(), cb);
+    }
+
+    public HookHandle commitAsync(Executor executor, FHook.OnHookFinish cb) {
+        if (disabledByPrecheck) {
+            FLog.e(TAG, "[commitAsync] 失败不能提交 -> " + method);
+            if (cb != null) cb.onFinish(false);
+            return this;
+        }
+        executor.execute(() -> {
+            try {
+                FHook.installOnce(this); // 只安装一次
+                boolean ok = this.isHooked && this.nativeHandle > 0;
+                if (cb != null) cb.onFinish(ok);
+            } catch (Throwable t) {
+                FLog.e(TAG, "[commitAsync] install exception -> " + method, t);
+                if (cb != null) cb.onFinish(false);
+            }
+        });
+        return this;
+    }
+
+    public  HookHandle commit() {
         if (disabledByPrecheck) {
             FLog.e(TAG, "[commit] 失败不能提交 -> " + method);
             return this;
